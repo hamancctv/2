@@ -59,7 +59,7 @@
  <input type="text" class='form-control' style= "position:absolute;top:13;width:270;right:10;z-index:20" id = "gpsyx" value ="35.2725308711779, 128.406307024695"></button>
 
    <input type="text" id="keyword" onkeyup="filter()" onkeydown="Enter_Check()" class="clickdown" style="position:absolute;top:13;width:300;left:210;z-index:200" autofocus />
-   <button id="searchBtn" tabindex="0" onclick="btnsearch_click()" style="position:absolute;top:12;width:45;left:160;z-index:20" class="bsuccess">검색</button>
+   <button id="searchBtn" onclick="btnsearch_click()" style="position:absolute;top:12;width:45;left:160;z-index:20" class="bsuccess">검색</button>
 <div class="custom_typecontrol2_m radius_border">
 	<span id="btnCurrentMe" class="btn" onclick="mapCurrentPosition2()">내위치</span>
 	<span id="btnCurrentHideMe" class="selected_btn" onclick="mapCurrentPositionHide()">숨김</span>
@@ -1505,7 +1505,7 @@ kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
 
 <div id="menu_wrap" class="bg_white" style="border:1px solid #919191;border-radius:10px;">
     
-<div class='sel_txt' style='cursor: pointer;' onClick='setCenter(35.2643129874132, 128.489259058209)'><span class='name'>도-001-신당고개</span></div>
+<div tabindex="1" class='sel_txt' style='cursor: pointer;' onClick='setCenter(35.2643129874132, 128.489259058209)'><span class='name'>도-001-신당고개</span></div>
 <div class='sel_txt' style='cursor: pointer;' onClick='setCenter(35.2833312506004, 128.402859093824)'><span class='name'>도-002-함안중앞02</span></div>
 <div class='sel_txt' style='cursor: pointer;' onClick='setCenter(35.2833312506004, 128.402859093824)'><span class='name'>도-002-함안중앞03</span></div>
 <div class='sel_txt' style='cursor: pointer;' onClick='setCenter(35.3082426798151, 128.296449710605)'><span class='name'>도-003-월촌정암삼거리</span></div>
