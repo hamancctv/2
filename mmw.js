@@ -143,11 +143,6 @@ function makeLockDrag() {
     btnLockDrag.className = 'selected_btn';
 }
 
-function mapCurrentPositionHide() {
-    myMarker.setVisible(false);
-    btnCurrentMe.className = 'btn';
-    btnCurrentHideMe.className = 'selected_btn';
-}
 
 function mapCurrentPosition2() {
     // 내 위치 표시
@@ -170,6 +165,11 @@ function mapCurrentPosition2() {
 }
 
 
+function mapCurrentPositionHide() {
+    myMarker.setVisible(false);
+    btnCurrentMe.className = 'btn';
+    btnCurrentHideMe.className = 'selected_btn';
+}
 
 
 
