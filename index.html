@@ -61,8 +61,8 @@
    <input type="text" id="keyword" onkeyup="filter()" onkeydown="Enter_Check()" class="clickdown" style="position:absolute;top:13;width:300;left:210;z-index:200" autofocus />
    <button id="searchBtn" onclick="btnsearch_click()" style="position:absolute;top:12;width:45;left:160;z-index:20" class="bsuccess">검색</button>
 <div class="custom_typecontrol2_m radius_border">
-	<span id="btnCurrentMe" class="btn" onclick="mapCurrentPosition2()">내위치</span>
-	<span id="btnCurrentHideMe" class="selected_btn" onclick="mapCurrentPositionHide()">숨김</span>
+	<span id="btnCurrentMe" class="selected_btn" onclick="mapCurrentPosition2()">내위치</span>
+	<span id="btnCurrentHideMe" class="btn" onclick="mapCurrentPositionHide()">숨김</span>
 </div>
 
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=2634b7b6dd61e41a4d6c0bf40a2ef820&libraries=services,clusterer,drawing"></script>
@@ -299,7 +299,7 @@ navigator.geolocation.getCurrentPosition(function(pos) {
 		myPosLat = pos.coords.latitude;
 		myPosLng = pos.coords.longitude;
 
-		var markerImage = new kakao.maps.MarkerImage("https://ajubang.com/map/pin_me.png", new kakao.maps.Size(56, 49), {offset: new kakao.maps.Point(28, 49)});
+		var markerImage = new kakao.maps.MarkerImage("/pin_me.png", new kakao.maps.Size(56, 49), {offset: new kakao.maps.Point(28, 49)});
 		myMarker = new kakao.maps.Marker({
 			map: map,
 			position: new kakao.maps.LatLng(myPosLat, myPosLng),
