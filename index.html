@@ -1,5 +1,4 @@
 
-
 <html>
 <head>
     <meta charset="utf-8">
@@ -16,7 +15,15 @@
 #roadviewControl.active {background-position:0 -350px;}
 #close {position: absolute;padding: 4px;top: 5px;left: 5px;cursor: pointer;background: #fff;border-radius: 4px;border: 1px solid #c8c8c8;box-shadow: 0px 1px #888;}
 #close .img {display: block;background: url(https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/rv_close.png) no-repeat;width: 14px;height: 14px;}
-	    
+
+       .custom_typecontrol2_m {position:absolute;bottom:5px;left:10px;overflow:hidden;width:80px;height:25px;margin:0;padding:0;z-index:1;font-size:12px;font-family:'Malgun Gothic', '맑은 고딕', sans-serif;}
+.custom_typecontrol2_m span {display:block;width:40px;height:30px;float:left;text-align:center;line-height:25px;cursor:pointer;}
+.custom_typecontrol2_m .btn {background:#fff;background:linear-gradient(#fff,  #e6e6e6);}       
+.custom_typecontrol2_m .btn:hover {background:#f5f5f5;background:linear-gradient(#f5f5f5,#e3e3e3);}
+.custom_typecontrol2_m .btn:active {background:#e6e6e6;background:linear-gradient(#e6e6e6, #fff);}    
+.custom_typecontrol2_m .selected_btn {color:#fff;background:#425470;background:linear-gradient(#425470, #5b6d8a);}
+.custom_typecontrol2_m .selected_btn:hover {color:#fff;}   
+       
  html, body {width:100%;height:100%;margin:0;padding:0;overflow: hidden}
         
 #menu_wrap {position:absolute;top:40px;right:8px;bottom:60%;width:180px;margin:3px 0 5px 10px;padding:5px;overflow-y:auto;background:rgba(255, 255, 255, 0.8);z-index: 1;font-size:12px;border-radius: 0px;}
@@ -51,7 +58,10 @@
 
    <input type="text" id="keyword" onkeyup="filter()" onkeydown="Enter_Check()" class="clickdown" style="position:absolute;top:13;width:300;left:210;z-index:200"/>
    <button id="searchBtn" onclick="btnsearch_click()" style="position:absolute;top:12;width:45;left:160;z-index:20" class="bsuccess" >검색</button>
-
+<div class="custom_typecontrol2_m radius_border">
+	<span id="btnCurrentMe" class="selected_btn" onclick="mapCurrentPosition2()">내위치</span>
+	<span id="btnCurrentHideMe" class="btn" onclick="mapCurrentPositionHide()">숨김</span>
+</div>
 
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=2634b7b6dd61e41a4d6c0bf40a2ef820&libraries=services,clusterer,drawing"></script>
 <script src="//developers.kakao.com/sdk/js/kakao.min.js"></script>
@@ -62,6 +72,7 @@ var overlayOn = false, // 지도 위에 로드뷰 오버레이가 추가된 상�
     mapWrapper = document.getElementById('mapWrapper'), // 지도를 감싸고 있는 div 입니다
     mapContainer = document.getElementById('map'), // 지도를 표시할 div 입니다 
     rvContainer = document.getElementById('roadview'); //로드뷰를 표시할 div 입니다
+
 
 var mapCenter = new kakao.maps.LatLng(35.2725308711779, 128.406307024695), // 지도의 중심좌표
     mapOption = {
@@ -279,7 +290,23 @@ map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPLEFT);
 var zoomControl = new kakao.maps.ZoomControl();
 map.addControl(zoomControl, kakao.maps.ControlPosition.LEFT);
 
+var myMarker;
 
+navigator.geolocation.getCurrentPosition(function(pos) {
+
+		myPosLat = pos.coords.latitude;
+		myPosLng = pos.coords.longitude;
+
+		var markerImage = new kakao.maps.MarkerImage("https://ajubang.com/map/pin_me.png", new kakao.maps.Size(56, 49), {offset: new kakao.maps.Point(28, 49)});
+		myMarker = new kakao.maps.Marker({
+			map: map,
+			position: new kakao.maps.LatLng(myPosLat, myPosLng),
+			image: markerImage,
+			title : "내위치"
+		});
+					myMarker.setVisible(true);
+
+});
 
 // 마커를 표시할 위치와 내용을 가지고 있는 객체 배열입니다 
 var positions = [
