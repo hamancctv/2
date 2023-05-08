@@ -299,7 +299,7 @@ navigator.geolocation.getCurrentPosition(function(pos) {
 		myPosLat = pos.coords.latitude;
 		myPosLng = pos.coords.longitude;
 
-		var markerImage = new kakao.maps.MarkerImage("pin_me.png", new kakao.maps.Size(56, 49), {offset: new kakao.maps.Point(28, 49)});
+		var markerImage = new kakao.maps.MarkerImage("https://raw.githubusercontent.com/hamancctv/2/main/pin_me.png", new kakao.maps.Size(56, 49), {offset: new kakao.maps.Point(28, 49)});
 		myMarker = new kakao.maps.Marker({
 			map: map,
 			position: new kakao.maps.LatLng(myPosLat, myPosLng),
