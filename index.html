@@ -57,7 +57,6 @@
 <div id="overlayMapType_m" onclick="setOverlayMapType_m()"><span>지적도</span></div>
 
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=2634b7b6dd61e41a4d6c0bf40a2ef820&libraries=services,clusterer,drawing"></script>
-    <script type ="text/javascript" src="https://raw.githubusercontent.com/hamancctv/2/main/mmw.js"> </script>
 
 <script src="//developers.kakao.com/sdk/js/kakao.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.1.js" integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI=" crossorigin="anonymous"></script>
@@ -273,6 +272,21 @@ setTimeout(function(){
 circle.setMap(null);    ;
 }, 5000);        
 }
+
+	function setRealPos_m() {
+    var control = document.getElementById('realPos_m');
+    // 버튼이 눌린 상태가 아니면
+    if (control.className.indexOf('active') === -1) {
+        control.className = 'active';
+       interval = setInterval(function() {                
+            mapCurrentPosition2();           
+        }, 1000);
+    } else {
+        control.className = '';
+        clearInterval(interval);
+        
+    }
+};
 
 // 일반 지도와 스카이뷰로 지도 타입을 전환할 수 있는 지도타입 컨트롤을 생성합니다
 var mapTypeControl = new kakao.maps.MapTypeControl();
