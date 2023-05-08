@@ -157,8 +157,8 @@ function mapCurrentPosition2() {
         map.setCenter(new kakao.maps.LatLng(myPosLat, myPosLng));
 
         myMarker.setVisible(true);
-        btnCurrentMe.className = 'selected_btn';
-        btnCurrentHideMe.className = 'btn';
+        btnCurrentMe.className = 'btn';
+        btnCurrentHideMe.className = 'selected_btn';
 
     });
     //--내 위치 표시
@@ -167,8 +167,8 @@ function mapCurrentPosition2() {
 
 function mapCurrentPositionHide() {
     myMarker.setVisible(false);
-    btnCurrentMe.className = 'btn';
-    btnCurrentHideMe.className = 'selected_btn';
+    btnCurrentMe.className = 'selected_btn';
+    btnCurrentHideMe.className = 'btn';
 }
 
 
