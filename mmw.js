@@ -146,12 +146,7 @@ function makeLockDrag() {
 
 function mapCurrentPosition2() {
     // 내 위치 표시
-var markerImage = new kakao.maps.MarkerImage("https://raw.githubusercontent.com/hamancctv/2/main/pin_me.png", new kakao.maps.Size(56, 49), {offset: new kakao.maps.Point(28, 49)});
-		myMarker = new kakao.maps.Marker({
-			map: map,
-			position: new kakao.maps.LatLng(myPosLat, myPosLng),
-			image: markerImage,
-			title : "내위치"
+
     navigator.geolocation.getCurrentPosition(function (pos) {
 
         myPosLat = pos.coords.latitude;
