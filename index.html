@@ -1162,10 +1162,11 @@ circle.setMap(map);
 setTimeout(function(){
 circle.setMap(null);    
 }, 1000)
-    var obj = document.getElementsByClassName('clickdown');
-        for (var i = 0; i < obj.length; i++) {
-            obj[i].value = '';
-        }
+
+// 주소검색시 input창 자동삭제    var obj = document.getElementsByClassName('clickdown');
+//        for (var i = 0; i < obj.length; i++) {
+//            obj[i].value = '';
+//        }
 
              }
         
@@ -1187,11 +1188,11 @@ function placesSearchCB (data, status, pagination) {
  var bounds = new kakao.maps.LatLng(data[0].y, data[0].x);
           
         // 검색된 장소 위치를 기준으로 지도 범위를 재설정합니다
-	    map.setLevel();
+	    map.setLevel(1);
         map.setCenter(bounds);
                var circle = new daum.maps.Circle({
     center : bounds,  // 원의 중심좌표 입니다 
-    radius: 100, // 미터 단위의 원의 반지름입니다 
+    radius: 50, // 미터 단위의 원의 반지름입니다 
     strokeWeight: 1, // 선의 두께입니다 
     strokeColor: '#ffa500', // 선의 색깔입니다
     strokeOpacity: 1, // 선의 불투명도 입니다 1에서 0 사이의 값이며 0에 가까울수록 투명합니다
@@ -1204,13 +1205,13 @@ function placesSearchCB (data, status, pagination) {
 circle.setMap(map);     
 setTimeout(function(){
 circle.setMap(null);    
-}, 5000)        
+}, 1000)        
     }
 }
-    var obj = document.getElementsByClassName('clickdown');
-        for (var i = 0; i < obj.length; i++) {
-            obj[i].value = '';
-        }
+// 키워드 검색 시  input창 자동삭제    var obj = document.getElementsByClassName('clickdown');
+//        for (var i = 0; i < obj.length; i++) {
+//           obj[i].value = '';
+//        }
                 
 // 지도에 마커를 표시하는 함수입니다
 function displayMarker(place) {
