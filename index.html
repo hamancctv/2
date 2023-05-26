@@ -260,13 +260,13 @@ function closeRoadview() {
 function setCenter(Lat, Lng) {
     // 이동할 위도 경도 위치를 생성합니다 
     var moveLatLon = new daum.maps.LatLng(Lat, Lng);
-  map.setLevel(4);
+  map.setLevel(1);
 
     // 지도 중심을 이동 시킵니다
     map.panTo(moveLatLon);
 var circle = new daum.maps.Circle({
     center : new daum.maps.LatLng(Lat,  Lng),  // 원의 중심좌표 입니다 
-    radius: 100, // 미터 단위의 원의 반지름입니다 
+    radius: 50, // 미터 단위의 원의 반지름입니다 
     strokeWeight: 1, // 선의 두께입니다 
     strokeColor: '#ffa500', // 선의 색깔입니다
     strokeOpacity: 1, // 선의 불투명도 입니다 1에서 0 사이의 값이며 0에 가까울수록 투명합니다
@@ -279,7 +279,7 @@ var circle = new daum.maps.Circle({
 circle.setMap(map);     
 setTimeout(function(){
 circle.setMap(null);    ;
-}, 5000);        
+}, 1000);        
 }
 
 // 일반 지도와 스카이뷰로 지도 타입을 전환할 수 있는 지도타입 컨트롤을 생성합니다
@@ -1143,12 +1143,12 @@ marker1.setDraggable(true);
 
 
 		        // 지도의 중심을 결과값으로 받은 위치로 이동시킵니다
-			     map.setLevel(4);
+			     map.setLevel(1);
 		        map.setCenter(coords);
 		    
             var circle = new daum.maps.Circle({
     center : coords,  // 원의 중심좌표 입니다 
-    radius: 100, // 미터 단위의 원의 반지름입니다 
+    radius: 50, // 미터 단위의 원의 반지름입니다 
     strokeWeight: 1, // 선의 두께입니다 
     strokeColor: '#ffa500', // 선의 색깔입니다
     strokeOpacity: 1, // 선의 불투명도 입니다 1에서 0 사이의 값이며 0에 가까울수록 투명합니다
@@ -1161,7 +1161,7 @@ marker1.setDraggable(true);
 circle.setMap(map);     
 setTimeout(function(){
 circle.setMap(null);    
-}, 5000)
+}, 1000)
     var obj = document.getElementsByClassName('clickdown');
         for (var i = 0; i < obj.length; i++) {
             obj[i].value = '';
@@ -1187,7 +1187,7 @@ function placesSearchCB (data, status, pagination) {
  var bounds = new kakao.maps.LatLng(data[0].y, data[0].x);
           
         // 검색된 장소 위치를 기준으로 지도 범위를 재설정합니다
-	    map.setLevel(4);
+	    map.setLevel();
         map.setCenter(bounds);
                var circle = new daum.maps.Circle({
     center : bounds,  // 원의 중심좌표 입니다 
