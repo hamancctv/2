@@ -1307,3 +1307,19 @@ function RulerRemove(){
                 }         
     circles = [];
 }
+
+
+// ✅ (추가) 페이지 로딩이 완료되면 이벤트를 설정합니다.
+$(document).ready(function() {
+    // #keyword 입력창에 키보드를 눌렀다 떼는(keyup) 이벤트 리스너를 추가합니다.
+    $('#keyword').on('keyup', function() {
+        // 입력창의 값이 비어있는지 확인합니다.
+        if ($(this).val().length === 0) {
+            // 값이 없으면 #menu_wrap을 숨깁니다.
+            $('#menu_wrap').hide();
+        } else {
+            // 값이 있으면 #menu_wrap을 다시 보여줍니다.
+            $('#menu_wrap').show();
+        }
+    });
+});
