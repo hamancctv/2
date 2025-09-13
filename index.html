@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <html>
 
@@ -67,6 +61,28 @@
 #map {
     cursor: grab; /* 평상시 손 편 상태 */
 }
+       
+.marker-pulse {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: rgba(255, 60, 0, 0.4);
+    animation: pulse 1s ease-out infinite;
+    transform: translate(-50%, -50%); /* 중심 맞추기 */
+}
+
+@keyframes pulse {
+    0% {
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0.8;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 0;
+    }
+}
+              
     </style>
 
 <div id="container">
@@ -112,6 +128,7 @@ var mapCenter = new kakao.maps.LatLng(35.2725308711779, 128.406307024695), // �
 
 // 지도를 표시할 div와 지도 옵션으로 지도를 생성합니다
 var map = new kakao.maps.Map(mapContainer, mapOption);
+map.setMaxLevel(9);
 
 // 로드뷰 객체를 생성합니다 
 var rv = new kakao.maps.Roadview(rvContainer); 
@@ -2209,7 +2226,7 @@ function btnsearch_click() {
 
     // 5. 키워드로 장소를 검색합니다.
     var options = {
-        location: new kakao.maps.LatLng(myPosLat, myPosLng)
+        location: new kakao.maps.LatLng(35.27245498163225, 128.40646885556842)
     };
     ps.keywordSearch($('#keyword').val(), function(data, status, pagination) {
         // 검색 결과를 처리하는 단일 함수를 호출합니다.
@@ -2270,28 +2287,8 @@ function handleSearchResult(data, status, searchType) {
     imageSize = new kakao.maps.Size(40, 50), // 마커이미지의 크기입니다
     imageOption = {offset: new kakao.maps.Point(20, 45)}; // 마커이미지의 옵션입니다. 마커의 좌표와 일치시킬 이미지 안에서의 좌표를 설정합니다.
       
-// 마커의 이미지정보를 가지고 있는 마커이미지를 생성합니다
-var markerImage1 = new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption),
-    markerPosition1 = new kakao.maps.LatLng(map.center); // 마커가 표시될 위치입니다
 
-// 마커를 생성합니다
-var marker1 = new kakao.maps.Marker({
-    image: markerImage1 // 마커이미지 설정 
-});
 
-// 마커가 지도 위에 표시되도록 설정합니다
-marker1.setMap(map);  
-// 마커가 드래그 가능하도록 설정합니다 
-marker1.setDraggable(true); 
-	
-	
-    // 마커에 dragend 이벤트를 등록합니다
-kakao.maps.event.addListener(marker1, 'dragend', function(mouseEvent) {
-    // 현재 마커가 놓인 자리의 좌표입니다 
-var position = marker1.getPosition();
-    $('#gpsyx').val(position.getLat() + ', ' + position.getLng());  
-});
-    
     
 // 지도에 클릭 이벤트를 등록합니다
 // 지도를 클릭하면 마지막 파라미터로 넘어온 함수를 호출합니다
