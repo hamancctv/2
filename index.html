@@ -83,7 +83,8 @@
     <button id="btn_input_copy" style= "position:absolute;top:12;width:45;right:285;z-index:200">복사</button>
  <input type="text" inputmode="none" class='form-control' style= "position:absolute;top:13;width:270;right:10;z-index:20" id = "gpsyx" value ="35.2725308711779, 128.406307024695"></button>
 
-   <input type="search" id="keyword" onkeyup="filter()" onkeydown="Enter_Check()" class="clickdown" style="position:absolute;top:13;width:200;left:210;z-index:200"/>
+
+ <input type="search" id="keyword" onkeyup="filter()" onkeydown="if(event.keyCode === 13) { btnsearch_click(); }" class="clickdown" style="position:absolute;top:13;width:200;left:210;z-index:200"/>
    <button tabindex="-1" id="searchBtn" onclick="btnsearch_click()" style="position:absolute;top:12;width:45;left:160;z-index:20" class="bsuccess">검색</button>
 <div class="custom_typecontrol2_m radius_border">
 	<span id="btnCurrentMe" class="btn" onclick="mapCurrentPosition2()">내위치</span>
@@ -2190,109 +2191,79 @@ kakao.maps.event.addListener(map, 'center_changed', function() {
 });
     
  
-        function btnsearch_click() {
-//1 . 모든 포커스 태그를 blur 하는거같다. 
-$(':focus').blur();  
-	 removeMarker();
+function btnsearch_click() {
+    // 1. 모든 포커스 태그를 blur 합니다.
+    $(':focus').blur();
 
-		// 주소-좌표 변환 객체를 생성합니다
-		var geocoder = new kakao.maps.services.Geocoder();
-		
-		// 주소로 좌표를 검색합니다
-		geocoder.addressSearch($('#keyword').val(), function(result, status) {
+    // 2. 주소-좌표 변환 객체를 생성합니다.
+    var geocoder = new kakao.maps.services.Geocoder();
 
-		    // 정상적으로 검색이 완료됐으면 
-		     if (status === kakao.maps.services.Status.OK) {
-		        var coords = new kakao.maps.LatLng(result[0].y, result[0].x);
-		        // 결과값으로 받은 위치를 마커로 표시합니다
+    // 3. 주소로 좌표를 검색합니다.
+    geocoder.addressSearch($('#keyword').val(), function(result, status) {
+        // 검색 결과를 처리하는 단일 함수를 호출합니다.
+        handleSearchResult(result, status, 'address');
+    });
 
+    // 4. 장소 검색 객체를 생성합니다.
+    var ps = new kakao.maps.services.Places();
 
-// 주소검색시 input창 자동삭제    var obj = document.getElementsByClassName('clickdown');
-//        for (var i = 0; i < obj.length; i++) {
-//            obj[i].value = '';
-//        }
+    // 5. 키워드로 장소를 검색합니다.
+    var options = {
+        location: new kakao.maps.LatLng(myPosLat, myPosLng)
+    };
+    ps.keywordSearch($('#keyword').val(), function(data, status, pagination) {
+        // 검색 결과를 처리하는 단일 함수를 호출합니다.
+        handleSearchResult(data, status, 'keyword');
+    }, options);
+}
 
-             }
-        
-            else {
-                // 장소 검색 객체를 생성합니다
-                var ps = new kakao.maps.services.Places();
-                // 키워드로 장소를 검색합니다
-var options = {
-    location : new kakao.maps.LatLng(myPosLat, myPosLng)
-};
-    // 장소검색 객체를 통해 키워드로 장소검색을 요청합니다
-                ps.keywordSearch($('#keyword').val(), placesSearchCB, options);
-// 키워드 검색 완료 시 호출되는 콜백함수 입니다
-function placesSearchCB (data, status, pagination) {
-
+// 주소와 장소 검색 결과를 모두 처리하는 공통 함수
+function handleSearchResult(data, status, searchType) {
     if (status === kakao.maps.services.Status.OK) {
-       // 검색된 장소 위치를 기준으로 지도 범위를 재설정하기위해
-        // LatLngBounds 객체에 좌표를 추가합니다
-var coords = new kakao.maps.LatLng(data[0].y, data[0].x);
+        var coords;
+        
+        // 검색 유형에 따라 좌표를 가져옵니다.
+        if (searchType === 'address') {
+            coords = new kakao.maps.LatLng(data[0].y, data[0].x);
+        } else if (searchType === 'keyword') {
+            coords = new kakao.maps.LatLng(data[0].y, data[0].x);
+        }
+
+        // 6. 마커, 원을 생성하고 지도에 표시합니다.
+        var marker = new kakao.maps.Marker({
+            map: map,
+            image: markerImage1,
+            position: coords
+        });
+
+        var circle = new daum.maps.Circle({
+            center: coords,
+            radius: 50,
+            strokeWeight: 1,
+            strokeColor: '#ffa500',
+            strokeOpacity: 1,
+            strokeStyle: 'dashed',
+            fillColor: '#FF1000',
+            fillOpacity: 0.3
+        });
+
+        circle.setMap(map);
+        setTimeout(function() {
+            circle.setMap(null);
+        }, 1000);
+
+        // 7. 지도 레벨과 중심을 조정합니다.
+        map.setLevel(1);
+        map.setCenter(coords);
+
+        // 8. 마커를 배열에 추가합니다.
+        markers.push(marker);
+
+    } else {
+        // 검색 실패 시
+        console.log("검색 결과가 없습니다.");
+    }
 }
-                 var marker = new kakao.maps.Marker({
-		            map: map,
-                    image: markerImage1,
-		            position: coords
-		        });   
-
-            
-			     map.setLevel(4);
-		        map.setCenter(coords);
- 
-            var circle = new daum.maps.Circle({
-    center : coords,  // 원의 중심좌표 입니다 
-    radius: 50, // 미터 단위의 원의 반지름입니다 
-    strokeWeight: 1, // 선의 두께입니다 
-    strokeColor: '#ffa500', // 선의 색깔입니다
-    strokeOpacity: 1, // 선의 불투명도 입니다 1에서 0 사이의 값이며 0에 가까울수록 투명합니다
-    strokeStyle: 'dashed', // 선의 스타일 입니다
-    fillColor: '#FF1000', // 채우기 색깔입니다
-    fillOpacity: 0.3  // 채우기 불투명도 입니다   
-}); 
-
-// 지도에 원을 표시합니다 
-circle.setMap(map);     
-setTimeout(function(){
-circle.setMap(null);    
-}, 1000)       
-    // ====================
-     markers.push(marker);  // 배열에 생성된 마커를 추가합니다
-    return marker;
-        };
-}
-            
- 		        var marker = new kakao.maps.Marker({
-		            map: map,
-                    image: markerImage1,
-		            position: coords
-		        });   
-
-            
-			     map.setLevel(1);
-		        map.setCenter(coords);
- 
-            var circle = new daum.maps.Circle({
-    center : coords,  // 원의 중심좌표 입니다 
-    radius: 50, // 미터 단위의 원의 반지름입니다 
-    strokeWeight: 1, // 선의 두께입니다 
-    strokeColor: '#ffa500', // 선의 색깔입니다
-    strokeOpacity: 1, // 선의 불투명도 입니다 1에서 0 사이의 값이며 0에 가까울수록 투명합니다
-    strokeStyle: 'dashed', // 선의 스타일 입니다
-    fillColor: '#FF1000', // 채우기 색깔입니다
-    fillOpacity: 0.3  // 채우기 불투명도 입니다   
-}); 
-
-// 지도에 원을 표시합니다 
-circle.setMap(map);     
-setTimeout(function(){
-circle.setMap(null);    
-}, 1000)       
-    // ====================
-     markers.push(marker);  // 배열에 생성된 마커를 추가합니다
-    return marker;
-        })};
     
 // 지도를 클릭한 위치에 표출할 마커입니다
     var imageSrc = 'https://raw.githubusercontent.com/kang-chan/hamancctv2/main/rainbow.png', // 마커이미지의 주소입니다    
