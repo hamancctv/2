@@ -5,27 +5,9 @@
 
 
 
-
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <html>
-<!-- Default Statcounter code for hamanCCTV
-https://hamancctv.github.io/4/ -->
-<script type="text/javascript">
-var sc_project=12890481; 
-var sc_invisible=1; 
-var sc_security="b521e841"; 
-</script>
-<script type="text/javascript"
-src="https://www.statcounter.com/counter/counter.js"
-async></script>
-<noscript><div class="statcounter"><a title="Web Analytics"
-href="https://statcounter.com/" target="_blank"><img
-class="statcounter"
-src="https://c.statcounter.com/12890481/0/b521e841/1/"
-alt="Web Analytics"
-referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
-<!-- End of Statcounter Code -->
+
 <head>
     <meta charset="utf-8">
     <title>GIS 모바일</title>
@@ -35,7 +17,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     
    <style>
 #container {overflow:hidden;height:100%;position:relative;}
-#mapWrapper {position: relative;width:100%;height:100%;z-index:1;}
+#mapWrapper {width:100%;height:100%;z-index:1;}
 #rvWrapper {width:50%;height:100%;top:0;right:0;position:absolute;z-index:0;}
 #container.view_roadview #mapWrapper {width: 50%;}
 #roadviewControl {position:absolute;top:2px;left:115px;width:42px;height:42px;z-index: 1;cursor: pointer; background: url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/common/img_search.png) 0 -450px no-repeat;}
@@ -43,7 +25,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
 #close {position: absolute;padding: 4px;top: 5px;left: 5px;cursor: pointer;background: #fff;border-radius: 4px;border: 1px solid #c8c8c8;box-shadow: 0px 1px #888;}
 #close .img {display: block;background: url(https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/rv_close.png) no-repeat;width: 14px;height: 14px;}
 
-.custom_typecontrol2_m {position:absolute;bottom:5px;right:10px;overflow:hidden;width:85px;height:25px;margin:0;padding:0;z-index:1;font-size:12px;font-family:'Malgun Gothic', '맑은 고딕', sans-serif;}
+       .custom_typecontrol2_m {position:absolute;bottom:5px;right:10px;overflow:hidden;width:85px;height:25px;margin:0;padding:0;z-index:1;font-size:12px;font-family:'Malgun Gothic', '맑은 고딕', sans-serif;}
 .custom_typecontrol2_m span {display:block;width:40px;height:30px;float:left;text-align:center;line-height:25px;cursor:pointer;}
 .custom_typecontrol2_m .btn {background:#fff;background:linear-gradient(#fff,  #e6e6e6);}       
 .custom_typecontrol2_m .btn:hover {background:#f5f5f5;background:linear-gradient(#f5f5f5,#e3e3e3);}
@@ -104,9 +86,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
    <input type="search" id="keyword" onkeyup="filter()" onkeydown="Enter_Check()" class="clickdown" style="position:absolute;top:13;width:200;left:210;z-index:200"/>
    <button tabindex="-1" id="searchBtn" onclick="btnsearch_click()" style="position:absolute;top:12;width:45;left:160;z-index:20" class="bsuccess">검색</button>
 <div class="custom_typecontrol2_m radius_border">
-  <span id="btnCurrentMe" class="btn" onclick="toggleCurrentPosition()">📍 내 위치</span>
+	<span id="btnCurrentMe" class="btn" onclick="mapCurrentPosition2()">내위치</span>
+	<span id="btnCurrentHideMe" class="selected_btn" onclick="mapCurrentPositionHide()">숨김</span>
 </div>
-
 
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=2634b7b6dd61e41a4d6c0bf40a2ef820&libraries=services,clusterer,drawing"></script>
 <script src="//developers.kakao.com/sdk/js/kakao.min.js"></script>
@@ -123,8 +105,6 @@ var mapCenter = new kakao.maps.LatLng(35.2725308711779, 128.406307024695), // �
     mapOption = {
         center: mapCenter, // 지도의 중심좌표
         level: 4, // 지도의 확대 레벨 
-		    maxLevel: 9 // 최대 줌 아웃 레벨
-
 	              //  mapTypeId: kakao.maps.MapTypeId.HYBRID
 
     };
@@ -336,125 +316,25 @@ map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPLEFT);
 // 지도 확대 축소를 제어할 수 있는  줌 컨트롤을 생성합니다
 // var zoomControl = new kakao.maps.ZoomControl();
 // map.addControl(zoomControl, kakao.maps.ControlPosition.LEFT);
-    
-    
-    // 내 위치 추적하기
-var myMarker = null;
-var watchId = null;
-var isTracking = false;
 
-// 위치를 처음 한 번만 가져오는 함수
-function getSinglePosition() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      function(pos) {
-        var lat = pos.coords.latitude;
-        var lng = pos.coords.longitude;
-        var position = new kakao.maps.LatLng(lat, lng);
-        
-        // 마커 생성 및 지도에 표시
-        createOrUpdateMarker(position);
-        
-        // 지도를 해당 위치로 이동
-        map.setCenter(position);
-        
-        // 이제 위치 추적 시작
-        startWatchPosition();
-      },
-      function(err) {
-        alert("위치 정보를 가져오는 데 실패했습니다: " + err.message);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000
-      }
-    );
-  } else {
-    alert("이 브라우저에서는 Geolocation을 지원하지 않습니다.");
-  }
-}
+var myMarker;
 
-// 위치를 계속 추적하는 함수
-function startWatchPosition() {
-  if (navigator.geolocation) {
-    watchId = navigator.geolocation.watchPosition(
-      function(pos) {
-        var lat = pos.coords.latitude;
-        var lng = pos.coords.longitude;
-        var position = new kakao.maps.LatLng(lat, lng);
+navigator.geolocation.getCurrentPosition(function(pos) {
 
-        // 마커 위치 업데이트
-        createOrUpdateMarker(position);
+		myPosLat = pos.coords.latitude;
+		myPosLng = pos.coords.longitude;
 
-        // 지도를 계속 가운데로 위치시킴
-        map.setCenter(position);
-      },
-      function(err) {
-        console.error("위치 추적 중 오류 발생:", err.message);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000
-      }
-    );
-    isTracking = true;
-    updateButtonUI(true);
-  } else {
-    alert("이 브라우저에서는 Geolocation을 지원하지 않습니다.");
-  }
-}
+		var markerImage = new kakao.maps.MarkerImage("https://hamancctv.github.io/2/pin_me.png", new kakao.maps.Size(56, 49), {offset: new kakao.maps.Point(28, 49)});
+		myMarker = new kakao.maps.Marker({
+			map: map,
+			position: new kakao.maps.LatLng(myPosLat, myPosLng),
+			image: markerImage,
+			title : "내위치",
+			clickable: false
+		});
 
-// 마커를 생성하거나 위치를 업데이트하는 함수
-function createOrUpdateMarker(position) {
-  if (!myMarker) {
-    var markerImage = new kakao.maps.MarkerImage(
-      "https://hamancctv.github.io/2/pin_me.png",
-      new kakao.maps.Size(56, 49),
-      { offset: new kakao.maps.Point(28, 49) }
-    );
-    
-    myMarker = new kakao.maps.Marker({
-      map: map,
-      position: position,
-      image: markerImage,
-      animation: kakao.maps.Animation.BOUNCE
-    });
-  } else {
-    myMarker.setPosition(position);
-  }
-}
-
-// 버튼 UI 업데이트 함수
-function updateButtonUI(isTrackingState) {
-  var btn = document.getElementById("btnCurrentMe");
-  if (isTrackingState) {
-    btn.classList.add("selected_btn");
-    btn.innerText = "📍 위치 추적 중단";
-  } else {
-    btn.classList.remove("selected_btn");
-    btn.innerText = "📍 내 위치 찾기";
-  }
-}
-
-// 메인 토글 함수
-function toggleCurrentPosition() {
-  if (isTracking) {
-    // 위치 추적 중단
-    navigator.geolocation.clearWatch(watchId);
-    if (myMarker) {
-      myMarker.setMap(null);
-      myMarker = null;
-    }
-    watchId = null;
-    isTracking = false;
-    updateButtonUI(false);
-  } else {
-    // 위치 추적 시작
-    getSinglePosition(); // 위치를 한 번 가져온 후 추적 시작
-  }
-}
+});	
+	
 
 // 마커를 표시할 위치와 내용을 가지고 있는 객체 배열입니다 
 var positions = [
@@ -2132,28 +2012,28 @@ var positions = [
 { content: '차-R31-함안대산리_함안방향', latlng: new kakao.maps.LatLng(35.2487976403339,128.43632340181) },
 { content: '차-R32-함안대산리_입곡방향', latlng: new kakao.maps.LatLng(35.2487976403339,128.43632340181) },
 ];
-  
-  var unique = {};
-var filtered = [];
+    
+    
+            // 바운스 애니메이션을 위한 변수
+ var isBouncing = {};
+ var unique = {};
+ var filtered = [];
 
 for (var i = 0; i < positions.length; i++) {
-  var lat = positions[i].latlng.getLat();
-  var lng = positions[i].latlng.getLng();
-  var key = lat + ',' + lng;
+    var lat = positions[i].latlng.getLat();
+    var lng = positions[i].latlng.getLng();
+    var key = lat + ',' + lng;
 
-  if (!unique[key]) {
-    unique[key] = true;
-    filtered.push(positions[i]); // 대표 마커만 저장
-  }
+    if (!unique[key]) {
+        unique[key] = true;
+        filtered.push(positions[i]); // 대표 마커만 저장
+    }
 }
     
-    
-    
-//마우스 이벤트 클릭, 오버레이, 드래그 등  
 var markers = [];
-var overlays = [];       // hover용
-var clickOverlays = [];  // 클릭용
-var markerHeight = 42;   // 마커 이미지 높이(px)
+var overlays = [];        // hover용
+var clickOverlays = [];   // 클릭용
+var markerHeight = 42;    // 마커 이미지 높이(px)
 
 for (var i = 0; i < filtered.length; i++) {
     (function(i) {
@@ -2161,8 +2041,7 @@ for (var i = 0; i < filtered.length; i++) {
             map: map,
             position: filtered[i].latlng,
             image: filtered[i].markerImage,
-            clickable: true // 1. 이 부분을 추가해야 클릭이 가능합니다.
-
+            clickable: true 
         });
 
         // hover용 overlay
@@ -2209,35 +2088,60 @@ for (var i = 0; i < filtered.length; i++) {
             }, 50);
         });
 
-// 클릭 이벤트
+
+
+// 클릭 이벤트 (이벤트 리스너는 여기에 단 하나만 존재해야 합니다)
 kakao.maps.event.addListener(marker2, 'click', function() {
-    // 새로 추가된 코드
-    if (marker2.getAnimation() !== null) {
-        // 이미 애니메이션 중이면 멈춥니다.
-        marker2.setAnimation(null);
-    } else {
-        // 애니메이션이 없으면 BOUNCE 효과를 줍니다.
-        marker2.setAnimation(kakao.maps.Animation.BOUNCE);
+    // 1. 바운스 효과 구현
+    // 마커가 이미 바운스 중인지 확인하여 중복 실행을 막습니다.
+    if (isBouncing[marker2]) {
+        return;
     }
-    
-    // 기존 코드 유지
-    clickOverlay.setMap(map);
-    clickOverlays.push(clickOverlay);
+    isBouncing[marker2] = true;
 
-    // sel_txt 필터링
-    var value = filtered[i].content.substring(0,5).toUpperCase();
-    var items = document.getElementsByClassName("sel_txt");
-    for(var j=0; j<items.length; j++){
-        var nameElem = items[j].getElementsByClassName("name")[0];
-        items[j].style.display = (nameElem && nameElem.innerHTML.toUpperCase().indexOf(value) > -1) ? "flex" : "none";
-    }
-});
+    var originalPosition = filtered[i].latlng;
+    var offset = 0;
+    var direction = 1;
+    var bounceDuration = 300; // 바운스 애니메이션 지속 시간 (0.4초)
 
-markers.push(marker2);
-overlays.push(overlay);
+    // 마커를 좌우로 흔드는 애니메이션을 시작합니다.
+    marker2.bounceInterval = setInterval(function() {
+        offset += direction * 0.5; // 움직임 크기 조절
+        if (offset >= 5 || offset <= -5) {
+            direction *= -1; // 방향 전환
+        }
+        var bouncePosition = new kakao.maps.LatLng(
+            originalPosition.getLat(),
+            originalPosition.getLng() + (offset / 100000) // 경도 오프셋으로 좌우 움직임 구현
+        );
+        marker2.setPosition(bouncePosition);
+    }, 10); // 10ms마다 위치를 변경하여 원래 속도를 유지합니다.
 
-})(i);
+    // 1.5초 후 애니메이션을 멈추고 원래 위치로 되돌립니다.
+    setTimeout(function() {
+        clearInterval(marker2.bounceInterval);
+        isBouncing[marker2] = false;
+        marker2.setPosition(originalPosition);
+    }, bounceDuration);
+            // 클릭용 오버레이 표시
+            clickOverlay.setMap(map);
+            clickOverlays.push(clickOverlay);
+
+            // sel_txt 필터링
+            var value = filtered[i].content.substring(0,5).toUpperCase();
+            var items = document.getElementsByClassName("sel_txt");
+            for(var j=0; j<items.length; j++){
+                var nameElem = items[j].getElementsByClassName("name")[0];
+                items[j].style.display = (nameElem && nameElem.innerHTML.toUpperCase().indexOf(value) > -1) ? "flex" : "none";
+            }
+        });
+
+        markers.push(marker2);
+        overlays.push(overlay);
+    })(i);
 }
+    
+    
 // 지도 레벨 변경 감지
 kakao.maps.event.addListener(map, 'idle', function() {
     var level = map.getLevel();
@@ -2252,8 +2156,8 @@ kakao.maps.event.addListener(map, 'click', function() {
     clickOverlays.forEach(function(o){ o.setMap(null); });
     clickOverlays = [];
 });
-
-
+        
+        
 
 
 $(()=>{
