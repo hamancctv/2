@@ -6,7 +6,7 @@
     <meta charset="utf-8">
     <title>GIS 모바일</title>
     <link rel="shortcut icon" type="image/x-icon" href="https://raw.githubusercontent.com/kang-chan/hamancctv4/main/favicon.ico" />
-<script type ="text/javascript" src="mmw.js"> </script>
+<script type ="text/javascript" src="https://github.com/hamancctv/5/blob/main/mmw.js"> </script>
 </head> 
     
    <style> 
@@ -2152,6 +2152,8 @@ kakao.maps.event.addListener(marker2, 'click', function() {
                 var nameElem = items[j].getElementsByClassName("name")[0];
                 items[j].style.display = (nameElem && nameElem.innerHTML.toUpperCase().indexOf(value) > -1) ? "flex" : "none";
             }
+ 
+
         });
 
         markers.push(marker2);
@@ -2207,116 +2209,80 @@ kakao.maps.event.addListener(map, 'center_changed', function() {
         $('#gpsyx').val(latlng.getLat() + ', ' + latlng.getLng());  
 });
     
- 
+// ✅ 검색 버튼 클릭 이벤트 핸들러
 function btnsearch_click() {
-    // 1. 모든 포커스 태그를 blur 합니다.
     $(':focus').blur();
 
-    // 2. 검색에 사용할 영역 객체를 미리 정의합니다.
     var bounds = new kakao.maps.LatLngBounds(
-      new kakao.maps.LatLng(35.119382493091855, 128.18218076324376), // 남서쪽 좌표
-      new kakao.maps.LatLng(35.42383291087308, 128.59320201946082) // 북동쪽 좌표
+        new kakao.maps.LatLng(35.119382493091855, 128.18218076324376),
+        new kakao.maps.LatLng(35.42383291087308, 128.59320201946082)
     );
 
-    // 3. 주소-좌표 변환 객체를 생성합니다.
     var geocoder = new kakao.maps.services.Geocoder();
-
-    // 4. 주소로 좌표를 검색합니다. (✅ 수정: options 객체 추가)
-    var geocoderOptions = {
-        bounds: bounds
-    };
+    var geocoderOptions = { bounds: bounds };
     geocoder.addressSearch($('#keyword').val(), function(result, status) {
-        // 검색 결과를 처리하는 단일 함수를 호출합니다.
-        handleSearchResult(result, status, 'address');
+        handleSearchResult(result, status, 'address', bounds);
     }, geocoderOptions);
 
-    // 5. 장소 검색 객체를 생성합니다.
     var ps = new kakao.maps.services.Places();
-
-    // 6. 키워드로 장소를 검색합니다. (✅ 수정: 위에서 정의한 bounds 사용)
-    var psOptions = {
-        bounds: bounds
-    };
+    var psOptions = { bounds: bounds };
     ps.keywordSearch("함안군 " + $('#keyword').val(), function(data, status, pagination) {
-        // 검색 결과를 처리하는 단일 함수를 호출합니다.
-        handleSearchResult(data, status, 'keyword');
+        handleSearchResult(data, status, 'keyword', bounds);
     }, psOptions);
 }
 
-// ... (handleSearchResult 함수는 변경 없음) ...
+// ✅ 경고창과 메뉴랩 제어 기능이 모두 제거된 핸들러
+function handleSearchResult(data, status, searchType, bounds) {
+    // 기존 검색 마커를 제거합니다.
+    if (searchMarker) {
+        searchMarker.setMap(null);
+    }
+    // 목록 내용을 비웁니다.
+    $('#placesList').empty();
 
-// 주소와 장소 검색 결과를 모두 처리하는 공통 함수
-function handleSearchResult(data, status, searchType) {
-    if (status === kakao.maps.services.Status.OK) {
+    if (status === kakao.maps.services.Status.OK && data.length > 0) {
         var coords;
-        
-        // 검색 유형에 따라 좌표를 가져옵니다.
+        var placeName;
+
         if (searchType === 'address') {
             coords = new kakao.maps.LatLng(data[0].y, data[0].x);
+            placeName = data[0].address_name;
         } else if (searchType === 'keyword') {
             coords = new kakao.maps.LatLng(data[0].y, data[0].x);
+            placeName = data[0].place_name;
         }
 
-        // 6. 마커, 원을 생성하고 지도에 표시합니다.
- //        var marker = new kakao.maps.Marker({
- //          map: map,
- //        image: markerImage1,
- //      position: coords
- // 	});
+        if (bounds.contain(coords)) {
+            // 지도에 마커를 표시합니다.
+            searchMarker = new kakao.maps.Marker({
+                map: map,
+                image: markerImage1,
+                position: coords
+            });
 
-        var circle = new daum.maps.Circle({
-            center: coords,
-            radius: 50,
-            strokeWeight: 1,
-            strokeColor: '#ffa500',
-            strokeOpacity: 1,
-            strokeStyle: 'dashed',
-            fillColor: '#FF1000',
-            fillOpacity: 0.3
-        });
+            var circle = new daum.maps.Circle({
+                center: coords,
+                radius: 50,
+                strokeWeight: 1,
+                strokeColor: '#ffa500',
+                strokeOpacity: 1,
+                strokeStyle: 'dashed',
+                fillColor: '#FF1000',
+                fillOpacity: 0.3
+            });
+            circle.setMap(map);
+            setTimeout(function() { circle.setMap(null); }, 1000);
 
-        circle.setMap(map);
-        setTimeout(function() {
-            circle.setMap(null);
-        }, 1000);
-
-        // 7. 지도 레벨과 중심을 조정합니다.
-        map.setLevel(2);
-        map.setCenter(coords);
-
-        // 8. 마커를 배열에 추가합니다.
-        markers.push(marker);
-
-    } else {
-        // 검색 실패 시
-        console.log("검색 결과가 없습니다.");
+            map.setLevel(3);
+            map.setCenter(coords);
+            
+            // 검색 결과를 목록에 추가합니다.
+            var item = $('<div class="sel_txt"><span class="name"></span></div>');
+            item.find('.name').text(placeName);
+            $('#placesList').append(item);
+        }
     }
 }
-    
-// 지도를 클릭한 위치에 표출할 마커입니다
-    var imageSrc = 'https://raw.githubusercontent.com/kang-chan/hamancctv2/main/rainbow.png', // 마커이미지의 주소입니다    
-    imageSize = new kakao.maps.Size(40, 50), // 마커이미지의 크기입니다
-    imageOption = {offset: new kakao.maps.Point(20, 45)}; // 마커이미지의 옵션입니다. 마커의 좌표와 일치시킬 이미지 안에서의 좌표를 설정합니다.
-      
-
-
-    
-// 지도에 클릭 이벤트를 등록합니다
-// 지도를 클릭하면 마지막 파라미터로 넘어온 함수를 호출합니다
-kakao.maps.event.addListener(map, 'click', function(mouseEvent) {        
-
-    // 클릭한 위도, 경도 정보를 가져옵니다
-    var latlng = mouseEvent.latLng;
-    // 마커 위치를 클릭한 위치로 옮깁니다
-//    marker1.setPosition(latlng);
-
-    //alert(message);
-// 좌표 input에 좌표 넣기
-    $('#gpsyx').val(latlng.getLat() + ', ' + latlng.getLng());  
-});
-
-
-    
 </script>
 
 
@@ -2325,8 +2291,8 @@ kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
 	    <button id='btnPOLYLINE'  onclick="rule_poly()">면적</button>
         <button id='btnARROW'  onclick="rule_circle()">반경</button>    
         <button class='berror' onclick="RulerRemove()">초기화</button></div>
-
-<div id="menu_wrap" class="bg_white" <div id="menu_wrap" class="menu_wrap" style="display: none; border:1px solid #919191;border-radius:10px;">
+ 
+<div id="menu_wrap" class="bg_white" <div id="menu_wrap" class="menu_wrap" style="border:1px solid #919191;border-radius:10px;">
  <div class='sel_txt' style='cursor: pointer;' onClick='setCenter(35.2643129874132, 128.489259058209)'><span class='name'>도-001-산인신당고개(회전)<br>&nbsp&nbsp&nbsp산인-018&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp 산인면 신산리 107-6<br> 172.14.10.11&nbsp&nbsp&nbsp 306703200001</span></div>
 <div class='sel_txt' style='cursor: pointer;' onClick='setCenter(35.2833312506004, 128.402859093824)'><span class='name'>도-002-가야함안중앞01<br>&nbsp&nbsp&nbsp가야-017&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp 가야읍 도항리 127-24<br> 172.14.10.13&nbsp&nbsp&nbsp 306703200021</span></div>
 <div class='sel_txt' style='cursor: pointer;' onClick='setCenter(35.2833312506004, 128.402859093824)'><span class='name'>도-002-가야함안중앞02<br>&nbsp&nbsp&nbsp가야-017&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp 가야읍 도항리 127-24<br> 172.14.10.217&nbsp&nbsp&nbsp 306703200021</span></div>
