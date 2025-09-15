@@ -1,3 +1,4 @@
+
 <html>
 
 <head>
@@ -364,24 +365,156 @@ map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPLEFT);
 // var zoomControl = new kakao.maps.ZoomControl();
 // map.addControl(zoomControl, kakao.maps.ControlPosition.LEFT);
 
-var myMarker;
+// ================================================
+// 내위치 버튼 + 추적 + 숨김 + 깜빡이는 애니메이션
+// ================================================
 
-navigator.geolocation.getCurrentPosition(function(pos) {
+var myMarker = null;     // 내 위치 마커
+var watchId = null;      // 실시간 추적용 watchPosition ID
+var isTracking = false;  // 추적 모드 여부
+var overlay = null;      // 커스텀 오버레이
+var blinkInterval = null; // 깜빡임용 Interval
+var currentBtn = document.getElementById("btnCurrentMe");
+var hideBtn = document.getElementById("btnCurrentHideMe");
 
-		myPosLat = pos.coords.latitude;
-		myPosLng = pos.coords.longitude;
+// 깜빡임 시작
+function startBlink() {
+    if (!myMarker) return;
+    let visible = true;
+    blinkInterval = setInterval(() => {
+        myMarker.setMap(visible ? map : null);
+        visible = !visible;
+    }, 500);
+}
 
-		var markerImage = new kakao.maps.MarkerImage("https://hamancctv.github.io/2/pin_me.png", new kakao.maps.Size(56, 49), {offset: new kakao.maps.Point(28, 49)});
-		myMarker = new kakao.maps.Marker({
-			map: map,
-			position: new kakao.maps.LatLng(myPosLat, myPosLng),
-			image: markerImage,
-			title : "내위치",
-			clickable: false
-		});
+// 깜빡임 종료
+function stopBlink() {
+    if (blinkInterval) {
+        clearInterval(blinkInterval);
+        blinkInterval = null;
+        if (myMarker) myMarker.setMap(map);
+    }
+}
 
-});	
-	
+// 커스텀 오버레이 표시
+function showOverlay(message) {
+    if (overlay) overlay.setMap(null);
+    if (!myMarker) return;
+
+    overlay = new kakao.maps.CustomOverlay({
+        content: `<div style="padding:5px 10px; background:rgba(0,0,0,0.7); color:#fff; border-radius:5px;">${message}</div>`,
+        position: myMarker.getPosition(),
+        yAnchor: 1
+    });
+
+    overlay.setMap(map);
+
+    setTimeout(() => {
+        if (overlay) overlay.setMap(null);
+        overlay = null;
+    }, 2000);
+}
+
+// 버튼 UI 업데이트
+function updateButtonUI(mode) {
+    if (mode === "default") {
+        currentBtn.className = "btn";
+        hideBtn.className = "selected_btn";
+        currentBtn.innerHTML = "내위치";
+    } else if (mode === "shown") {
+        currentBtn.className = "selected_btn";
+        hideBtn.className = "btn";
+        currentBtn.innerHTML = "내위치 표시";
+    } else if (mode === "tracking") {
+        currentBtn.className = "selected_btn";
+        hideBtn.className = "btn";
+        currentBtn.innerHTML = "추적 중";
+    }
+}
+
+// 내위치 버튼 클릭
+function mapCurrentPosition2() {
+    if (!myMarker) {
+        // 1. 마커 없으면 현재 위치 표시
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var myPosLat = pos.coords.latitude;
+            var myPosLng = pos.coords.longitude;
+
+            var markerImage = new kakao.maps.MarkerImage(
+                "https://hamancctv.github.io/2/pin_me.png",
+                new kakao.maps.Size(56, 49),
+                { offset: new kakao.maps.Point(28, 49) }
+            );
+
+            myMarker = new kakao.maps.Marker({
+                map: map,
+                position: new kakao.maps.LatLng(myPosLat, myPosLng),
+                image: markerImage,
+                title: "내위치",
+                clickable: false
+            });
+
+            map.setCenter(new kakao.maps.LatLng(myPosLat, myPosLng));
+
+            isTracking = false;
+            updateButtonUI("shown");
+            showOverlay("내 위치 표시 완료");
+        }, function(err) {
+            console.error(err);
+            showOverlay("위치 정보를 가져올 수 없습니다.");
+        });
+    } else if (!isTracking) {
+        // 2. 마커 있지만 추적 안하면 추적 시작
+        isTracking = true;
+        startTracking();
+        updateButtonUI("tracking");
+        startBlink();
+        showOverlay("실시간 위치 추적 시작");
+    } else {
+        // 3. 이미 추적 중
+        showOverlay("이미 실시간 추적 중입니다.");
+    }
+}
+
+// 실시간 추적
+function startTracking() {
+    if (!watchId) {
+        watchId = navigator.geolocation.watchPosition(function(pos) {
+            var myPosLat = pos.coords.latitude;
+            var myPosLng = pos.coords.longitude;
+
+            if (myMarker) myMarker.setPosition(new kakao.maps.LatLng(myPosLat, myPosLng));
+            map.setCenter(new kakao.maps.LatLng(myPosLat, myPosLng));
+        }, function(err) {
+            console.error("위치 추적 실패:", err);
+            showOverlay("위치 추적 실패");
+        }, { enableHighAccuracy: true, maximumAge: 1000 });
+    }
+}
+
+// 숨김 버튼 클릭
+function mapCurrentPositionHide() {
+    if (myMarker) {
+        myMarker.setMap(null);
+        myMarker = null;
+    }
+
+    if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+    }
+
+    stopBlink();
+
+    if (overlay) {
+        overlay.setMap(null);
+        overlay = null;
+    }
+
+    isTracking = false;
+    updateButtonUI("default");
+    showOverlay("내 위치 숨김");
+}
 
 
     // 중복 제거 로직
