@@ -990,29 +990,27 @@ var allOverlays = [];
 
 function drawGroupLinesMST() {
     // 기존 라인/오버레이 제거
-    if(allLines.length>0){
-        allLines.forEach(l=>l.setMap(null));
-        allLines=[];
-    }
-    if(allOverlays.length>0){
-        allOverlays.forEach(o=>o.setMap(null));
-        allOverlays=[];
+    if(allLines.length > 0 || allOverlays.length > 0){
+        allLines.forEach(l => l.setMap(null));
+        allLines = [];
+        allOverlays.forEach(o => o.setMap(null));
+        allOverlays = [];
+        return; // 토글 기능: 한 번 더 누르면 모두 초기화
     }
 
     var groupMarkers = {};
 
-    markers.forEach(m=>{
+    markers.forEach(m => {
         if(!m.group) return;
 
-        // 숫자와 하이픈만 있는 그룹인지 확인
+        // 숫자+하이픈만 있는 그룹
         if(/^[\d-]+$/.test(m.group)){
-            // 하이픈 제거
-            var key = m.group.replace(/-/g, '');
+            var key = m.group.replace(/-/g, ''); // 하이픈 제거 후 그룹 묶음
             if(!groupMarkers[key]) groupMarkers[key] = [];
             groupMarkers[key].push(m);
         } else {
-            // 숫자+하이픈 외 문자가 포함된 그룹 → 오버레이만
-            var key = 'overlay_' + Math.random();
+            // 숫자+하이픈 외 문자 포함 → 오버레이용
+            var key = 'overlay_' + Math.random(); // 고유 키
             groupMarkers[key] = [m];
         }
     });
@@ -1023,54 +1021,48 @@ function drawGroupLinesMST() {
 
         // 숫자+하이픈 그룹 → MST 연결
         if(/^\d+$/.test(g) && group.length > 1){
-            var n=group.length, selected=Array(n).fill(false), dist=Array(n).fill(Infinity), parent=Array(n).fill(-1);
-            dist[0]=0;
+            var n = group.length,
+                selected = Array(n).fill(false),
+                dist = Array(n).fill(Infinity),
+                parent = Array(n).fill(-1);
+            dist[0] = 0;
 
-            for(var k=0;k<n;k++){
-                var u=-1;
-                for(var i=0;i<n;i++){
+            for(var k=0; k<n; k++){
+                var u = -1;
+                for(var i=0; i<n; i++){
                     if(!selected[i] && (u==-1 || dist[i]<dist[u])) u=i;
                 }
-                selected[u]=true;
-                for(var v=0;v<n;v++){
+                selected[u] = true;
+                for(var v=0; v<n; v++){
                     if(!selected[v]){
-                        var d=getDistance(group[u].getPosition(), group[v].getPosition());
-                        if(d<dist[v]) { dist[v]=d; parent[v]=u; }
+                        var d = getDistance(group[u].getPosition(), group[v].getPosition());
+                        if(d < dist[v]) { dist[v] = d; parent[v] = u; }
                     }
                 }
             }
 
-            for(var i=1;i<n;i++){
-                var path=[group[i].getPosition(), group[parent[i]].getPosition()];
+            for(var i=1; i<n; i++){
+                var path = [group[i].getPosition(), group[parent[i]].getPosition()];
                 var line = new kakao.maps.Polyline({
-                    path:path, strokeWeight:3, strokeColor:'#FF5C5C', strokeOpacity:0.7
+                    path: path,
+                    strokeWeight: 3,
+                    strokeColor: '#FF5C5C',
+                    strokeOpacity: 0.7
                 });
                 line.setMap(map);
                 allLines.push(line);
             }
-        }
-
-        // 오버레이 표시
-        var avgLat=0, avgLng=0, validCount=0;
-        group.forEach(m=>{
-            var pos = m.getPosition();
+        } else {
+            // 숫자+하이픈 외 문자 포함 → 오버레이 표시
+            var pos = group[0].getPosition();
             if(pos){
-                avgLat += pos.getLat();
-                avgLng += pos.getLng();
-                validCount++;
+                var overlay = new kakao.maps.CustomOverlay({
+                    position: pos,
+                    content: `<div style="padding:4px 8px;background:#fff;border:1px solid #333;border-radius:4px;">${group[0].group}</div>`,
+                    map: map
+                });
+                allOverlays.push(overlay);
             }
-        });
-
-        if(validCount>0){
-            avgLat /= validCount;
-            avgLng /= validCount;
-
-            var overlay = new kakao.maps.CustomOverlay({
-                position: new kakao.maps.LatLng(avgLat, avgLng),
-                content: `<div style="padding:4px 8px;background:#fff;border:1px solid #333;border-radius:4px;">${group[0].group}</div>`,
-                map: map
-            });
-            allOverlays.push(overlay);
         }
     }
 }
