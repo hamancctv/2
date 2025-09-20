@@ -992,76 +992,86 @@ function getDistance(latlng1, latlng2){
     return R*c;
 }
 
-// MST 토글
+// MST 토글 + 오버레이 자동 표시
 var allLines = [];
 var allOverlays = [];
-function drawGroupLinesMST() {
-    // 기존 선, 오버레이 제거
-    if(allLines.length>0 || allOverlays.length>0){
-        allLines.forEach(l => l.setMap(null));
-        allOverlays.forEach(o => o.setMap(null));
-        allLines = [];
-        allOverlays = [];
-        return;
+
+function drawGroupLinesMST(){
+    // 기존 라인/오버레이 제거
+    if(allLines.length>0){
+        allLines.forEach(l=>l.setMap(null));
+        allLines=[];
+    }
+    if(allOverlays.length>0){
+        allOverlays.forEach(o=>o.setMap(null));
+        allOverlays=[];
     }
 
-    var groupMarkers = {};
-    markers.forEach(m => {
+    var groupMarkers={};
+    markers.forEach(m=>{
         if(!m.group) return;
-        if(!groupMarkers[m.group]) groupMarkers[m.group] = [];
+        if(!groupMarkers[m.group]) groupMarkers[m.group]=[];
         groupMarkers[m.group].push(m);
     });
 
     for(var g in groupMarkers){
         var group = groupMarkers[g];
+        if(group.length === 0) continue;
 
-        // 그룹명이 숫자와 하이픈만 있는지 확인
-        if(!/^[\d-]+$/.test(g)){
-            // 오버레이로 그룹명 표시 (중앙 위치)
-            var avgLat = 0, avgLng = 0;
-            group.forEach(m => {
-                avgLat += m.getPosition().getLat();
-                avgLng += m.getPosition().getLng();
-            });
-            avgLat /= group.length;
-            avgLng /= group.length;
+        // 그룹 이름이 숫자/하이픈만 있는 경우 → MST 연결
+        if(/^[\d-]+$/.test(g) && group.length > 1){
+            var n=group.length, selected=Array(n).fill(false), dist=Array(n).fill(Infinity), parent=Array(n).fill(-1);
+            dist[0]=0;
 
-            var overlay = new kakao.maps.CustomOverlay({
-                position: new kakao.maps.LatLng(avgLat, avgLng),
-                content: `<div style="padding:2px 5px;background:white;border:1px solid #FF5C5C;border-radius:3px;">${g}</div>`
-            });
-            overlay.setMap(map);
-            allOverlays.push(overlay);
+            for(var k=0;k<n;k++){
+                var u=-1;
+                for(var i=0;i<n;i++){
+                    if(!selected[i] && (u==-1 || dist[i]<dist[u])) u=i;
+                }
+                selected[u]=true;
+                for(var v=0;v<n;v++){
+                    if(!selected[v]){
+                        var d=getDistance(group[u].getPosition(), group[v].getPosition());
+                        if(d<dist[v]) { dist[v]=d; parent[v]=u; }
+                    }
+                }
+            }
+
+            for(var i=1;i<n;i++){
+                var path=[group[i].getPosition(), group[parent[i]].getPosition()];
+                var line = new kakao.maps.Polyline({
+                    path:path, strokeWeight:3, strokeColor:'#FF5C5C', strokeOpacity:0.7
+                });
+                line.setMap(map);
+                allLines.push(line);
+            }
+        }
+
+        // 숫자가 아닌 그룹 또는 MST 연결 불가 시 → 오버레이 표시
+        var avgLat = 0, avgLng = 0, validCount = 0;
+        group.forEach(m=>{
+            var pos = m.getPosition();
+            if(pos){
+                avgLat += pos.getLat();
+                avgLng += pos.getLng();
+                validCount++;
+            }
+        });
+
+        if(validCount === 0){
+            console.warn('좌표가 없는 그룹:', g);
             continue;
         }
 
-        if(group.length < 2) continue;
+        avgLat /= validCount;
+        avgLng /= validCount;
 
-        var n = group.length, selected = Array(n).fill(false), dist = Array(n).fill(Infinity), parent = Array(n).fill(-1);
-        dist[0] = 0;
-
-        for(var k = 0; k < n; k++){
-            var u = -1;
-            for(var i = 0; i < n; i++){
-                if(!selected[i] && (u == -1 || dist[i] < dist[u])) u = i;
-            }
-            selected[u] = true;
-            for(var v = 0; v < n; v++){
-                if(!selected[v]){
-                    var d = getDistance(group[u].getPosition(), group[v].getPosition());
-                    if(d < dist[v]) { dist[v] = d; parent[v] = u; }
-                }
-            }
-        }
-
-        for(var i = 1; i < n; i++){
-            var path = [group[i].getPosition(), group[parent[i]].getPosition()];
-            var line = new kakao.maps.Polyline({
-                path: path, strokeWeight: 3, strokeColor: '#FF5C5C', strokeOpacity: 0.7
-            });
-            line.setMap(map);
-            allLines.push(line);
-        }
+        var overlay = new kakao.maps.CustomOverlay({
+            position: new kakao.maps.LatLng(avgLat, avgLng),
+            content: `<div style="padding:4px 8px;background:#fff;border:1px solid #333;border-radius:4px;">${g}</div>`,
+            map: map
+        });
+        allOverlays.push(overlay);
     }
 }
 // 거리재기 상태
