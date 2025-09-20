@@ -5,6 +5,7 @@
 
 
 
+
 <html>
 
 <head>
@@ -993,52 +994,76 @@ function getDistance(latlng1, latlng2){
 
 // MST 토글
 var allLines = [];
-function drawGroupLinesMST(){
-    if(allLines.length>0){
-        allLines.forEach(l=>l.setMap(null));
-        allLines=[];
+var allOverlays = [];
+function drawGroupLinesMST() {
+    // 기존 선, 오버레이 제거
+    if(allLines.length>0 || allOverlays.length>0){
+        allLines.forEach(l => l.setMap(null));
+        allOverlays.forEach(o => o.setMap(null));
+        allLines = [];
+        allOverlays = [];
         return;
     }
 
-    var groupMarkers={};
-    markers.forEach(m=>{
+    var groupMarkers = {};
+    markers.forEach(m => {
         if(!m.group) return;
-        if(!groupMarkers[m.group]) groupMarkers[m.group]=[];
+        if(!groupMarkers[m.group]) groupMarkers[m.group] = [];
         groupMarkers[m.group].push(m);
     });
 
     for(var g in groupMarkers){
         var group = groupMarkers[g];
-        if(group.length<2) continue;
 
-        var n=group.length, selected=Array(n).fill(false), dist=Array(n).fill(Infinity), parent=Array(n).fill(-1);
-        dist[0]=0;
+        // 그룹명이 숫자와 하이픈만 있는지 확인
+        if(!/^[\d-]+$/.test(g)){
+            // 오버레이로 그룹명 표시 (중앙 위치)
+            var avgLat = 0, avgLng = 0;
+            group.forEach(m => {
+                avgLat += m.getPosition().getLat();
+                avgLng += m.getPosition().getLng();
+            });
+            avgLat /= group.length;
+            avgLng /= group.length;
 
-        for(var k=0;k<n;k++){
-            var u=-1;
-            for(var i=0;i<n;i++){
-                if(!selected[i] && (u==-1 || dist[i]<dist[u])) u=i;
+            var overlay = new kakao.maps.CustomOverlay({
+                position: new kakao.maps.LatLng(avgLat, avgLng),
+                content: `<div style="padding:2px 5px;background:white;border:1px solid #FF5C5C;border-radius:3px;">${g}</div>`
+            });
+            overlay.setMap(map);
+            allOverlays.push(overlay);
+            continue;
+        }
+
+        if(group.length < 2) continue;
+
+        var n = group.length, selected = Array(n).fill(false), dist = Array(n).fill(Infinity), parent = Array(n).fill(-1);
+        dist[0] = 0;
+
+        for(var k = 0; k < n; k++){
+            var u = -1;
+            for(var i = 0; i < n; i++){
+                if(!selected[i] && (u == -1 || dist[i] < dist[u])) u = i;
             }
-            selected[u]=true;
-            for(var v=0;v<n;v++){
+            selected[u] = true;
+            for(var v = 0; v < n; v++){
                 if(!selected[v]){
-                    var d=getDistance(group[u].getPosition(), group[v].getPosition());
-                    if(d<dist[v]) { dist[v]=d; parent[v]=u; }
+                    var d = getDistance(group[u].getPosition(), group[v].getPosition());
+                    if(d < dist[v]) { dist[v] = d; parent[v] = u; }
                 }
             }
         }
 
-        for(var i=1;i<n;i++){
-            var path=[group[i].getPosition(), group[parent[i]].getPosition()];
+        for(var i = 1; i < n; i++){
+            var path = [group[i].getPosition(), group[parent[i]].getPosition()];
             var line = new kakao.maps.Polyline({
-                path:path, strokeWeight:3, strokeColor:'#FF5C5C', strokeOpacity:0.7
+                path: path, strokeWeight: 3, strokeColor: '#FF5C5C', strokeOpacity: 0.7
             });
             line.setMap(map);
             allLines.push(line);
         }
     }
 }
-
 // 거리재기 상태
 var drawing = false;
 var mapClickEnabled = true; // 기존 마커/오버레이 클릭 허용 여부
