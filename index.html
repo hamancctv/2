@@ -1,4 +1,10 @@
 
+
+
+
+
+
+
 <html>
 
 <head>
@@ -10,133 +16,287 @@
 	
 </head>
 
-    <body>
-	<div id="alert-overlay">
-    <div id="alert-message"></div>
-</div>
-		<style>
-#container {overflow:hidden;height:100%;position:relative;}
-#mapWrapper {width:100%;height:100%;z-index:1;}
-#rvWrapper {width:50%;height:100%;top:0;right:0;position:absolute;z-index:0;}
-#container.view_roadview #mapWrapper {width: 50%;}
-#roadviewControl {position:absolute;top:2px;left:115px;width:42px;height:42px;z-index: 1;cursor: pointer; background: url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/common/img_search.png) 0 -450px no-repeat;}
-#roadviewControl.active {background-position:0 -350px;}
-#close {position: absolute;padding: 4px;top: 5px;left: 5px;cursor: pointer;background: #fff;border-radius: 4px;border: 1px solid #c8c8c8;box-shadow: 0px 1px #888;}
-#close .img {display: block;background: url(https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/rv_close.png) no-repeat;width: 14px;height: 14px;}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>GIS 모바일</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="icon" href="https://hamancctv.github.io/5/favicon.ico" sizes="32x32"/>
 
-       .custom_typecontrol2_m {position:absolute;bottom:5px;right:10px;overflow:hidden;width:85px;height:25px;margin:0;padding:0;z-index:1;font-size:12px;font-family:'Malgun Gothic', '맑은 고딕', sans-serif;}
-.custom_typecontrol2_m span {display:block;width:40px;height:30px;float:left;text-align:center;line-height:25px;cursor:pointer;}
-.custom_typecontrol2_m .btn {background:#fff;background:linear-gradient(#fff,  #e6e6e6);}       
-.custom_typecontrol2_m .btn:hover {background:#f5f5f5;background:linear-gradient(#f5f5f5,#e3e3e3);}
-.custom_typecontrol2_m .btn:active {background:#e6e6e6;background:linear-gradient(#e6e6e6, #fff);}    
-.custom_typecontrol2_m .selected_btn {color:#fff;background:#425470;background:linear-gradient(#425470, #5b6d8a);}
-.custom_typecontrol2_m .selected_btn:hover {color:#fff;}   
-       
- html, body {width:100%;height:100%;margin:0;padding:0;overflow: hidden}
-        
-#menu_wrap {position:absolute;top:40px;right:8px;bottom:70%;width:270px;margin:3px 0 5px 10px;padding:5px;overflow-y:auto;background:rgba(255, 255, 255, 0.8);z-index: 1;font-size:12px;border-radius: 0px;}
-.bg_white {background:#fff;}
-#menu_wrap hr {display: block; height: 1px;border: 0; border-top: 2px solid #5F5F5F;margin:3px 0;}
-#menu_wrap .option{text-align: center;}
-  .name:hover { background:#cdcdcd; }     
-.bg_white {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
-}
-
-#menu_rule {position:absolute;left:2;top:45;height:24px;width:197px;margin:0px 0px 0px 0px;padding:5px;overflow-y:none;background:rgba(255, 255, 255, 0.8);z-index: 1;font-size:12px;border-radius: 0px;}
-.bg_white {background:#fff;}
-#menu_rule hr {display: block; height: 1px;border: 0; border-top: 2px solid #5F5F5F;margin:3px 0;}
-#menu_rule .option{text-align: center;}
-       
-       .info {position:relative;top:5px;left:5px;border-radius:6px;border: 1px solid #ccc;border-bottom:2px solid #ddd;font-size:12px;padding:5px;background:#fff;list-style:none;margin:0;} 
-.info:nth-of-type(n) {border:0; box-shadow:0px 1px 2px #888;}    
-.number {font-weight:bold;color:#00a0e9;} 
-
-.dot {overflow:hidden;float:left;width:12px;height:12px;background: url('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/mini_circle.png');}    
-.dotOverlay {position:relative;bottom:10px;border-radius:6px;border: 1px solid #ccc;border-bottom:2px solid #ddd;float:left;font-size:12px;padding:5px;background:#fff;}
-.dotOverlay:nth-of-type(n) {border:0; box-shadow:0px 1px 2px #888;}    
-.number {font-weight:bold;color:#ee6152;}
-.dotOverlay:after {content:'';position:absolute;margin-left:-6px;left:50%;bottom:-8px;width:11px;height:8px;background:url('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/vertex_white_small.png')}
-.distanceInfo {position:relative;top:5px;left:5px;list-style:none;margin:0;}
-.distanceInfo .label {display:inline-block;width:50px;}
-.distanceInfo:after {content:none;}
-       
-       /* 지도 전체에 항상 손 모양 */
-#map {
-    cursor: grab; /* 평상시 손 편 상태 */
-}
-       
-.marker-pulse {
-    position: relative;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background-color: rgba(255, 60, 0, 0.4);
-    animation: pulse 1s ease-out infinite;
-    transform: translate(-50%, -50%); /* 중심 맞추기 */
-}
-
-@keyframes pulse {
-    0% {
-        transform: translate(-50%, -50%) scale(0.5);
-        opacity: 0.8;
+  <style>
+    /* 지도 전체에서 텍스트 선택 방지 */
+    #map, #map * {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -khtml-user-select: none;
     }
-    100% {
-        transform: translate(-50%, -50%) scale(1.5);
-        opacity: 0;
+    /* 입력 가능한 영역은 선택 가능 */
+
+
+    #container {overflow:hidden;height:100%;position:relative;}
+    #mapWrapper {width:100%;height:100%;z-index:1;}
+    #rvWrapper {width:50%;height:100%;top:0;right:0;position:absolute;z-index:0;}
+    #container.view_roadview #mapWrapper {width: 50%;}
+    #roadviewControl {
+        position:absolute;top:2px;left:115px;width:42px;height:42px;
+        z-index: 1;cursor: pointer;
+        background: url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/common/img_search.png) 0 -450px no-repeat;
     }
+    #roadviewControl.active {background-position:0 -350px;}
+    #close {
+        position: absolute;padding: 4px;top: 49px;left: 5px;cursor: pointer;
+        background: #fff;border-radius: 4px;border: 1px solid #c8c8c8;box-shadow: 0px 1px #888;
+    }
+    #close .img {
+        display: block;
+        background: url(https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/rv_close.png) no-repeat;
+        width: 14px;height: 14px;
+    }
+
+ /* 하단 컨트롤 버튼 스타일 개선 */
+.custom_typecontrol2_m {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    display: flex;
+    gap: 8px; /* 버튼 사이 간격 */
+    z-index: 10;
+    font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
 }
-           
-       #alert-overlay {
-    position: fixed;
-    top: 50px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 15px 30px;
+
+.custom_typecontrol2_m span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
+    height: 36px;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
     border-radius: 8px;
-    z-index: 1000;
-    display: none;
-    font-size: 1.2em;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border: 1px solid #ccc;
+    background: #f0f0f0;
+    color: #333;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+    user-select: none;
 }
-    </style>
 
-<div id="container">
-    <div id="rvWrapper">
-        <div id="roadview" style="width:100%;height:100%;"></div> <!-- 로드뷰를 표시할 div 입니다 -->
-        <div id="close" title="로드뷰닫기" onclick="closeRoadview()"><span class="img"></span></div>
-    </div>
-    <div id="mapWrapper">
-        <div id="map" style="width:100%;height:100%"></div> <!-- 지도를 표시할 div 입니다 -->
-        <div id="roadviewControl" onclick="setRoadviewRoad()"></div>
-    </div>
+/* 호버 효과 */
+.custom_typecontrol2_m span:hover {
+    background: linear-gradient(145deg, #e0e0e0, #d1d1d1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* 클릭/선택된 버튼 */
+.custom_typecontrol2_m span.selected_btn {
+    background: linear-gradient(145deg, #425470, #5b6d8a);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border-color: #2e3d5c;
+}
+
+/* 클릭 시 누른 느낌 */
+.custom_typecontrol2_m span:active {
+    background: linear-gradient(145deg, #3a4b66, #52647e);
+}
+
+    /* 공통 버튼 */
+    .btn-common {
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid #ccc;
+        background: #f8f9fa;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        z-index: 200;
+    }
+    .btn-common:hover { background: #e9ecef; }
+    .btn-primary {
+        background: #4caf50;
+        color: white;
+        border: none;
+    }
+    .btn-primary:hover { background: #43a047; }
+
+    /* 공통 input */
+    .input-common {
+        height: 32px;
+        padding: 0 8px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 14px;
+        z-index: 200;
+    }
+
+    /* 상단 툴바 */
+    .toolbar {
+        position: absolute;
+        top: 12px;
+        left: 10px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        z-index: 500;
+    }
+    .toolbar-right {
+        position: absolute;
+        top: 12px;
+        right: 10px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        z-index: 500;
+    }
+
+    html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
+
+    #menu_wrap {
+        position:absolute;top:40px;right:8px;bottom:70%;
+        width:270px;margin:3px 0 5px 10px;padding:5px;
+        overflow-y:auto;background:rgba(255, 255, 255, 0.8);
+        z-index: 1;font-size:12px;
+    }
+
+    /* 알림 오버레이 */
+    #alert-overlay {
+        position: fixed;
+        top: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 15px 30px;
+        border-radius: 8px;
+        z-index: 1000;
+        display: none;
+        font-size: 1.2em;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+      
+  /* 검색창 컨테이너 */
+.search-container {
+  position: absolute;
+  top: 3px;                /* 지도 상단에서 약간 아래 */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  width: 400px;             /* 전체 가로 폭 */
+  z-index: 500;
+}
+
+/* 입력창 */
+.search-container input {
+  flex: 1;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px 0 0 6px;
+  font-size: 14px;
+      margin-right: 6px; /* ← 버튼과의 간격 추가 */
+
+}
+
+/* 버튼 */
+.search-container button {
+  height: 36px;
+  padding: 0 15px;
+  border: 1px solid #ccc;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  background: #4caf50;
+  color: #fff;
+  cursor: pointer;
+}
+
+.search-container button:hover {
+  background: #43a047;
+}
+      
+#btnDistance {
+    position:absolute; top:50px; left:10px; z-index:1000;
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:6px 12px; border-radius:6px; border:1px solid #666;
+    background:#fff; color:#000; cursor:pointer;
+    font-size:14px; font-weight:500; transition: background 0.2s,color 0.2s;
+}
+    #btnDistance.active { background:#db4040; color:#fff; }
+.labelBox {
+    background:#fff; border:1px solid #555; border-radius:3px;
+    font-size:12px; padding:2px 6px; cursor:pointer;
+}
+.totalBox {
+    background:#ffeb3b; border:1px solid #333; border-radius:3px;
+    font-size:12px; padding:2px 6px; font-weight:bold;
+}
+  </style>
+</head>
+<body>
+  <div id="alert-overlay"><div id="alert-message"></div></div>
+<button id="btnDistance">거리</button>
+
+  <div id="container">
+      <div id="rvWrapper">
+          <div id="roadview" style="width:100%;height:100%;"></div>
+          <div id="close" title="로드뷰닫기" onclick="closeRoadview()"><span class="img"></span></div>
+      </div>
+      <div id="mapWrapper">
+          <div id="map" style="width:100%;height:100%"></div>
+          <div id="roadviewControl" onclick="setRoadviewRoad()"></div>
+      </div>
+  </div>
+
+  <!-- 좌측 툴바 (검색) -->
+<div class="search-container">
+    <input type="search" id="keyword" 
+        onkeyup="filter()" autocomplete="off"
+        onkeydown="if(event.keyCode === 13) { btnsearch_click(); }" 
+        class="form-control" 
+        placeholder="검색어 입력"/>
+    <button id="searchBtn" onclick="btnsearch_click()">검색</button>
 </div>
-  <!-- 2-2. input:text 태그 -->
-    <button id="btn_input_copy" style= "position:absolute;top:12;width:45;right:285;z-index:200">복사</button>
- <input type="text" inputmode="none" class='form-control' style= "position:absolute;top:13;width:270;right:10;z-index:20" id = "gpsyx" value ="35.2725308711779, 128.406307024695"></button>
 
-    <!-- 전용회선 버튼 -->
-   <button tabindex="-1" id="toggle_group" style="position:absolute;top:90;width:65;left:5;z-index:20">전용회선</button>
+  <!-- 우측 툴바 (좌표/복사) -->
+  <div class="toolbar-right">
+    <input type="text" id="gpsyx" class="input-common" inputmode="none"
+           value="35.2725308711779, 128.406307024695"/>
+    <button id="btn_input_copy" class="btn-common">복사</button>
+  </div>
 
-
- <input type="search" id="keyword" onkeyup="filter()" onkeydown="if(event.keyCode === 13) { btnsearch_click(); }" class="clickdown" style="position:absolute;top:13;width:200;left:210;z-index:200"/>
-   <button tabindex="-1" id="searchBtn" onclick="btnsearch_click()" style="position:absolute;top:12;width:45;left:160;z-index:20" class="bsuccess">검색</button>
-<div class="custom_typecontrol2_m radius_border">
-	<span id="btnCurrentMe" class="btn" onclick="mapCurrentPosition2()">내위치</span>
-	<span id="btnCurrentHideMe" class="selected_btn" onclick="mapCurrentPositionHide()">숨김</span>
-</div>
+  <!-- 하단 컨트롤 -->
+  <div class="custom_typecontrol2_m radius_border">
+    <span id="toggle_group" class="btn btn-common">회선</span>
+    <span id="btnCurrentMe" class="btn btn-common" onclick="toggleMyLocation()">위치</span>
+    <span id="btnTrackMe" class="btn btn-common" onclick="toggleTracking()">추적</span>
+  </div>
+    
+</body>
 
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=2634b7b6dd61e41a4d6c0bf40a2ef820&libraries=services,clusterer,drawing"></script>
 <script src="https://code.jquery.com/jquery-3.6.1.js" integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI=" crossorigin="anonymous"></script>
-// 마커를 표시할 위치와 내용을 가지고 있는 객체 배열입니다 
+<!-- 마커를 표시할 위치와 내용을 가지고 있는 객체 배열입니다  -->
 <!-- 마커위치 positions.js 불러오기 -->
     <script type="text/javascript" src="https://hamancctv.github.io/5/positions.js"></script> 
     
     <script>
+        const toggleGroupBtn = document.getElementById('toggle_group');
+toggleGroupBtn.addEventListener('click', function() {
+    drawGroupLinesMST();
+
+    // 토글 클래스 적용
+    if (toggleGroupBtn.classList.contains('selected_btn')) {
+        toggleGroupBtn.classList.remove('selected_btn');
+    } else {
+        toggleGroupBtn.classList.add('selected_btn');
+    }
+});
 var overlayOn = false, // 지도 위에 로드뷰 오버레이가 추가된 상태를 가지고 있을 변수
     container = document.getElementById('container'), // 지도와 로드뷰를 감싸고 있는 div 입니다
     mapWrapper = document.getElementById('mapWrapper'), // 지도를 감싸고 있는 div 입니다
@@ -155,6 +315,8 @@ var mapCenter = new kakao.maps.LatLng(35.2725308711779, 128.406307024695), // �
 // 지도를 표시할 div와 지도 옵션으로 지도를 생성합니다
 var map = new kakao.maps.Map(mapContainer, mapOption);
 map.setMaxLevel(9);
+        
+        
 
 // 로드뷰 객체를 생성합니다 
 var rv = new kakao.maps.Roadview(rvContainer); 
@@ -361,157 +523,104 @@ map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPLEFT);
 // var zoomControl = new kakao.maps.ZoomControl();
 // map.addControl(zoomControl, kakao.maps.ControlPosition.LEFT);
 
-// ================================================
-// 내위치 버튼 + 추적 + 숨김 + 깜빡이는 애니메이션
-// ================================================
+        
+        // 내 위치 토글//
+  var myLocationOn = false;
+var trackOn = false;
+var myLocationMarker = null;
+var trackMarker = null;
+var trackInterval = null;
+var watchId = null;
 
-var myMarker = null;     // 내 위치 마커
-var watchId = null;      // 실시간 추적용 watchPosition ID
-var isTracking = false;  // 추적 모드 여부
-var overlay = null;      // 커스텀 오버레이
-var blinkInterval = null; // 깜빡임용 Interval
-var currentBtn = document.getElementById("btnCurrentMe");
-var hideBtn = document.getElementById("btnCurrentHideMe");
+var markerImage = new kakao.maps.MarkerImage(
+    'https://hamancctv.github.io/5/icon-target.png',
+    new kakao.maps.Size(32,32),
+    { offset: new kakao.maps.Point(16,16) }
+);
 
-// 깜빡임 시작
-function startBlink() {
-    if (!myMarker) return;
-    let visible = true;
-    blinkInterval = setInterval(() => {
-        myMarker.setMap(visible ? map : null);
-        visible = !visible;
-    }, 500);
-}
+// ===== 내 위치 토글 =====
+function toggleMyLocation() {
+    if(trackOn) stopTracking(); // 추적 켜져 있으면 끔
 
-// 깜빡임 종료
-function stopBlink() {
-    if (blinkInterval) {
-        clearInterval(blinkInterval);
-        blinkInterval = null;
-        if (myMarker) myMarker.setMap(map);
-    }
-}
-
-// 커스텀 오버레이 표시
-function showOverlay(message) {
-    if (overlay) overlay.setMap(null);
-    if (!myMarker) return;
-
-    overlay = new kakao.maps.CustomOverlay({
-        content: `<div style="padding:5px 10px; background:rgba(0,0,0,0.7); color:#fff; border-radius:5px;">${message}</div>`,
-        position: myMarker.getPosition(),
-        yAnchor: 1
-    });
-
-    overlay.setMap(map);
-
-    setTimeout(() => {
-        if (overlay) overlay.setMap(null);
-        overlay = null;
-    }, 2000);
-}
-
-// 버튼 UI 업데이트
-function updateButtonUI(mode) {
-    if (mode === "default") {
-        currentBtn.className = "btn";
-        hideBtn.className = "selected_btn";
-        currentBtn.innerHTML = "내위치";
-    } else if (mode === "shown") {
-        currentBtn.className = "selected_btn";
-        hideBtn.className = "btn";
-        currentBtn.innerHTML = "내위치 표시";
-    } else if (mode === "tracking") {
-        currentBtn.className = "selected_btn";
-        hideBtn.className = "btn";
-        currentBtn.innerHTML = "추적 중";
-    }
-}
-
-// 내위치 버튼 클릭
-function mapCurrentPosition2() {
-    if (!myMarker) {
-        // 1. 마커 없으면 현재 위치 표시
-        navigator.geolocation.getCurrentPosition(function(pos) {
-            var myPosLat = pos.coords.latitude;
-            var myPosLng = pos.coords.longitude;
-
-            var markerImage = new kakao.maps.MarkerImage(
-                "https://hamancctv.github.io/2/pin_me.png",
-                new kakao.maps.Size(56, 49),
-                { offset: new kakao.maps.Point(28, 49) }
-            );
-
-            myMarker = new kakao.maps.Marker({
-                map: map,
-                position: new kakao.maps.LatLng(myPosLat, myPosLng),
-                image: markerImage,
-                title: "내위치",
-                clickable: false
-            });
-
-            map.setCenter(new kakao.maps.LatLng(myPosLat, myPosLng));
-
-            isTracking = false;
-            updateButtonUI("shown");
-            showOverlay("내 위치 표시 완료");
-        }, function(err) {
-            console.error(err);
-            showOverlay("위치 정보를 가져올 수 없습니다.");
-        });
-    } else if (!isTracking) {
-        // 2. 마커 있지만 추적 안하면 추적 시작
-        isTracking = true;
-        startTracking();
-        updateButtonUI("tracking");
-        startBlink();
-        showOverlay("실시간 위치 추적 시작");
+    if(!myLocationOn){
+        myLocationOn = true;
+        document.getElementById('btnCurrentMe').classList.add('selected_btn');
+        navigator.geolocation.getCurrentPosition(function(pos){
+            showMyLocation(pos.coords.latitude, pos.coords.longitude);
+        }, geoError, { enableHighAccuracy:true });
     } else {
-        // 3. 이미 추적 중
-        showOverlay("이미 실시간 추적 중입니다.");
+        myLocationOn = false;
+        document.getElementById('btnCurrentMe').classList.remove('selected_btn');
+        if(myLocationMarker) {
+            myLocationMarker.setMap(null);
+            myLocationMarker = null;
+        }
     }
 }
 
-// 실시간 추적
-function startTracking() {
-    if (!watchId) {
-        watchId = navigator.geolocation.watchPosition(function(pos) {
-            var myPosLat = pos.coords.latitude;
-            var myPosLng = pos.coords.longitude;
-
-            if (myMarker) myMarker.setPosition(new kakao.maps.LatLng(myPosLat, myPosLng));
-            map.setCenter(new kakao.maps.LatLng(myPosLat, myPosLng));
-        }, function(err) {
-            console.error("위치 추적 실패:", err);
-            showOverlay("위치 추적 실패");
-        }, { enableHighAccuracy: true, maximumAge: 1000 });
+function showMyLocation(lat, lng){
+    var latLng = new kakao.maps.LatLng(lat,lng);
+    if(!myLocationMarker){
+        myLocationMarker = new kakao.maps.Marker({
+            position:latLng,
+            map:map,
+            image:markerImage
+        });
+        kakao.maps.event.addListener(myLocationMarker, 'click', function(){
+            map.panTo(myLocationMarker.getPosition());
+            map.setLevel(4);
+        });
+    } else {
+        myLocationMarker.setPosition(latLng);
+        myLocationMarker.setMap(map);
     }
+    map.panTo(latLng);
+    map.setLevel(5);
 }
 
-// 숨김 버튼 클릭
-function mapCurrentPositionHide() {
-    if (myMarker) {
-        myMarker.setMap(null);
-        myMarker = null;
-    }
+// ===== 추적 토글 =====
+function toggleTracking() {
+    if(myLocationOn) toggleMyLocation(); // 내위치 켜져 있으면 끔
 
-    if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-    }
-
-    stopBlink();
-
-    if (overlay) {
-        overlay.setMap(null);
-        overlay = null;
-    }
-
-    isTracking = false;
-    updateButtonUI("default");
-    showOverlay("내 위치 숨김");
+    if(!trackOn) startTracking();
+    else stopTracking();
 }
 
+function startTracking(){
+    trackOn = true;
+    document.getElementById('btnTrackMe').classList.add('selected_btn');
+
+    watchId = navigator.geolocation.watchPosition(function(pos){
+        var latLng = new kakao.maps.LatLng(pos.coords.latitude,pos.coords.longitude);
+
+        if(!trackMarker){
+            trackMarker = new kakao.maps.Marker({
+                position:latLng,
+                map:map,
+                image:markerImage
+            });
+        } else {
+            trackMarker.setPosition(latLng);
+            trackMarker.setMap(map);
+        }
+        map.panTo(latLng);
+    }, geoError, { enableHighAccuracy:true });
+
+    trackInterval = setInterval(function(){
+        if(trackMarker) trackMarker.setVisible(!trackMarker.getVisible());
+    }, 500); // 깜빡임 속도 0.5초
+}
+
+function stopTracking(){
+    trackOn = false;
+    document.getElementById('btnTrackMe').classList.remove('selected_btn');
+
+    if(watchId) { navigator.geolocation.clearWatch(watchId); watchId=null; }
+    if(trackInterval){ clearInterval(trackInterval); trackInterval=null; }
+    if(trackMarker){ trackMarker.setVisible(true); trackMarker.setMap(null); trackMarker=null; }
+}
+
+function geoError(err){ console.error('GPS error:', err); }
 
     // 중복 제거 로직
 // unique 객체에 lat, lng 뿐만 아니라 markerImage도 체크하여 완벽한 중복 제거
@@ -604,30 +713,7 @@ kakao.maps.event.addListener(marker2, 'click', function() {
     // 클릭한 마커의 그룹 확인
     var group = marker2.group;
 
-    // 그룹이 있는 경우만 선을 그림
-    if (group) {
-        // 기존 폴리라인 제거
-        if (polyline) polyline.setMap(null);
-
-        // 같은 그룹 마커 위치만 모음
-        var linePath = markers
-            .filter(m => m.group === group)
-            .map(m => m.getPosition());
-
-        if (linePath.length > 1) {
-            polyline = new kakao.maps.Polyline({
-                path: linePath,
-                strokeWeight: 5,
-                strokeColor: '#FF5C5C',
-                strokeOpacity: 0.7,
-                strokeStyle: 'solid'
-            });
-            polyline.setMap(map);
-        }
-    } else {
-        if (polyline) polyline.setMap(null);
-    }
-    
+   
     
             
             // 2. 바운스 효과 및 오버레이 표시
@@ -842,15 +928,10 @@ kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
 </script>
 
 
-    <div id="menu_rule" class="bg_white" style="border:1px solid #919191;border-radius:5px;">   
-        <button id='btnMARKER' onclick="rule_line()">거리</button>
-	    <button id='btnPOLYLINE'  onclick="rule_poly()">면적</button>
-        <button id='btnARROW'  onclick="rule_circle()">반경</button>    
-        <button class='berror' onclick="RulerRemove()">초기화</button></div>
 
-    // sel_txt 시작
+    <!-- sel_txt 시작 -->
 <div id="menu_wrap" class="bg_white" style="border:1px solid #919191;border-radius:10px;">
-    // 이 사이에 내용 호출
+    <!-- 이 사이에 내용 호출 -->
     </div>
 <script>
     fetch("https://raw.githubusercontent.com/hamancctv/5/refs/heads/main/sel_txt.html")  // 외부 파일 경로
@@ -860,7 +941,8 @@ kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
   })
   .catch(err => console.error("메뉴 로드 실패:", err));
 </script>
-    // 위 자바스크립트가 내용 호출 스크립트고 이상 끝.
+    <!-- 위 자바스크립트가 내용 호출 스크립트고 이상 끝. -->
+    
     
 <script type="text/javascript">
       function filter(){
@@ -896,52 +978,200 @@ function removeMarker() {
     };
 
     // 전역 변수
-var groupPolylineMap = {}; // 그룹별로 polyline 저장
-var toggleGroupOn = false; // 토글 상태
+// 그룹별 직선 연결
+// 거리 계산 함수
+function getDistance(latlng1, latlng2){
+    var R = 6371e3;
+    var lat1 = latlng1.getLat() * Math.PI / 180;
+    var lat2 = latlng2.getLat() * Math.PI / 180;
+    var dLat = (latlng2.getLat()-latlng1.getLat())*Math.PI/180;
+    var dLng = (latlng2.getLng()-latlng1.getLng())*Math.PI/180;
+    var a = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R*c;
+}
 
-// 버튼 클릭 이벤트
-document.getElementById('toggle_group').addEventListener('click', function() {
-    toggleGroupOn = !toggleGroupOn;
+// MST 토글
+var allLines = [];
+function drawGroupLinesMST(){
+    if(allLines.length>0){
+        allLines.forEach(l=>l.setMap(null));
+        allLines=[];
+        return;
+    }
 
-    if (toggleGroupOn) {
-        // 버튼 활성화 스타일 적용
-        this.classList.add('active');
+    var groupMarkers={};
+    markers.forEach(m=>{
+        if(!m.group) return;
+        if(!groupMarkers[m.group]) groupMarkers[m.group]=[];
+        groupMarkers[m.group].push(m);
+    });
 
-        // 그룹별 폴리라인 생성 (그룹 정보 없는 마커 제외)
-        var groups = {};
-        markers.forEach(function(marker) {
-            if (!marker.group) return; // 그룹 없는 마커는 제외
-            if (!groups[marker.group]) groups[marker.group] = [];
-            groups[marker.group].push(marker.getPosition());
-        });
+    for(var g in groupMarkers){
+        var group = groupMarkers[g];
+        if(group.length<2) continue;
 
-        for (var g in groups) {
-            if (groups[g].length < 2) continue; // 폴리라인 그리기 최소 2개
+        var n=group.length, selected=Array(n).fill(false), dist=Array(n).fill(Infinity), parent=Array(n).fill(-1);
+        dist[0]=0;
+
+        for(var k=0;k<n;k++){
+            var u=-1;
+            for(var i=0;i<n;i++){
+                if(!selected[i] && (u==-1 || dist[i]<dist[u])) u=i;
+            }
+            selected[u]=true;
+            for(var v=0;v<n;v++){
+                if(!selected[v]){
+                    var d=getDistance(group[u].getPosition(), group[v].getPosition());
+                    if(d<dist[v]) { dist[v]=d; parent[v]=u; }
+                }
+            }
+        }
+
+        for(var i=1;i<n;i++){
+            var path=[group[i].getPosition(), group[parent[i]].getPosition()];
             var line = new kakao.maps.Polyline({
-                path: groups[g],
-                strokeWeight: 5,
-                strokeColor: '#FF5C5C',
-                strokeOpacity: 0.7,
-                strokeStyle: 'solid'
+                path:path, strokeWeight:3, strokeColor:'#FF5C5C', strokeOpacity:0.7
             });
             line.setMap(map);
-            groupPolylineMap[g] = line; // 그룹별 저장
+            allLines.push(line);
         }
+    }
+}
 
+// 버튼 클릭 이벤트
+var drawing = false;
+var currentGroup = null;
+var groups = [];
+var tempLine = null;
+
+var btn = document.getElementById('btnDistance');
+btn.addEventListener('click', function(){
+    drawing = !drawing;
+    if(drawing){
+        resetAll();
+        startNewGroup();
+        map.setCursor('crosshair');
+        btn.classList.add('active');
     } else {
-        // 버튼 비활성화 스타일 제거
-        this.classList.remove('active');
-
-        // 모든 그룹 폴리라인 제거
-        for (var g in groupPolylineMap) {
-            groupPolylineMap[g].setMap(null);
-        }
-        groupPolylineMap = {};
+        resetAll();
+        map.setCursor('');
+        btn.classList.remove('active');
     }
 });
 
+// 지도 클릭 → 선 추가
+kakao.maps.event.addListener(map, 'click', function(mouseEvent){
+    if(!drawing || !currentGroup) return;
+    var clickPos = mouseEvent.latLng;
+    currentGroup.path.push(clickPos);
+
+    if(currentGroup.path.length > 1){
+        var polyline = new kakao.maps.Polyline({
+            map: map,
+            path: [currentGroup.path[currentGroup.path.length-2], clickPos],
+            strokeWeight: 3,
+            strokeColor: '#db4040',
+            strokeOpacity: 1,
+            strokeStyle: 'solid'
+        });
+        currentGroup.polylines.push(polyline);
+
+        var segDist = polyline.getLength();
+        addLabel(currentGroup, clickPos, segDist.toFixed(1) + ' m');
+    }
+});
+
+// 마우스 이동 → 임시 점선
+kakao.maps.event.addListener(map, 'mousemove', function(mouseEvent){
+    if(!drawing || !currentGroup || currentGroup.path.length===0) return;
+    var movePos = mouseEvent.latLng;
+    if(!tempLine){
+        tempLine = new kakao.maps.Polyline({
+            map: map,
+            strokeWeight: 2,
+            strokeColor: '#999',
+            strokeOpacity: 0.8,
+            strokeStyle: 'dash'
+        });
+    }
+    tempLine.setPath([currentGroup.path[currentGroup.path.length-1], movePos]);
+});
+
+// 새 그룹 생성
+function startNewGroup(){
+    currentGroup = { path: [], polylines: [], overlays: [] };
+    groups.push(currentGroup);
+}
+
+// 흰색 사각형 라벨 추가
+function addLabel(group, position, text){
+    var content = document.createElement('div');
+    content.className = 'labelBox';
+    content.innerText = text;
+
+    var overlay = new kakao.maps.CustomOverlay({
+        content: content,
+        position: position,
+        pixelOffset: new kakao.maps.Point(0,-50)
+    });
+    overlay.setMap(map);
+    group.overlays.push(overlay);
+
+    // 클릭 시 마지막 점 제외 누적거리 계산
+    content.addEventListener('click', function(evt){
+        if(evt){ evt.stopPropagation(); evt.preventDefault(); }
+
+        // 마지막 점 제외
+        if(group.path.length < 2) return; // 점이 1개 이하이면 계산 불가
+        var totalDist = 0;
+        for(var i=0;i<group.polylines.length-1;i++){  // 마지막 선 제외
+            totalDist += group.polylines[i].getLength();
+        }
+
+        var totalBox = document.createElement('div');
+        totalBox.className = 'totalBox';
+        totalBox.innerText = totalDist.toFixed(1) + ' m';
+
+        var totalOverlay = new kakao.maps.CustomOverlay({
+            content: totalBox,
+            position: group.path[group.path.length-2], // 마지막 전에 찍은 점 위치
+            pixelOffset: new kakao.maps.Point(0,-50)
+        });
+        totalOverlay.setMap(map);
+        group.overlays.push(totalOverlay);
+
+        currentGroup = null;
+        if(tempLine){ tempLine.setMap(null); tempLine = null; }
+
+        startNewGroup(); // 다음 클릭부터 새 그룹 시작
+    });
+}
+
+// 전체 초기화
+function resetAll(){
+    for(var i=groups.length-1;i>=0;i--){
+        var g = groups[i];
+        g.polylines.forEach(p=>p.setMap(null));
+        g.overlays.forEach(o=>o.setMap(null));
+    }
+    groups = [];
+    currentGroup=null;
+    if(tempLine){ tempLine.setMap(null); tempLine=null; }
+}
+
+// 누적거리 계산
+function getTotalDistance(group){
+    var sum = 0;
+    group.polylines.forEach(function(p){ sum += p.getLength(); });
+    return sum;
+}
+
+
+
+
     
- </script>
+    </script>
 
 </body>
 </html>
