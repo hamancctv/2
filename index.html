@@ -1041,17 +1041,19 @@ function drawGroupLinesMST() {
                 }
             }
 
-            for(var i=1; i<n; i++){
-                var path = [group[i].getPosition(), group[parent[i]].getPosition()];
-                var line = new kakao.maps.Polyline({
-                    path: path,
-                    strokeWeight: 3,
-                    strokeColor: '#FF5C5C',
-                    strokeOpacity: 0.7
-                });
-                line.setMap(map);
-                allLines.push(line);
-            }
+ for(var i=1; i<n; i++){
+    var path = [group[i].getPosition(), group[parent[i]].getPosition()];
+    var line = new kakao.maps.Polyline({
+        path: path,
+        strokeWeight: 5,        // 굵게
+        strokeColor: '#FF5C5C',
+        strokeOpacity: 0.5,     // 반투명
+        strokeStyle: 'solid',
+        zIndex: 999             // 전면 표시
+    });
+    line.setMap(map);
+    allLines.push(line);
+}
         } else if(!/^\d+$/.test(g)) {
             // 숫자+하이픈 외 문자 포함 → 오버레이 표시
             var pos = group[0].getPosition();
