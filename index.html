@@ -988,7 +988,7 @@ function getDistance(latlng1, latlng2){
 var allLines = [];
 var allOverlays = [];
 
-function drawGroupLinesMST(){
+function drawGroupLinesMST() {
     // 기존 라인/오버레이 제거
     if(allLines.length>0){
         allLines.forEach(l=>l.setMap(null));
@@ -1004,22 +1004,24 @@ function drawGroupLinesMST(){
     markers.forEach(m=>{
         if(!m.group) return;
 
-        // 그룹명 숫자만 추출
-        var numericGroup = m.group.replace(/-/g,'').match(/\d+/g);
-        numericGroup = numericGroup ? numericGroup.join('') : null;
-
-        // 숫자로 변환 불가 → 다른 문자 그룹으로 별도 처리
-        var key = numericGroup || m.group + '_str_' + Math.random();
-
-        if(!groupMarkers[key]) groupMarkers[key]=[];
-        groupMarkers[key].push(m);
+        // 숫자와 하이픈만 있는 그룹인지 확인
+        if(/^[\d-]+$/.test(m.group)){
+            // 하이픈 제거
+            var key = m.group.replace(/-/g, '');
+            if(!groupMarkers[key]) groupMarkers[key] = [];
+            groupMarkers[key].push(m);
+        } else {
+            // 숫자+하이픈 외 문자가 포함된 그룹 → 오버레이만
+            var key = 'overlay_' + Math.random();
+            groupMarkers[key] = [m];
+        }
     });
 
     for(var g in groupMarkers){
         var group = groupMarkers[g];
         if(group.length === 0) continue;
 
-        // 숫자로만 구성된 그룹 → MST 연결
+        // 숫자+하이픈 그룹 → MST 연결
         if(/^\d+$/.test(g) && group.length > 1){
             var n=group.length, selected=Array(n).fill(false), dist=Array(n).fill(Infinity), parent=Array(n).fill(-1);
             dist[0]=0;
@@ -1048,7 +1050,7 @@ function drawGroupLinesMST(){
             }
         }
 
-        // 오버레이 표시 (MST 연결 여부 상관없이)
+        // 오버레이 표시
         var avgLat=0, avgLng=0, validCount=0;
         group.forEach(m=>{
             var pos = m.getPosition();
@@ -1072,6 +1074,7 @@ function drawGroupLinesMST(){
         }
     }
 }
+
 
 // 거리재기 상태
 var drawing = false;
