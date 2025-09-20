@@ -1039,12 +1039,14 @@ function drawGroupLinesMST(){
     }
 }
 
-// 버튼 클릭 이벤트
+// 거리재기 상태
 var drawing = false;
+var mapClickEnabled = true; // 기존 마커/오버레이 클릭 허용 여부
 var currentGroup = null;
 var groups = [];
 var tempLine = null;
 
+// 거리 버튼
 var btn = document.getElementById('btnDistance');
 btn.addEventListener('click', function(){
     drawing = !drawing;
@@ -1053,14 +1055,16 @@ btn.addEventListener('click', function(){
         startNewGroup();
         map.setCursor('crosshair');
         btn.classList.add('active');
+        mapClickEnabled = false; // 마커 클릭 비활성
     } else {
         resetAll();
         map.setCursor('');
         btn.classList.remove('active');
+        mapClickEnabled = true;  // 마커 클릭 복원
     }
 });
 
-// 지도 클릭 → 선 추가
+// 지도 클릭 → 점 추가
 kakao.maps.event.addListener(map, 'click', function(mouseEvent){
     if(!drawing || !currentGroup) return;
     var clickPos = mouseEvent.latLng;
@@ -1118,14 +1122,14 @@ function addLabel(group, position, text){
     overlay.setMap(map);
     group.overlays.push(overlay);
 
-    // 클릭 시 마지막 점 제외 누적거리 계산
+    // 마지막 클릭 → 누적거리 표시 (마지막 점 제외)
     content.addEventListener('click', function(evt){
         if(evt){ evt.stopPropagation(); evt.preventDefault(); }
+        if(group.path.length < 2) return;
 
-        // 마지막 점 제외
-        if(group.path.length < 2) return; // 점이 1개 이하이면 계산 불가
+        // 마지막 점 제외 누적거리 계산
         var totalDist = 0;
-        for(var i=0;i<group.polylines.length-1;i++){  // 마지막 선 제외
+        for(var i=0;i<group.polylines.length-1;i++){
             totalDist += group.polylines[i].getLength();
         }
 
@@ -1135,14 +1139,14 @@ function addLabel(group, position, text){
 
         var totalOverlay = new kakao.maps.CustomOverlay({
             content: totalBox,
-            position: group.path[group.path.length-2], // 마지막 전에 찍은 점 위치
+            position: group.path[group.path.length-2], // 마지막 전 점 기준
             pixelOffset: new kakao.maps.Point(0,-50)
         });
         totalOverlay.setMap(map);
         group.overlays.push(totalOverlay);
 
         currentGroup = null;
-        if(tempLine){ tempLine.setMap(null); tempLine = null; }
+        if(tempLine){ tempLine.setMap(null); tempLine=null; }
 
         startNewGroup(); // 다음 클릭부터 새 그룹 시작
     });
@@ -1167,6 +1171,11 @@ function getTotalDistance(group){
     return sum;
 }
 
+// 예시: 기존 마커 클릭 비활성 처리
+// marker.addListener('click', function() {
+//     if(!mapClickEnabled) return; // 거리재기 모드면 클릭 무시
+//     alert('마커 클릭');
+// });
 
 
 
