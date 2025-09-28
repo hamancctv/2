@@ -5,7 +5,7 @@
   style.textContent = `
     .overlay-hover {
       padding:2px 6px;
-      background:rgba(255,255,255,0.85); /* ✅ 투명도 조금 더 높임 */
+      background:rgba(255,255,255,0.70); /* ✅ 투명도 조금 더 높임 */
       border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
@@ -15,7 +15,7 @@
     }
     .overlay-click {
       padding:5px 8px;
-      background:rgba(255,255,255,0.9);
+      background:rgba(255,255,255,0.70);
       border:1px solid #666;
       border-radius:5px;
       font-size:14px;
