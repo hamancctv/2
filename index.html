@@ -345,10 +345,10 @@ function filter(){
   var value = document.getElementById("keyword").value.toUpperCase();
   var item = document.getElementsByClassName("sel_txt");
   for(var i=0;i<item.length;i++){
-    var name = item[i].getElementsByClassName("name");
-    item[i].style.display = (name[0].innerHTML.toUpperCase().indexOf(value) > -1) ? "flex" : "none";
+    var text = item[i].innerText.toUpperCase().replace(/\s+/g,""); // 공백 무시
+    item[i].style.display = (text.indexOf(value) > -1) ? "flex" : "none";
   }
-};
+}
 </script>
 
 <!-- 그룹 선 연결 -->
