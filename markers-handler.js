@@ -323,61 +323,58 @@ function getDistance(latLng1, latLng2) {
 
 /**
  * Prim 알고리즘으로 MST 간선 배열 리턴
+/**
+ * 그룹 내 마커들을 가장 가까운 마커와만 연결
  */
-function calculateMSTEdges(latLngs) {
+function calculateNearestEdges(latLngs) {
     if (latLngs.length < 2) return [];
 
-    const n = latLngs.length;
-    const visited = new Array(n).fill(false);
-    const mstEdges = [];
-    visited[0] = true;
-    let numVisited = 1;
+    const edges = [];
 
-    while (numVisited < n) {
-        let minCost = Infinity, nextNodeIndex = -1, edgeFromIndex = -1;
+    for (let i = 0; i < latLngs.length; i++) {
+        let minDist = Infinity;
+        let nearestIndex = -1;
 
-        for (let i = 0; i < n; i++) if (visited[i]) {
-            for (let j = 0; j < n; j++) if (!visited[j]) {
-                const dist = getDistance(latLngs[i], latLngs[j]);
-                if (dist < minCost) {
-                    minCost = dist;
-                    nextNodeIndex = j;
-                    edgeFromIndex = i;
-                }
+        for (let j = 0; j < latLngs.length; j++) {
+            if (i === j) continue;
+            const dist = getDistance(latLngs[i], latLngs[j]);
+            if (dist < minDist) {
+                minDist = dist;
+                nearestIndex = j;
             }
         }
 
-        if (nextNodeIndex !== -1) {
-            visited[nextNodeIndex] = true;
-            numVisited++;
-            mstEdges.push({ from: latLngs[edgeFromIndex], to: latLngs[nextNodeIndex] });
+        if (nearestIndex !== -1) {
+            edges.push({ from: latLngs[i], to: latLngs[nearestIndex] });
         }
     }
-    return mstEdges;
+
+    return edges;
 }
 
 /**
- * 그룹별 MST 폴리라인을 하나로만 그리기
+ * 그룹별 폴리라인 그리기 (Nearest Neighbor 연결)
  */
 function drawPolylineForGroup(groupKey) {
     removePolyline();
 
     const latLngs = groupPositions[groupKey];
     if (latLngs && latLngs.length >= 2) {
-        const mstEdges = calculateMSTEdges(latLngs);
+        const nearestEdges = calculateNearestEdges(latLngs);
         let pathSegments = [];
 
-        mstEdges.forEach(edge => {
-            pathSegments.push(edge.from, edge.to, null); // ⭐ null로 경로 끊기
+        nearestEdges.forEach(edge => {
+            pathSegments.push(edge.from, edge.to, null); // null로 경로 끊기
         });
 
         currentPolyline = new kakao.maps.Polyline({
             map: map,
             path: pathSegments,
-            strokeWeight: 5,
+            strokeWeight: 4,
             strokeColor: '#FF0000',
             strokeOpacity: 0.9,
             strokeStyle: 'solid'
         });
     }
 }
+
