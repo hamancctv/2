@@ -359,7 +359,15 @@ function filter(){
 
 <!-- 마커 핸들러 분리 -->
 <script src="https://hamancctv.github.io/2/markers-handler.js?v=20250929a"></script>
-
+<script>
+  // ✅ drawGroupLinesMST.js 불러온 뒤에 이벤트 등록
+  const toggleGroupBtn = document.getElementById("toggle_group");
+  toggleGroupBtn.addEventListener("click", function () {
+    drawGroupLinesMST();
+    toggleGroupBtn.classList.toggle("selected_btn");
+  });
+</script>
+  
 <script>
   // 필터링된 positions 배열 준비 후 실행
   const unique = {};
