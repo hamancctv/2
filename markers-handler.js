@@ -139,19 +139,24 @@
             overlay.setMap(null);
 
             // 현재 오버레이 강조 (테두리만 파랗게)
-            overlay.setMap(map);
-            overlayContent.style.border = "2px solid blue";
-            overlayContent.style.transition = "transform 0.2s ease";
-            overlayContent.style.transform = `translateY(${baseY}px)`;
+    overlay.setMap(map);
+    overlayContent.style.border = "2px solid blue";
+    
+    // ⭐ 수정: transition을 먼저 설정하여 부드럽게 움직이도록 함
+    overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease"; 
+    
+    // ⭐ 수정: baseY (-44px)로 명시적으로 위치 설정하여 2px 간격 유지
+    overlayContent.style.transform = `translateY(${baseY}px)`; 
 
-            setTimeout(() => {
-              overlayContent.style.transition = "transform 0.15s ease";
-            }, 200);
+    setTimeout(() => {
+      overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease"; // 오버레이 클릭 시 부드러움 유지
+    }, 200);
 
-            selectedOverlay = overlayContent;
-          }, delay);
-        });
+    selectedOverlay = overlayContent;
+  }, delay);
+});
 
+        // 클릭이벤트 좌표 넣기 및 멘 필터 적용
         // === Overlay Click → 마커와 동일 효과 ===
         overlayContent.addEventListener("click", function () {
           // 좌표 input 갱신
@@ -167,13 +172,18 @@
           document.getElementById("keyword").value = prefix;
           filter();
 
-          // 클릭 효과 동일 적용
-          if (selectedOverlay) {
-            selectedOverlay.style.border = "1px solid #ccc";
-          }
-          overlayContent.style.border = "2px solid blue";
-          selectedOverlay = overlayContent;
-        });
+       // 클릭 효과 동일 적용
+  if (selectedOverlay) {
+    selectedOverlay.style.border = "1px solid #ccc";
+  }
+  
+  // ⭐ 수정: transform을 명시적으로 설정하여 2px 간격 유지
+  overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease"; 
+  overlayContent.style.transform = `translateY(${baseY}px)`;
+  
+  overlayContent.style.border = "2px solid blue";
+  selectedOverlay = overlayContent;
+});
 
         markers.push(marker);
         overlays.push(overlay);
