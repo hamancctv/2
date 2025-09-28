@@ -69,6 +69,31 @@
           image: normalImage,
           clickable: true,
         });
+
+            // 🔽 여기에 넣으면 됨
+kakao.maps.event.addListener(marker, "click", function () {
+  // ✅ 좌표 input 업데이트
+  const lat = positions[i].latlng.getLat();
+  const lng = positions[i].latlng.getLng();
+  document.getElementById("gpsyx").value = lat + ", " + lng;
+
+  // ✅ 태그 제거 후 순수 텍스트 추출
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = positions[i].content;
+  const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+
+  // ✅ 앞 5글자 추출
+  const prefix = nameText.substring(0, 5).toUpperCase();
+
+  // ✅ 검색창 값 갱신 후 filter() 실행
+  document.getElementById("keyword").value = prefix;
+  filter();
+});
+
+
+
+
+        
             // ✅ 그룹 정보 주입 (없으면 null)
 marker.group = positions[i].group ? String(positions[i].group) : null;
 
