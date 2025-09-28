@@ -173,86 +173,74 @@ marker.group = positions[i].group ? String(positions[i].group) : null;
 
         // === Click (mousedown/up 분리) ===
 // 클릭 시작 (mousedown)
-kakao.maps.event.addListener(marker, "mousedown", function () {
-  // 다른 선택 마커 해제
-  if (selectedMarker && selectedMarker !== marker) {
-    selectedMarker.setImage(normalImage);
-  }
+let selectedMarker = null;
+let selectedOverlay = null; // 🔹 현재 강조된 오버레이
 
-  // 기존 클릭 오버레이 제거
-  clickOverlays.forEach((ov) => ov.setMap(null));
-  clickOverlays.length = 0;
-
-  // 점프 효과
-  marker.setImage(jumpImage);
-  selectedMarker = marker;
-  clickStartTime = Date.now();
-});
-
-// 클릭 완료 (mouseup)
+// === 마커 클릭 ===
 kakao.maps.event.addListener(marker, "mouseup", function () {
   const elapsed = Date.now() - clickStartTime;
   const delay = Math.max(0, 100 - elapsed);
 
   setTimeout(function () {
     if (marker === selectedMarker) {
-      // 마커는 normal로 복귀
-      marker.setImage(normalImage);
+      marker.setImage(normalImage); // 크기 그대로 복귀
 
-      // 오버레이는 hover 상태 크기로 유지
-      overlay.setMap(map);
-      overlayContent.style.transform = `translateY(${hoverY}px)`;
-      overlayContent.style.transform += " scale(1.1)"; // 살짝 키워서 강조 가능
+      // 🔹 기존 강조 해제
+      if (selectedOverlay) {
+        selectedOverlay.style.transform = `translateY(${baseY}px)`;
+        selectedOverlay.style.border = "1px solid #ccc";
+      }
 
-      // 클릭 오버레이 표시
+      // 🔹 현재 마커 hover 오버레이 숨김 (겹치지 않게)
+      overlay.setMap(null);
+
+      // 🔹 클릭 오버레이만 강조 상태로 표시
       clickOverlay.setZIndex(zCounter);
       clickOverlay.setMap(map);
-      clickOverlays.push(clickOverlay);
+      clickOverlay.getContent().style.border = "2px solid blue";
+      clickOverlay.getContent().style.transform = `translateY(${hoverY}px) scale(1.1)`;
 
-      // 좌표 input 갱신
-      document.getElementById("gpsyx").value =
-        positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
+      selectedOverlay = clickOverlay.getContent(); // 현재 강조 저장
+
+      // 좌표 input 업데이트
+      const gpsyx = document.getElementById("gpsyx");
+      if (gpsyx) {
+        gpsyx.value =
+          positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
+      }
     }
   }, delay);
 });
-        markers.push(marker);
-        overlays.push(overlay);
-      })(i);
-    }
 
-    // === 지도 레벨 변경: 레벨 3 이하 자동 표시 / 초과 시 숨김 ===
-    kakao.maps.event.addListener(map, "idle", function () {
-      const level = map.getLevel();
-      overlays.forEach((o) => (level <= 3 ? o.setMap(map) : o.setMap(null)));
-    });
+// === 오버레이 클릭 → 마커 클릭과 동일 효과 ===
+overlayContent.addEventListener("click", function () {
+  // ✅ 좌표 input 업데이트
+  const lat = positions[i].latlng.getLat();
+  const lng = positions[i].latlng.getLng();
+  document.getElementById("gpsyx").value = lat + ", " + lng;
 
-    // === 지도 클릭 ===
-    kakao.maps.event.addListener(map, "click", function () {
-      const level = map.getLevel();
+  // ✅ 필터 적용
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = positions[i].content;
+  const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+  const prefix = nameText.substring(0, 5).toUpperCase();
+  document.getElementById("keyword").value = prefix;
+  filter();
 
-      // 선택 마커 해제(이미지 복원), zIndex는 유지
-      if (selectedMarker) {
-        selectedMarker.setImage(normalImage);
-        selectedMarker = null;
-      }
+  // 🔹 기존 강조 해제
+  if (selectedOverlay) {
+    selectedOverlay.style.transform = `translateY(${baseY}px)`;
+    selectedOverlay.style.border = "1px solid #ccc";
+  }
 
-      // 클릭 오버레이 닫기
-      clickOverlays.forEach((ov) => ov.setMap(null));
-      clickOverlays.length = 0;
+  // 🔹 현재 hover 오버레이 숨김
+  overlay.setMap(null);
 
-      // 레벨 3 이하일 때만 크기/위치 리셋 (zIndex는 그대로)
-      if (level <= 3) {
-        overlays.forEach((o) => {
-          const el = o.getContent();
-          if (el && el.style) el.style.transform = `translateY(${baseY}px)`;
-        });
-        markers.forEach((m) => m.setImage(normalImage));
-      }
-    });
+  // 🔹 클릭 오버레이 강조
+  clickOverlay.setZIndex(zCounter);
+  clickOverlay.setMap(map);
+  clickOverlay.getContent().style.border = "2px solid blue";
+  clickOverlay.getContent().style.transform = `translateY(${hoverY}px) scale(1.1)`;
 
-    // 그룹 선 연결 스크립트가 접근할 수 있도록 전역 등록
-    window.markers = markers;
-
-    return markers;
-  };
-})();
+  selectedOverlay = clickOverlay.getContent();
+});
