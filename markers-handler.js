@@ -176,18 +176,29 @@
           }
 
           // 클릭 효과 동일 적용
+ // 클릭 효과 동일 적용
           if (selectedOverlay) {
             selectedOverlay.style.border = "1px solid #ccc";
           }
+          
+          // 마커 상태 업데이트
+          selectedMarker = marker;
+          marker.setImage(normalImage);
 
           // ⭐ 수정: transition을 먼저 설정하고
-          overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
+          overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease"; 
           // ⭐ 수정: baseY (-44px)로 명시적으로 위치 설정하여 2px 간격 유지
           overlayContent.style.transform = `translateY(${baseY}px)`; // 정상 위치로 복귀 (-44px)
-
+          
           overlayContent.style.border = "2px solid blue";
           selectedOverlay = overlayContent;
           
+          // zIndex 재조정
+          zCounter++;
+          marker.setZIndex(zCounter + 1);
+          overlay.setZIndex(zCounter);
+          overlay.setMap(map); // 오버레이가 지도 레벨 때문에 숨겨졌을 경우를 대비해 다시 표시
+
           setTimeout(() => {
             // 원래의 transition 설정으로 복구
             overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease";
