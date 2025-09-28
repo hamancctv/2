@@ -1,18 +1,17 @@
 // markers-handler.js
-/* markers-handler.js 상단 스타일 정의 부분에 추가 */
-.overlay-hover, .overlay-click {
-    /* 하드웨어 가속 활성화 */
-    will-change: transform; 
-    /* 미세한 성능 개선 */
-    transform: translateZ(0); 
-}
 (function () {
   // === 기본 스타일 정의 ===
   const style = document.createElement("style");
   style.textContent = `
+    .overlay-hover, .overlay-click {
+      /* 성능 개선: 하드웨어 가속 활성화 */
+      will-change: transform; 
+      transform: translateZ(0); 
+      cursor: pointer; /* 클릭 가능한 요소임을 명시 */
+    }
     .overlay-hover {
       padding:2px 6px;
-      background:rgba(255,255,255,0.90); /* ✅ 투명도 조금 더 높임 */
+      background:rgba(255,255,255,0.90); /* 투명도 조정 */
       border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
@@ -22,7 +21,7 @@
     }
     .overlay-click {
       padding:5px 8px;
-      background:rgba(255,255,255,0.90);
+      background:rgba(255,255,255,1.0); /* 클릭 강조 시 완전 불투명 */
       border:1px solid #666;
       border-radius:5px;
       font-size:14px;
@@ -141,8 +140,8 @@
               selectedOverlay.style.border = "1px solid #ccc";
               selectedOverlay = null; 
             }
-            
-            // ⭐ Z-Index 최상위로 설정 (강조 효과)
+            
+            // Z-Index 최상위로 설정 (강조 효과)
             zCounter++;
             marker.setZIndex(zCounter + 1);
             overlay.setZIndex(zCounter);
@@ -153,13 +152,13 @@
             // 현재 오버레이 강조 (테두리만 파랗게)
             overlay.setMap(map);
             overlayContent.style.border = "2px solid blue";
-            
+            
             // 오버레이 위치 및 애니메이션 적용
             overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease"; 
             overlayContent.style.transform = `translateY(${baseY}px)`;  // 2px 간격 유지
 
             setTimeout(() => {
-              overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease"; 
+              overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease"; 
             }, 200);
 
             selectedOverlay = overlayContent;
@@ -167,12 +166,12 @@
         });
 
 
-        // === Overlay Click → 마커 클릭과 동일한 효과 및 애니메이션 적용 ===
+        // === Overlay Click → 마커 클릭과 동일한 효과 및 애니메이션 적용 (성능 개선 포함) ===
         overlayContent.addEventListener("click", function () {
             // 1. mousedown 로직 실행 (점프 시작 시뮬레이션)
             marker.setImage(jumpImage); 
             clickStartTime = Date.now();
-            overlayContent.style.transform = `translateY(${jumpY}px)`; 
+            overlayContent.style.transform = `translateY(${jumpY}px)`; 
             
             // 2. mouseup 로직 실행 (강조 및 착지)
             const elapsed = Date.now() - clickStartTime;
@@ -207,32 +206,32 @@
 
                 selectedOverlay = overlayContent;
 
-// overlayContent.addEventListener("click", ...) 내부의 setTimeout 끝 부분 수정
-setTimeout(function () {
-    // ... (기존 Z-Index, 이미지, 오버레이 강조 로직) ...
-    
-    // 3. 좌표 input 갱신
-    // ... (좌표 갱신 로직) ...
-
-    // ⭐ 필터링 로직을 밖으로 빼서 딜레이를 줌 ⭐
-    const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
-    const prefix = nameText.substring(0, 5).toUpperCase();
-
-    // 맵 애니메이션/클릭 처리가 끝난 후 필터링 시작 (10ms 지연)
-    setTimeout(() => {
-        const item = document.getElementsByClassName("sel_txt");
-        for(let j=0; j<item.length; j++){
-            const text = item[j].innerText.toUpperCase().replace(/\s+/g,"");
-            item[j].style.display = (text.indexOf(prefix) > -1) ? "flex" : "none";
-        }
-    }, 10); // 10ms 지연
-    
-}, delay);
+                // 3. 좌표 input 갱신 및 필터 적용 
+                // ⭐⭐ 변수 선언 위치 수정: 현재 스코프에서만 접근 가능하도록 내부에서 선언 ⭐⭐
+                const lat = positions[i].latlng.getLat();
+                const lng = positions[i].latlng.getLng();
+                document.getElementById("gpsyx").value = lat + ", " + lng;
+                
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = positions[i].content;
+                const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+                const prefix = nameText.substring(0, 5).toUpperCase();
+                
+                // 검색창에 값 넣지 않고 필터링 (성능 개선을 위해 10ms 지연 실행)
+                setTimeout(() => {
+                    const item = document.getElementsByClassName("sel_txt");
+                    for(let j=0; j<item.length; j++){
+                        const text = item[j].innerText.toUpperCase().replace(/\s+/g,"");
+                        item[j].style.display = (text.indexOf(prefix) > -1) ? "flex" : "none";
+                    }
+                }, 10);
+            }, delay);
+        }); // <--- Overlay Click 이벤트 리스너 종료
 
         markers.push(marker);
         overlays.push(overlay);
       })(i);
-    }
+    } // <--- for 루프 종료
 
     // 지도 레벨 이벤트
     kakao.maps.event.addListener(map, "idle", function () {
