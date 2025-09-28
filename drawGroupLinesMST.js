@@ -78,9 +78,9 @@
             markersInGroup[a].getPosition(),
             markersInGroup[b].getPosition(),
           ],
-          strokeWeight: 5,   // <--------- 선굵기
+          strokeWeight: 8,   // <--------- 선굵기
           strokeColor: "#FF0000",
-          strokeOpacity: 0.8,
+          strokeOpacity: 0.7,
         });
         groupLines.push(line);
       });
