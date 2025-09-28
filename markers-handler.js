@@ -124,50 +124,65 @@
         overlayContent.addEventListener("mouseout", deactivateHover);
 
         // === 마커 Click ===
-        kakao.maps.event.addListener(marker, "mousedown", function () {
-          marker.setImage(jumpImage); // 점프 시작
-          clickStartTime = Date.now();
-
-          // 오버레이도 점프 위치
-          overlayContent.style.transform = `translateY(${jumpY}px)`;
-        });
-
-        kakao.maps.event.addListener(marker, "mouseup", function () {
-          const elapsed = Date.now() - clickStartTime;
-          const delay = Math.max(0, 100 - elapsed);
-
-          setTimeout(function () {
-            selectedMarker = marker;
-            marker.setImage(normalImage);
-
-            // 기존 강조 해제
-            if (selectedOverlay) {
-              selectedOverlay.style.border = "1px solid #ccc";
-              selectedOverlay = null; 
-            }
+      // === Overlay Click → 마커 클릭과 동일한 효과 및 애니메이션 적용 (필터링 오류 수정) ===
+        overlayContent.addEventListener("click", function () {
+            // 1. mousedown 로직 실행 (점프 시작 시뮬레이션)
+            marker.setImage(jumpImage); 
+            clickStartTime = Date.now();
+            overlayContent.style.transform = `translateY(${jumpY}px)`; 
             
-            // Z-Index 최상위로 설정 (강조 효과)
-            zCounter++;
-            marker.setZIndex(zCounter + 1);
-            overlay.setZIndex(zCounter);
+            // 2. mouseup 로직 실행 (강조 및 착지)
+            const elapsed = Date.now() - clickStartTime;
+            const delay = Math.max(0, 100 - elapsed);
 
-            // hover 오버레이 숨김
-            overlay.setMap(null);
+            setTimeout(function () {
+                // 기존 강조 해제
+                if (selectedOverlay) {
+                    selectedOverlay.style.border = "1px solid #ccc";
+                    selectedOverlay = null;
+                }
 
-            // 현재 오버레이 강조 (테두리만 파랗게)
-            overlay.setMap(map);
-            overlayContent.style.border = "2px solid blue";
-            
-            // 오버레이 위치 및 애니메이션 적용
-            overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease"; 
-            overlayContent.style.transform = `translateY(${baseY}px)`;  // 2px 간격 유지
+                // Z-Index 최상위로 설정
+                zCounter++;
+                marker.setZIndex(zCounter + 1);
+                overlay.setZIndex(zCounter);
+                selectedMarker = marker;
+                marker.setImage(normalImage); // 착지
 
-            setTimeout(() => {
-              overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease"; 
-            }, 200);
+                // hover 오버레이 숨김
+                overlay.setMap(null); 
+                
+                // 현재 오버레이 강조 (테두리 파랗게 & 위치 복원)
+                overlay.setMap(map);
+                overlayContent.style.border = "2px solid blue";
+                overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
+                overlayContent.style.transform = `translateY(${baseY}px)`; // 2px 간격 유지하며 착지
 
-            selectedOverlay = overlayContent;
-          }, delay);
+                setTimeout(() => {
+                    overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease";
+                }, 200);
+
+                selectedOverlay = overlayContent;
+
+                // 3. 좌표 input 갱신 및 필터링 변수 준비
+                const lat = positions[i].latlng.getLat();
+                const lng = positions[i].latlng.getLng();
+                document.getElementById("gpsyx").value = lat + ", " + lng;
+                
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = positions[i].content;
+                const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+                const prefix = nameText.substring(0, 5).toUpperCase();
+                
+                // ⭐⭐ 필터링 로직 (10ms 지연 실행) ⭐⭐
+                setTimeout(() => {
+                    const item = document.getElementsByClassName("sel_txt");
+                    for(let j=0; j<item.length; j++){
+                        const text = item[j].innerText.toUpperCase().replace(/\s+/g,"");
+                        item[j].style.display = (text.indexOf(prefix) > -1) ? "flex" : "none";
+                    }
+                }, 10);
+            }, delay);
         });
 
 
