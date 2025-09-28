@@ -373,7 +373,9 @@ function filter(){
       filtered.push(positions[i]);
     }
   }
-  const markers = initMarkers(map, filtered);
+
+  // 전역 markers 에 저장됨 → drawGroupLinesMST() 에서 접근 가능
+  initMarkers(map, filtered);
 </script>
 </body>
 </html>
