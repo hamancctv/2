@@ -69,7 +69,10 @@
           image: normalImage,
           clickable: true,
         });
+            // ✅ 그룹 정보 주입 (없으면 null)
+marker.group = positions[i].group ? String(positions[i].group) : null;
 
+        
         // 2) hover 오버레이 (DOM 노드로 생성 → 이벤트/스타일 유지)
         const overlayContent = document.createElement("div");
         overlayContent.className = "overlay-hover";
