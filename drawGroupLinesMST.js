@@ -1,48 +1,47 @@
 // drawGroupLinesMST.js
 (function () {
-  let currentPolylines = [];
+  let groupLines = []; // 현재 지도에 표시된 폴리라인들 저장용
 
-  // 그룹 문자열 정규화: 숫자만 남기고, 하이픈·공백 제거
-  function normalizeGroupName(name) {
-    if (!name) return "";
-    return name.replace(/[\s-]/g, ""); // 공백·하이픈 제거
+  // ✅ 그룹 문자열 정규화: 숫자/하이픈 → 숫자만 비교, 공백 제거
+  function normalizeGroup(str) {
+    if (!str) return null;
+    const digits = str.replace(/[^0-9]/g, ""); // 숫자만 추출
+    return digits.length > 0 ? digits : str.replace(/\s+/g, "");
   }
 
-  // 거리 계산
+  // ✅ 두 좌표 거리 계산
   function getDistance(a, b) {
-    const line = new kakao.maps.Polyline({ path: [a, b] });
-    return line.getLength();
+    const dx = a.getLng() - b.getLng();
+    const dy = a.getLat() - b.getLat();
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
-  // MST (Prim 알고리즘)
-  function buildMST(points) {
-    const n = points.length;
-    if (n <= 1) return [];
-
-    const visited = Array(n).fill(false);
-    visited[0] = true;
+  // ✅ MST (Prim’s Algorithm)
+  function buildMST(nodes) {
     const edges = [];
+    if (nodes.length <= 1) return edges;
 
-    while (edges.length < n - 1) {
+    const used = new Set();
+    used.add(0);
+
+    while (used.size < nodes.length) {
       let minEdge = null;
       let minDist = Infinity;
 
-      for (let i = 0; i < n; i++) {
-        if (!visited[i]) continue;
-        for (let j = 0; j < n; j++) {
-          if (visited[j]) continue;
-          const dist = getDistance(points[i].getPosition(), points[j].getPosition());
+      used.forEach((i) => {
+        for (let j = 0; j < nodes.length; j++) {
+          if (used.has(j)) continue;
+          const dist = getDistance(nodes[i].getPosition(), nodes[j].getPosition());
           if (dist < minDist) {
             minDist = dist;
             minEdge = [i, j];
           }
         }
-      }
+      });
 
       if (minEdge) {
-        const [u, v] = minEdge;
-        visited[v] = true;
-        edges.push([points[u], points[v]]);
+        edges.push(minEdge);
+        used.add(minEdge[1]);
       } else {
         break;
       }
@@ -50,39 +49,40 @@
     return edges;
   }
 
-  // 그룹별 선 연결
+  // ✅ 메인 함수
   window.drawGroupLinesMST = function () {
-    // 이전 선 제거
-    currentPolylines.forEach((line) => line.setMap(null));
-    currentPolylines = [];
+    // 1) 기존 선 제거
+    groupLines.forEach((line) => line.setMap(null));
+    groupLines = [];
 
-    if (!window.markers) {
-      console.warn("markers 배열이 없습니다.");
-      return;
-    }
+    if (!window.markers || window.markers.length === 0) return;
 
-    // markers를 그룹별로 분류
+    // 2) 그룹 분류
     const groups = {};
     window.markers.forEach((marker) => {
-      const g = normalizeGroupName(marker.group);
-      if (!g) return; // 그룹 없으면 skip
-      if (!groups[g]) groups[g] = [];
-      groups[g].push(marker);
+      const key = normalizeGroup(marker.group);
+      if (!key) return;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(marker);
     });
 
-    // 그룹별로 MST 선 연결
-    Object.keys(groups).forEach((g) => {
-      const edges = buildMST(groups[g]);
-      edges.forEach(([m1, m2]) => {
+    // 3) 그룹별 MST 적용
+    Object.values(groups).forEach((markersInGroup) => {
+      if (markersInGroup.length < 2) return;
+      const edges = buildMST(markersInGroup);
+
+      edges.forEach(([a, b]) => {
         const line = new kakao.maps.Polyline({
-          path: [m1.getPosition(), m2.getPosition()],
-          strokeWeight: 3,
-          strokeColor: "#00A0FF",
-          strokeOpacity: 0.9,
-          strokeStyle: "solid",
-          map,
+          map: window.map,
+          path: [
+            markersInGroup[a].getPosition(),
+            markersInGroup[b].getPosition(),
+          ],
+          strokeWeight: 2,
+          strokeColor: "#FF0000",
+          strokeOpacity: 0.8,
         });
-        currentPolylines.push(line);
+        groupLines.push(line);
       });
     });
   };
