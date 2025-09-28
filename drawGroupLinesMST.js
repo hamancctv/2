@@ -80,7 +80,7 @@
           ],
           strokeWeight: 8,   // <--------- 선굵기
           strokeColor: "#FF0000",
-          strokeOpacity: 0.7,
+          strokeOpacity: 0.5,   // <------ 1에 가까울수록 불투명, 0에 가까울수록 투명
         });
         groupLines.push(line);
       });
