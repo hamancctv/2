@@ -11,7 +11,7 @@
       font-size:14px;
       white-space: nowrap;
       user-select: none;
-      transition: transform 0.15s ease, border 0.15s ease; /* transition에 border 추가 */
+      transition: transform 0.15s ease, border 0.15s ease;
     }
     .overlay-click {
       padding:5px 8px;
@@ -21,18 +21,93 @@
       font-size:14px;
       white-space: nowrap;
       user-select: none;
-      transition: transform 0.15s ease, border 0.15s ease; /* transition에 border 추가 */
+      transition: transform 0.15s ease, border 0.15s ease;
     }
   `;
   document.head.appendChild(style);
 
-  // === 전역 상태 (추가 및 수정) ===
+  // === 전역 상태 ===
   let zCounter = 100;
   let selectedMarker = null;
   let selectedOverlay = null;
   let clickStartTime = 0;
   let currentPolyline = null; 
   let groupPositions = {};    
+
+  // === 유틸리티 함수 (MST 구현을 위해 추가) ===
+
+  /**
+   * 두 좌표(LatLng) 사이의 거리를 km 단위로 계산합니다. (Haversine 공식)
+   */
+  function getDistance(latLng1, latLng2) {
+      const R = 6371; // 지구 반경 (km)
+      const dLat = (latLng2.getLat() - latLng1.getLat()) * (Math.PI / 180);
+      const dLon = (latLng2.getLng() - latLng1.getLng()) * (Math.PI / 180);
+      const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(latLng1.getLat() * (Math.PI / 180)) * Math.cos(latLng2.getLat() * (Math.PI / 180)) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+  }
+
+  /**
+   * 프림(Prim) 알고리즘을 사용하여 주어진 좌표들에서 MST 경로를 계산합니다.
+   * 반환된 배열은 Polyline의 path로 사용될 '간선 세그먼트'의 목록입니다.
+   */
+  function calculateMSTPath(latLngs) {
+      if (latLngs.length < 2) return latLngs;
+
+      const n = latLngs.length;
+      const visited = new Array(n).fill(false);
+      const mstEdges = [];
+
+      // 0번 노드에서 시작
+      visited[0] = true;
+      let numVisited = 1;
+
+      // MST 간선들을 모두 찾을 때까지 반복
+      while (numVisited < n) {
+          let minCost = Infinity;
+          let nextNodeIndex = -1;
+          let edgeFrom = -1;
+
+          // 현재 연결된 노드들에서 연결되지 않은 노드들로 가는 최소 비용 간선을 찾습니다.
+          for (let i = 0; i < n; i++) {
+              if (visited[i]) {
+                  for (let j = 0; j < n; j++) {
+                      if (!visited[j]) {
+                          const dist = getDistance(latLngs[i], latLngs[j]);
+                          if (dist < minCost) {
+                              minCost = dist;
+                              nextNodeIndex = j;
+                              edgeFrom = i;
+                          }
+                      }
+                  }
+              }
+          }
+
+          if (nextNodeIndex !== -1) {
+              visited[nextNodeIndex] = true;
+              numVisited++;
+              // MST 간선 (시작점, 끝점)을 저장
+              mstEdges.push({
+                  from: latLngs[edgeFrom],
+                  to: latLngs[nextNodeIndex]
+              });
+          }
+      }
+
+      // 모든 간선의 좌표를 연속적인 배열로 만들어 Polyline path로 사용
+      let pathSegments = [];
+      mstEdges.forEach(edge => {
+          pathSegments.push(edge.from, edge.to);
+      });
+
+      return pathSegments;
+  }
+
 
   // === 마커 초기화 함수 ===
   window.initMarkers = function (map, positions) {
@@ -43,7 +118,6 @@
     const hoverHeight = 50.4;
     const baseGap = 2;
 
-    // Y 위치 계산
     const baseY = -(normalHeight + baseGap);
     const hoverY = -(hoverHeight + baseGap);
     const jumpY = -(70 + baseGap);
@@ -83,21 +157,27 @@
         }
     }
 
+    /**
+     * 특정 그룹의 마커들을 연결하는 폴리라인을 그립니다. (MST 적용)
+     */
     function drawPolylineForGroup(groupKey) {
         removePolyline(); 
 
-        const path = groupPositions[groupKey];
+        const latLngs = groupPositions[groupKey];
 
-        if (path && path.length >= 2) {
+        if (latLngs && latLngs.length >= 2) {
+            // ⭐ MST 계산 적용 ⭐
+            const mstPathSegments = calculateMSTPath(latLngs);
+            
             currentPolyline = new kakao.maps.Polyline({
                 map: map,
-                path: path, 
-                strokeWeight: 3, 
-                strokeColor: '#FF0000', 
-                strokeOpacity: 0.8, 
-                strokeStyle: 'solid' 
+                path: mstPathSegments, // MST에 의해 결정된 좌표 배열
+                strokeWeight: 5,       // ⭐ 선 굵기를 5로 변경 ⭐
+                strokeColor: '#0056B3', // 선의 색깔 
+                strokeOpacity: 0.9, 
+                strokeStyle: 'dash'    // ⭐ 미려한 시각을 위한 점선 스타일 적용 ⭐
             });
-            console.log(`Polyline drawn for group: ${groupKey}`);
+            console.log(`MST Polyline drawn for group: ${groupKey}`);
         }
     }
 
@@ -149,15 +229,13 @@
                 function deactivateHover() {
                     marker.__isMouseOver = false;
 
-                    // 마우스 아웃 시 border를 '1px solid #ccc'으로 복원
                     if (marker === selectedMarker) {
                         marker.setImage(normalImage);
                         overlayContent.style.transform = `translateY(${baseY}px)`;
-                        // 선택된 상태는 blue border를 유지해야 하므로, 복원하지 않음
                     } else {
                         marker.setImage(normalImage);
                         overlayContent.style.transform = `translateY(${baseY}px)`;
-                        overlayContent.style.border = "1px solid #ccc"; // 미선택 마커의 오버레이 복원
+                        overlayContent.style.border = "1px solid #ccc"; 
                         if (map.getLevel() > 3) overlay.setMap(null);
                     }
                 }
@@ -167,7 +245,7 @@
                 overlayContent.addEventListener("mouseover", activateHover);
                 overlayContent.addEventListener("mouseout", deactivateHover);
 
-                // === Click (mousedown) - 오버레이 테두리 적용 ⭐ 수정 부분 ⭐ ===
+                // === Click (mousedown) - 오버레이 테두리 적용 ===
                 kakao.maps.event.addListener(marker, "mousedown", function () {
                     marker.setImage(jumpImage);
                     clickStartTime = Date.now();
@@ -187,7 +265,7 @@
                             selectedOverlay.style.border = "1px solid #ccc";
                         }
                         
-                        // 2. 폴리라인 그리기
+                        // 2. 폴리라인 그리기 (MST 적용)
                         drawPolylineForGroup(marker.group);
 
                         // 3. 좌표 input 갱신 및 menu_wrap 필터 적용 (기존 로직 유지)
@@ -230,7 +308,7 @@
 
                 // === Overlay Click ===
                 overlayContent.addEventListener("click", function () {
-                    // 1. 폴리라인 그리기
+                    // 1. 폴리라인 그리기 (MST 적용)
                     drawPolylineForGroup(marker.group);
                     
                     // 2. 좌표 input 갱신 및 필터링 (기존 로직 유지)
