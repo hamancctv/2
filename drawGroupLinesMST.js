@@ -1,102 +1,89 @@
 // drawGroupLinesMST.js
 (function () {
-  // 그룹명 정규화: 숫자만 있는 그룹은 하이픈/공백 제거 후 비교
+  let currentPolylines = [];
+
+  // 그룹 문자열 정규화: 숫자만 남기고, 하이픈·공백 제거
   function normalizeGroupName(name) {
-    if (!name) return null;
-    const onlyNumDash = /^[0-9\s-]+$/;
-    if (onlyNumDash.test(name)) {
-      return name.replace(/[\s-]/g, ""); // 숫자만 남김
-    }
-    return name.trim(); // 그 외는 그대로
+    if (!name) return "";
+    return name.replace(/[\s-]/g, ""); // 공백·하이픈 제거
   }
 
-  // 두 좌표 사이 거리 계산
+  // 거리 계산
   function getDistance(a, b) {
-    return Math.sqrt(
-      Math.pow(a.getLat() - b.getLat(), 2) + Math.pow(a.getLng() - b.getLng(), 2)
-    );
+    const line = new kakao.maps.Polyline({ path: [a, b] });
+    return line.getLength();
   }
 
-  // MST 생성 (Prim 알고리즘)
-  function buildMSTPaths(markers) {
-    if (markers.length <= 1) return [];
+  // MST (Prim 알고리즘)
+  function buildMST(points) {
+    const n = points.length;
+    if (n <= 1) return [];
 
-    const connected = [markers[0]];
+    const visited = Array(n).fill(false);
+    visited[0] = true;
     const edges = [];
-    const paths = [];
 
-    while (connected.length < markers.length) {
+    while (edges.length < n - 1) {
       let minEdge = null;
       let minDist = Infinity;
 
-      connected.forEach(c => {
-        markers.forEach(m => {
-          if (connected.includes(m)) return;
-          const d = getDistance(c.getPosition(), m.getPosition());
-          if (d < minDist) {
-            minDist = d;
-            minEdge = [c, m];
+      for (let i = 0; i < n; i++) {
+        if (!visited[i]) continue;
+        for (let j = 0; j < n; j++) {
+          if (visited[j]) continue;
+          const dist = getDistance(points[i].getPosition(), points[j].getPosition());
+          if (dist < minDist) {
+            minDist = dist;
+            minEdge = [i, j];
           }
-        });
-      });
+        }
+      }
 
       if (minEdge) {
-        connected.push(minEdge[1]);
-        paths.push([minEdge[0].getPosition(), minEdge[1].getPosition()]);
-      } else break;
+        const [u, v] = minEdge;
+        visited[v] = true;
+        edges.push([points[u], points[v]]);
+      } else {
+        break;
+      }
     }
-    return paths;
+    return edges;
   }
 
-  // 전역에 함수 노출
-  let polyByGroup = {};
-
+  // 그룹별 선 연결
   window.drawGroupLinesMST = function () {
-    if (!window.markers || !window.markers.length) {
-      console.warn("[MST] markers 없음");
-      return;
-    }
-    const map = window.markers[0].getMap() || window.map;
-    if (!map) return;
+    // 이전 선 제거
+    currentPolylines.forEach((line) => line.setMap(null));
+    currentPolylines = [];
 
-    // 토글 OFF → 기존 선 지우기
-    if (Object.keys(polyByGroup).length) {
-      Object.values(polyByGroup).forEach(arr => arr.forEach(pl => pl.setMap(null)));
-      polyByGroup = {};
+    if (!window.markers) {
+      console.warn("markers 배열이 없습니다.");
       return;
     }
 
-    // 그룹별 분류
+    // markers를 그룹별로 분류
     const groups = {};
-    window.markers.forEach(mk => {
-      const g = normalizeGroupName(mk.group);
-      if (!g) return; // 그룹 없는 마커는 선 연결 안 함
+    window.markers.forEach((marker) => {
+      const g = normalizeGroupName(marker.group);
+      if (!g) return; // 그룹 없으면 skip
       if (!groups[g]) groups[g] = [];
-      groups[g].push(mk);
+      groups[g].push(marker);
     });
 
-    // 그룹별 MST 선 생성
-    Object.keys(groups).forEach(g => {
-      const list = groups[g];
-      if (list.length < 2) return;
-
-      const paths = buildMSTPaths(list);
-      const arr = [];
-
-      paths.forEach(path => {
-        arr.push(
-          new kakao.maps.Polyline({
-            path,
-            strokeWeight: 3,
-            strokeColor: "#db4040",
-            strokeOpacity: 0.9,
-            strokeStyle: "solid",
-            map,
-          })
-        );
+    // 그룹별로 MST 선 연결
+    Object.keys(groups).forEach((g) => {
+      const edges = buildMST(groups[g]);
+      edges.forEach(([m1, m2]) => {
+        const line = new kakao.maps.Polyline({
+          path: [m1.getPosition(), m2.getPosition()],
+          strokeWeight: 3,
+          strokeColor: "#00A0FF",
+          strokeOpacity: 0.9,
+          strokeStyle: "solid",
+          map,
+        });
+        currentPolylines.push(line);
       });
-
-      polyByGroup[g] = arr;
     });
   };
 })();
