@@ -1,5 +1,6 @@
 // markers-handler.js
 (function() {
+  // 스타일 정의 (오버레이 + hover 확대 효과)
   const style = document.createElement("style");
   style.textContent = `
     .overlay-hover {
@@ -10,6 +11,12 @@
       font-size:12px;
       white-space: nowrap;
       user-select: none;
+      transition: transform 0.2s ease;
+    }
+    .overlay-hover.active {
+      transform: scale(1.2) translateY(-2px);
+      border:1px solid #000;
+      z-index:9999;
     }
     .overlay-click {
       padding:5px 8px;
@@ -29,6 +36,9 @@
     const overlays = [];
     const clickOverlays = [];
     const markerHeight = 42;
+    let selectedMarker = null;
+    let clickStartTime = 0;
+    let zCounter = 100;
 
     // 마커 이미지 (normal / hover / click)
     const normalImage = new kakao.maps.MarkerImage(
@@ -47,9 +57,6 @@
       { offset: new kakao.maps.Point(18, 70.4) } // 점프 효과
     );
 
-    let selectedMarker = null;
-    let clickStartTime = 0;
-
     for (let i = 0; i < positions.length; i++) {
       (function(i) {
         const marker = new kakao.maps.Marker({
@@ -59,18 +66,19 @@
           clickable: true
         });
 
-        // 그룹 정보 저장 (drawGroupLinesMST.js 에서 사용)
-        marker.group = positions[i].group;
+        // overlay DOM 생성
+        const overlayContent = document.createElement("div");
+        overlayContent.className = "overlay-hover";
+        overlayContent.style.transform = `translateY(-${markerHeight}px)`;
+        overlayContent.innerText = positions[i].content;
 
-        // hover overlay
         const overlay = new kakao.maps.CustomOverlay({
           position: positions[i].latlng,
-          content: `<div class="overlay-hover" style="transform:translateY(-${markerHeight}px)">${positions[i].content}</div>`,
+          content: overlayContent,
           yAnchor: 1,
           map: null
         });
 
-        // click overlay
         const clickOverlay = new kakao.maps.CustomOverlay({
           position: positions[i].latlng,
           content: `<div class="overlay-click" style="transform:translateY(-${markerHeight}px)">${positions[i].content}</div>`,
@@ -78,19 +86,34 @@
           map: null
         });
 
-        // hover 이벤트
-        kakao.maps.event.addListener(marker, "mouseover", function() {
-          marker.__isMouseOver = true;
-          if (marker !== selectedMarker) marker.setImage(hoverImage);
-          if (map.getLevel() > 3 && !overlay.getMap()) overlay.setMap(map);
-        });
-        kakao.maps.event.addListener(marker, "mouseout", function() {
-          marker.__isMouseOver = false;
-          if (marker !== selectedMarker) marker.setImage(normalImage);
-          if (map.getLevel() > 3) setTimeout(() => overlay.setMap(null), 50);
-        });
+        // hover 활성화
+        function activateHover() {
+          zCounter++;
+          marker.setImage(hoverImage);
+          marker.setZIndex(zCounter);
 
-        // click 이벤트 (mousedown + mouseup 분리)
+          overlay.setZIndex(zCounter);
+          overlay.setMap(map);
+          overlayContent.classList.add("active");
+        }
+
+        // hover 해제
+        function deactivateHover() {
+          marker.setImage(normalImage);
+          overlayContent.classList.remove("active");
+
+          if (map.getLevel() > 3) {
+            overlay.setMap(null); // 자동 숨김
+          }
+        }
+
+        // hover 이벤트 (마커 + 오버레이 둘 다)
+        kakao.maps.event.addListener(marker, "mouseover", activateHover);
+        kakao.maps.event.addListener(marker, "mouseout", deactivateHover);
+        kakao.maps.event.addListener(overlay, "mouseover", activateHover);
+        kakao.maps.event.addListener(overlay, "mouseout", deactivateHover);
+
+        // click 이벤트
         kakao.maps.event.addListener(marker, "mousedown", function() {
           if (selectedMarker && selectedMarker !== marker) {
             selectedMarker.setImage(normalImage);
@@ -98,14 +121,14 @@
           clickOverlays.forEach(ov => ov.setMap(null));
           clickOverlays.length = 0;
 
-          marker.setImage(clickImage); // 점프
+          marker.setImage(clickImage);
           selectedMarker = marker;
           clickStartTime = Date.now();
         });
 
         kakao.maps.event.addListener(marker, "mouseup", function() {
           const elapsed = Date.now() - clickStartTime;
-          const delay = Math.max(0, 100 - elapsed); // 최소 0.1초 보장
+          const delay = Math.max(0, 100 - elapsed);
           setTimeout(function() {
             if (marker === selectedMarker) {
               if (marker.__isMouseOver) {
@@ -113,16 +136,10 @@
               } else {
                 marker.setImage(normalImage);
               }
-              // 클릭 오버레이 표시
               clickOverlay.setMap(map);
               clickOverlays.push(clickOverlay);
-
-              // 좌표 input 업데이트
-              const input = document.getElementById("gpsyx");
-              if (input) {
-                input.value =
-                  positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
-              }
+              document.getElementById("gpsyx").value =
+                positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
             }
           }, delay);
         });
@@ -132,7 +149,7 @@
       })(i);
     }
 
-    // 지도 레벨 이벤트
+    // 지도 idle 이벤트: 레벨 3 이하일 때만 오버레이 유지
     kakao.maps.event.addListener(map, "idle", function() {
       const level = map.getLevel();
       overlays.forEach(o => {
@@ -141,18 +158,30 @@
       });
     });
 
-    // 지도 클릭 → 선택 해제
+    // 지도 클릭 → 리셋 조건
     kakao.maps.event.addListener(map, "click", function() {
+      const level = map.getLevel();
+
       if (selectedMarker) {
         selectedMarker.setImage(normalImage);
         selectedMarker = null;
       }
+
       clickOverlays.forEach(ov => ov.setMap(null));
       clickOverlays.length = 0;
-    });
 
-    // 전역 저장 (그룹선 연결에서 사용)
-    window.markers = markers;
+      if (level <= 3) {
+        overlays.forEach(o => {
+          const content = o.getContent();
+          if (content && content.classList) {
+            content.classList.remove("active");
+          }
+        });
+        markers.forEach(m => {
+          m.setImage(normalImage);
+        });
+      }
+    });
 
     return markers;
   };
