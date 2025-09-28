@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <title>GIS 모바일</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="icon" href="https://hamancctv.github.io/5/favicon.ico" sizes="32x32"/>
-  <link rel="stylesheet" href="https://hamancctv.github.io/5/style.css">
+  <link rel="icon" href="https://hamancctv.github.io/2/favicon.ico" sizes="32x32"/>
+  <link rel="stylesheet" href="https://hamancctv.github.io/2/style.css">
 </head>
 <body>
   <div id="alert-overlay"><div id="alert-message"></div></div>
@@ -51,7 +51,7 @@
 <script src="https://code.jquery.com/jquery-3.6.1.js" integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI=" crossorigin="anonymous"></script>
 
 <!-- 위치 데이터 -->
-<script type="text/javascript" src="https://hamancctv.github.io/5/positions.js"></script> 
+<script type="text/javascript" src="https://hamancctv.github.io/2/positions.js"></script> 
 
 <script>
 const toggleGroupBtn = document.getElementById('toggle_group');
@@ -193,7 +193,7 @@ var myLocationMarker = null, trackMarker = null;
 var trackInterval = null, watchId = null;
 
 var markerImage = new kakao.maps.MarkerImage(
-    'https://hamancctv.github.io/5/icon-target.png',
+    'https://hamancctv.github.io/2/icon-target.png',
     new kakao.maps.Size(32,32),
     { offset: new kakao.maps.Point(16,16) }
 );
@@ -334,7 +334,7 @@ document.getElementById("btn_input_copy").onclick = function(){
 <!-- sel_txt -->
 <div id="menu_wrap" class="bg_white" style="border:1px solid #919191;border-radius:10px;"></div>
 <script>
-fetch("https://raw.githubusercontent.com/hamancctv/5/refs/heads/main/sel_txt.html")
+fetch("https://raw.githubusercontent.com/hamancctv/2/refs/heads/main/sel_txt.html")
   .then(res => res.text())
   .then(html => { document.getElementById("menu_wrap").innerHTML = html; })
   .catch(err => console.error("메뉴 로드 실패:", err));
@@ -352,13 +352,13 @@ function filter(){
 </script>
 
 <!-- 그룹 선 연결 -->
-<script src="https://hamancctv.github.io/5/drawGroupLinesMST.js?v=20250929a"></script>
+<script src="https://hamancctv.github.io/2/drawGroupLinesMST.js?v=20250929a"></script>
 
 <!-- 거리 측정 -->
-<script src="https://hamancctv.github.io/5/btnDistance.js?v=20250929a"></script>
+<script src="https://hamancctv.github.io/2/btnDistance.js?v=20250929a"></script>
 
 <!-- 마커 핸들러 분리 -->
-<script src="https://hamancctv.github.io/5/markers-handler.js?v=20250929a"></script>
+<script src="https://hamancctv.github.io/2/markers-handler.js?v=20250929a"></script>
 
 <script>
   // 필터링된 positions 배열 준비 후 실행
