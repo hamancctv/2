@@ -172,46 +172,49 @@ marker.group = positions[i].group ? String(positions[i].group) : null;
         overlayContent.addEventListener("mouseout",  deactivateHover);
 
         // === Click (mousedown/up 분리) ===
-        kakao.maps.event.addListener(marker, "mousedown", function () {
-          // 다른 선택 마커 normal로
-          if (selectedMarker && selectedMarker !== marker) {
-            selectedMarker.setImage(normalImage);
-          }
+// 클릭 시작 (mousedown)
+kakao.maps.event.addListener(marker, "mousedown", function () {
+  // 다른 선택 마커 해제
+  if (selectedMarker && selectedMarker !== marker) {
+    selectedMarker.setImage(normalImage);
+  }
 
-          // 기존 클릭 오버레이 모두 닫기
-          clickOverlays.forEach((ov) => ov.setMap(null));
-          clickOverlays.length = 0;
+  // 기존 클릭 오버레이 제거
+  clickOverlays.forEach((ov) => ov.setMap(null));
+  clickOverlays.length = 0;
 
-          // 점프
-          marker.setImage(clickImage);
-          selectedMarker = marker;
-          clickStartTime = Date.now();
-        });
+  // 점프 효과
+  marker.setImage(jumpImage);
+  selectedMarker = marker;
+  clickStartTime = Date.now();
+});
 
-        kakao.maps.event.addListener(marker, "mouseup", function () {
-          const elapsed = Date.now() - clickStartTime;
-          const delay = Math.max(0, 100 - elapsed);
+// 클릭 완료 (mouseup)
+kakao.maps.event.addListener(marker, "mouseup", function () {
+  const elapsed = Date.now() - clickStartTime;
+  const delay = Math.max(0, 100 - elapsed);
 
-          setTimeout(function () {
-            if (marker === selectedMarker) {
-              // hover중이면 hover 이미지 유지, 아니면 normal
-              marker.setImage(marker.__isMouseOver ? hoverImage : normalImage);
+  setTimeout(function () {
+    if (marker === selectedMarker) {
+      // 마커는 normal로 복귀
+      marker.setImage(normalImage);
 
-              // 클릭 오버레이 표시(크기 변화 없음, 위치 -44px)
-              clickOverlay.setZIndex(zCounter); // 최신 z 위에 표시
-              clickOverlay.setMap(map);
-              clickOverlays.push(clickOverlay);
+      // 오버레이는 hover 상태 크기로 유지
+      overlay.setMap(map);
+      overlayContent.style.transform = `translateY(${hoverY}px)`;
+      overlayContent.style.transform += " scale(1.1)"; // 살짝 키워서 강조 가능
 
-              // 좌표 input 업데이트
-              const gpsyx = document.getElementById("gpsyx");
-              if (gpsyx) {
-                gpsyx.value =
-                  positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
-              }
-            }
-          }, delay);
-        });
+      // 클릭 오버레이 표시
+      clickOverlay.setZIndex(zCounter);
+      clickOverlay.setMap(map);
+      clickOverlays.push(clickOverlay);
 
+      // 좌표 input 갱신
+      document.getElementById("gpsyx").value =
+        positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
+    }
+  }, delay);
+});
         markers.push(marker);
         overlays.push(overlay);
       })(i);
