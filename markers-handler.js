@@ -22,7 +22,7 @@
   let selectedOverlay = null;
   let clickStartTime = 0;
 
-  // === menu_wrap 필터링 함수 (검색창 대신 직접 적용) ===
+  // === menu_wrap 필터링 함수 ===
   function filterMenu(prefix) {
     const items = document.getElementsByClassName("sel_txt");
     for (let j = 0; j < items.length; j++) {
@@ -40,10 +40,9 @@
     const hoverHeight = 50.4;
     const baseGap = 2;
 
-    // Y 위치 계산
-    const baseY = -(normalHeight + baseGap); // -44px
-    const hoverY = -(hoverHeight + baseGap); // -52.4px
-    const jumpY = -(70 + baseGap);           // -72px
+    const baseY = -(normalHeight + baseGap); // -44
+    const hoverY = -(hoverHeight + baseGap); // -52.4
+    const jumpY = -(70 + baseGap);           // -72
 
     // 마커 이미지
     const normalImage = new kakao.maps.MarkerImage(
@@ -58,8 +57,8 @@
     );
     const jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(30, 42),              // normal 크기 그대로
-      { offset: new kakao.maps.Point(15, 70) }  // 점프 offset
+      new kakao.maps.Size(30, 42),
+      { offset: new kakao.maps.Point(15, 70) }
     );
 
     // === 마커 생성 루프 ===
@@ -70,7 +69,7 @@
           position: positions[i].latlng,
           image: normalImage,
           clickable: true,
-          zIndex: zCounter + 1, // ✅ 초기값: 마커가 항상 오버레이보다 앞
+          zIndex: zCounter + 1, // 마커가 오버레이보다 앞
         });
         marker.group = positions[i].group ? String(positions[i].group) : null;
 
@@ -103,8 +102,7 @@
           marker.__isMouseOver = false;
           if (marker !== selectedMarker) marker.setImage(normalImage);
           overlayContent.style.transform = `translateY(${baseY}px)`;
-          if (map.getLevel() > 3) overlay.setMap(null);
-          else overlay.setMap(null); // ✅ mouseout 시 숨김
+          overlay.setMap(null); // mouseout 시 숨김
         }
 
         kakao.maps.event.addListener(marker, "mouseover", activateHover);
@@ -130,14 +128,12 @@
             // 기존 강조 해제
             if (selectedOverlay) {
               selectedOverlay.style.border = "1px solid #ccc";
-              selectedOverlay = null;
             }
 
             // hover 오버레이 숨김 후 다시 표시
             overlay.setMap(null);
             overlay.setMap(map);
 
-            // 테두리만 파랗게 강조
             overlayContent.style.border = "2px solid blue";
             overlayContent.style.transform = `translateY(${baseY}px)`;
             selectedOverlay = overlayContent;
@@ -151,7 +147,7 @@
           }, delay);
         });
 
-        // === Overlay Click → 동일한 점프 효과 ===
+        // === Overlay Click → 마커와 동일 효과 ===
         overlayContent.addEventListener("click", function () {
           marker.setImage(jumpImage);
           overlayContent.style.transform = `translateY(${jumpY}px)`;
@@ -176,12 +172,6 @@
         overlays.push(overlay);
       })(i);
     }
-
-    // 지도 레벨 이벤트
-    kakao.maps.event.addListener(map, "idle", function () {
-      const level = map.getLevel();
-      overlays.forEach((o) => (level <= 3 ? o.setMap(map) : o.setMap(null)));
-    });
 
     // 지도 클릭 → 선택 해제
     kakao.maps.event.addListener(map, "click", function () {
