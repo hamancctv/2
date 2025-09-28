@@ -307,91 +307,77 @@
                 });
 
                 // === Overlay Click ===
-                overlayContent.addEventListener("click", function () {
-                    // 1. 폴리라인 그리기 (MST 직선 연결)
-                    drawPolylineForGroup(marker.group);
-                    
-                    // 2. 좌표 input 갱신 및 필터링 (기존 로직 유지)
-                    const lat = positions[i].latlng.getLat();
-                    const lng = positions[i].latlng.getLng();
-                    document.getElementById("gpsyx").value = lat + ", " + lng;
+ * 두 좌표(LatLng) 사이의 거리를 km 단위로 계산
+ */
+function getDistance(latLng1, latLng2) {
+    const R = 6371;
+    const dLat = (latLng2.getLat() - latLng1.getLat()) * (Math.PI / 180);
+    const dLon = (latLng2.getLng() - latLng1.getLng()) * (Math.PI / 180);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(latLng1.getLat() * (Math.PI / 180)) * Math.cos(latLng2.getLat() * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
 
-                    const tempDiv = document.createElement("div");
-                    tempDiv.innerHTML = positions[i].content;
-                    const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
-                    const prefix = nameText.substring(0, 5).toUpperCase();
-                    document.getElementById("keyword").value = prefix;
-                    if (typeof filter === 'function') {
-                        filter();
-                    }
+/**
+ * Prim 알고리즘으로 MST 간선 배열 리턴
+ */
+function calculateMSTEdges(latLngs) {
+    if (latLngs.length < 2) return [];
 
-                    // 3. 클릭 효과 동일 적용
-                    if (selectedOverlay) {
-                        selectedOverlay.style.border = "1px solid #ccc";
-                    }
+    const n = latLngs.length;
+    const visited = new Array(n).fill(false);
+    const mstEdges = [];
+    visited[0] = true;
+    let numVisited = 1;
 
-                    // 4. 마커 상태 업데이트
-                    selectedMarker = marker;
-                    marker.setImage(normalImage);
+    while (numVisited < n) {
+        let minCost = Infinity, nextNodeIndex = -1, edgeFromIndex = -1;
 
-                    overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
-                    overlayContent.style.transform = `translateY(${baseY}px)`; 
-
-                    overlayContent.style.border = "2px solid blue";
-                    selectedOverlay = overlayContent;
-
-                    // 5. zIndex 재조정
-                    zCounter++;
-                    marker.setZIndex(zCounter + 1);
-                    overlay.setZIndex(zCounter);
-                    overlay.setMap(map);
-
-                    setTimeout(() => {
-                        overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease";
-                    }, 200);
-                });
-
-                markers.push(marker);
-                overlays.push(overlay);
-            })(i);
+        for (let i = 0; i < n; i++) if (visited[i]) {
+            for (let j = 0; j < n; j++) if (!visited[j]) {
+                const dist = getDistance(latLngs[i], latLngs[j]);
+                if (dist < minCost) {
+                    minCost = dist;
+                    nextNodeIndex = j;
+                    edgeFromIndex = i;
+                }
+            }
         }
 
-        markerIndex = end;
-        if (markerIndex < positions.length) {
-            setTimeout(createMarkerBatch, 0);
-        } else {
-             window.markers = markers;
-             console.log("All markers created.");
+        if (nextNodeIndex !== -1) {
+            visited[nextNodeIndex] = true;
+            numVisited++;
+            mstEdges.push({ from: latLngs[edgeFromIndex], to: latLngs[nextNodeIndex] });
         }
     }
-    
-    // 마커 생성 프로세스 시작
-    createMarkerBatch();
+    return mstEdges;
+}
 
-    // 지도 레벨 이벤트 (기존 코드 유지)
-    kakao.maps.event.addListener(map, "idle", function () {
-      const level = map.getLevel();
-      overlays.forEach((o) => {
-        if (o.getContent() === selectedOverlay) {
-          o.setMap(map);
-        } else {
-          level <= 3 ? o.setMap(map) : o.setMap(null);
-        }
-      });
-    });
+/**
+ * 그룹별 MST 폴리라인을 하나로만 그리기
+ */
+function drawPolylineForGroup(groupKey) {
+    removePolyline();
 
-    // 지도 클릭 → 선택 해제 및 폴리라인 제거 (기존 코드 유지)
-    kakao.maps.event.addListener(map, "click", function () {
-      if (selectedMarker) {
-        selectedMarker.setImage(normalImage);
-        selectedMarker = null;
-      }
-      if (selectedOverlay) {
-        selectedOverlay.style.border = "1px solid #ccc";
-        selectedOverlay = null;
-      }
-      // 폴리라인 제거
-      removePolyline();
-    });
-  };
-})();
+    const latLngs = groupPositions[groupKey];
+    if (latLngs && latLngs.length >= 2) {
+        const mstEdges = calculateMSTEdges(latLngs);
+        let pathSegments = [];
+
+        mstEdges.forEach(edge => {
+            pathSegments.push(edge.from, edge.to, null); // ⭐ null로 경로 끊기
+        });
+
+        currentPolyline = new kakao.maps.Polyline({
+            map: map,
+            path: pathSegments,
+            strokeWeight: 5,
+            strokeColor: '#FF0000',
+            strokeOpacity: 0.9,
+            strokeStyle: 'solid'
+        });
+    }
+}
