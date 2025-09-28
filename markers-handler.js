@@ -34,7 +34,7 @@
   let currentPolyline = null; 
   let groupPositions = {};    
 
-  // === 유틸리티 함수 (MST 및 곡선 보간을 위해 추가) ===
+  // === 유틸리티 함수 (MST 구현을 위해 유지) ===
 
   /**
    * 두 좌표(LatLng) 사이의 거리를 km 단위로 계산합니다. (Haversine 공식)
@@ -53,9 +53,9 @@
 
   /**
    * 프림(Prim) 알고리즘을 사용하여 주어진 좌표들에서 MST 간선 목록을 계산합니다.
-   * 각 간선은 { from: LatLng, to: LatLng } 형태의 객체입니다.
+   * 반환된 배열은 Polyline path로 사용될 '간선 세그먼트'의 목록입니다.
    */
-  function calculateMSTEdges(latLngs) {
+  function calculateMSTPath(latLngs) {
       if (latLngs.length < 2) return [];
 
       const n = latLngs.length;
@@ -90,37 +90,22 @@
           if (nextNodeIndex !== -1) {
               visited[nextNodeIndex] = true;
               numVisited++;
+              // MST 간선 (시작점, 끝점)을 저장
               mstEdges.push({
                   from: latLngs[edgeFromIndex],
                   to: latLngs[nextNodeIndex]
               });
           }
       }
-      return mstEdges;
-  }
 
-  /**
-   * 두 LatLng 좌표 사이에 중간 지점을 삽입하여 곡선처럼 보이게 하는 보간 함수입니다.
-   * numSegments가 클수록 더 부드러운 곡선이 됩니다.
-   * @param {kakao.maps.LatLng} start 시작 좌표
-   * @param {kakao.maps.LatLng} end 끝 좌표
-   * @param {number} numSegments 각 간선 당 생성할 중간 지점의 수
-   * @returns {Array<kakao.maps.LatLng>} 보간된 좌표 배열
-   */
-  function interpolatePath(start, end, numSegments = 10) {
-      const path = [];
-      const startLat = start.getLat();
-      const startLng = start.getLng();
-      const endLat = end.getLat();
-      const endLng = end.getLng();
+      // 모든 간선의 좌표를 연속적인 배열로 만들어 Polyline path로 사용
+      let pathSegments = [];
+      mstEdges.forEach(edge => {
+          // 간선 하나당 두 점(시작점, 끝점)을 추가하여 Polyline이 직선을 그리게 합니다.
+          pathSegments.push(edge.from, edge.to);
+      });
 
-      for (let i = 0; i <= numSegments; i++) {
-          const t = i / numSegments;
-          const lat = startLat + (endLat - startLat) * t;
-          const lng = startLng + (endLng - startLng) * t;
-          path.push(new kakao.maps.LatLng(lat, lng));
-      }
-      return path;
+      return pathSegments;
   }
 
 
@@ -173,7 +158,7 @@
     }
 
     /**
-     * 특정 그룹의 마커들을 연결하는 폴리라인을 그립니다. (MST 및 곡선 보간 적용)
+     * 특정 그룹의 마커들을 연결하는 폴리라인을 그립니다. (MST 직선 연결)
      */
     function drawPolylineForGroup(groupKey) {
         removePolyline(); 
@@ -181,25 +166,18 @@
         const latLngs = groupPositions[groupKey];
 
         if (latLngs && latLngs.length >= 2) {
-            // ⭐ MST 간선 계산 ⭐
-            const mstEdges = calculateMSTEdges(latLngs);
-            
-            let interpolatedPath = [];
-            mstEdges.forEach(edge => {
-                // 각 MST 간선에 대해 보간 적용
-                const segmentPath = interpolatePath(edge.from, edge.to, 20); // ⭐ 중간 지점 20개 생성 ⭐
-                interpolatedPath = interpolatedPath.concat(segmentPath);
-            });
+            // ⭐ MST 계산 적용 (직선 경로) ⭐
+            const mstPathSegments = calculateMSTPath(latLngs);
             
             currentPolyline = new kakao.maps.Polyline({
                 map: map,
-                path: interpolatedPath, // 보간된 좌표 배열
+                path: mstPathSegments, // MST 간선으로 구성된 좌표 배열
                 strokeWeight: 5,       // 선 굵기
                 strokeColor: '#FF0000', // ⭐ 선 색상을 빨간색으로 변경 ⭐
                 strokeOpacity: 0.9, 
-                strokeStyle: 'solid'    // 곡선 보간을 사용했으므로 실선으로 변경
+                strokeStyle: 'solid'    // 직선 연결 (실선 유지)
             });
-            console.log(`MST and interpolated Polyline drawn for group: ${groupKey}`);
+            console.log(`MST Polyline (Straight) drawn for group: ${groupKey}`);
         }
     }
 
@@ -287,7 +265,7 @@
                             selectedOverlay.style.border = "1px solid #ccc";
                         }
                         
-                        // 2. 폴리라인 그리기 (MST 및 곡선 보간 적용)
+                        // 2. 폴리라인 그리기 (MST 직선 연결)
                         drawPolylineForGroup(marker.group);
 
                         // 3. 좌표 input 갱신 및 menu_wrap 필터 적용 (기존 로직 유지)
@@ -330,7 +308,7 @@
 
                 // === Overlay Click ===
                 overlayContent.addEventListener("click", function () {
-                    // 1. 폴리라인 그리기 (MST 및 곡선 보간 적용)
+                    // 1. 폴리라인 그리기 (MST 직선 연결)
                     drawPolylineForGroup(marker.group);
                     
                     // 2. 좌표 input 갱신 및 필터링 (기존 로직 유지)
