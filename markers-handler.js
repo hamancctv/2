@@ -2,19 +2,31 @@
 (function () {
   // === 스타일 정의 ===
   const style = document.createElement("style");
-  style.textContent = `
-    .overlay-hover {
-      padding:2px 6px;
-      background:rgba(255,255,255,0.9);
-      border:1px solid #ccc;
-      border-radius:5px;
-      font-size:14px;
-      white-space: nowrap;
-      user-select: none;
-      transition: transform 0.15s ease;
-      transform: scale(1.2); /* 기본 오버레이도 20% 확대 */
-    }
-  `;
+style.textContent = `
+  .overlay-hover {
+    padding:2px 6px;
+    background:rgba(255,255,255,0.90); /* ⬅️ 0.9 → 0.95 */
+    border:1px solid #ccc;
+    border-radius:5px;
+    font-size:14px;
+    white-space: nowrap;
+    user-select: none;
+    transition: transform 0.15s ease;
+    transform: scale(1.2);
+  }
+  .overlay-click {
+    padding:5px 8px;
+    background:rgba(255,255,255,0.90); /* ⬅️ 0.95 → 0.97 */
+    border:1px solid #666;
+    border-radius:5px;
+    font-size:14px;
+    white-space: nowrap;
+    user-select: none;
+    transform: scale(1.2);
+  }
+`;
+
+  
   document.head.appendChild(style);
 
   // === 전역 상태 ===
