@@ -95,8 +95,7 @@
           marker.setZIndex(zCounter + 1);
           overlay.setZIndex(zCounter);
 
-          // ⭐ 수정: 선택된 마커일지라도 호버 시 hoverImage 적용
-          marker.setImage(hoverImage);
+          marker.setImage(hoverImage); // 선택된 마커일지라도 호버 시 hoverImage 적용
 
           overlay.setMap(map);
           overlayContent.style.transform = `translateY(${hoverY}px)`; // 호버 위치로 이동 (-52.4px)
@@ -105,14 +104,12 @@
         function deactivateHover() {
           marker.__isMouseOver = false;
 
-          // ⭐ 수정: 선택된 마커인지 아닌지에 따라 복귀 로직 분리
           if (marker === selectedMarker) {
-            // 선택된 마커: normalImage로 복귀, 오버레이는 baseY 위치 유지 (선택 스타일 유지)
+            // 선택된 마커일 경우: normalImage로만 복귀시키고, 오버레이는 baseY 위치 유지 (선택 스타일 유지)
             marker.setImage(normalImage);
             overlayContent.style.transform = `translateY(${baseY}px)`; // 정상 위치로 복귀 (-44px)
-            // 오버레이는 selectedOverlay로 인해 setMap(null)되지 않음
           } else {
-            // 미선택 마커: normalImage로 복귀, 오버레이는 baseY 위치로 이동, 줌 레벨에 따라 숨김
+            // 미선택 마커일 경우: normalImage로 복귀, 오버레이는 baseY 위치로 이동, 줌 레벨에 따라 숨김
             marker.setImage(normalImage);
             overlayContent.style.transform = `translateY(${baseY}px)`; // 정상 위치로 복귀 (-44px)
             if (map.getLevel() > 3) overlay.setMap(null);
@@ -143,16 +140,31 @@
               selectedOverlay.style.border = "1px solid #ccc";
             }
 
+            // ⭐ 복구된 필터링 로직 시작 ⭐
+            // 좌표 input 갱신
+            const lat = positions[i].latlng.getLat();
+            const lng = positions[i].latlng.getLng();
+            document.getElementById("gpsyx").value = lat + ", " + lng;
+
+            // menu_wrap 필터 적용
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = positions[i].content;
+            const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+            const prefix = nameText.substring(0, 5).toUpperCase();
+            document.getElementById("keyword").value = prefix;
+            if (typeof filter === 'function') {
+                filter();
+            }
+            // ⭐ 복구된 필터링 로직 끝 ⭐
+
             // 2. 현재 마커를 선택 상태로 지정 및 이미지 복귀
             selectedMarker = marker;
             marker.setImage(normalImage);
 
             // 3. 오버레이를 정상 위치 (baseY: -44px)로 이동 및 강조
             overlay.setMap(map);
-
             overlayContent.style.border = "2px solid blue";
 
-            // ⭐ 마우스업 시 오버레이 위치 복귀 및 트랜지션 설정
             overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
             overlayContent.style.transform = `translateY(${baseY}px)`; // 정상 위치로 복귀 (-44px)
 
@@ -170,14 +182,14 @@
           }, delay);
         });
 
-        // === Overlay Click → 마커와 동일 효과 ===
+        // === Overlay Click → 마커와 동일 효과 (이곳은 이미 필터링 로직이 있었음) ===
         overlayContent.addEventListener("click", function () {
           // 좌표 input 갱신
           const lat = positions[i].latlng.getLat();
           const lng = positions[i].latlng.getLng();
           document.getElementById("gpsyx").value = lat + ", " + lng;
 
-          // menu_wrap 필터 적용 (생략)
+          // menu_wrap 필터 적용
           const tempDiv = document.createElement("div");
           tempDiv.innerHTML = positions[i].content;
           const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
@@ -196,7 +208,6 @@
           selectedMarker = marker;
           marker.setImage(normalImage);
 
-          // ⭐ 오버레이 클릭 시 위치 복귀 및 트랜지션 설정
           overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
           overlayContent.style.transform = `translateY(${baseY}px)`; // 정상 위치로 복귀 (-44px)
 
@@ -210,7 +221,6 @@
           overlay.setMap(map);
 
           setTimeout(() => {
-            // 원래의 transition 설정으로 복구
             overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease";
           }, 200);
         });
