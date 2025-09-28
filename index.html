@@ -71,7 +71,9 @@ var mapCenter = new kakao.maps.LatLng(35.2725308711779, 128.406307024695),
 
 var map = new kakao.maps.Map(mapContainer, mapOption);
 map.setMaxLevel(9);
-
+// ⭐ 전역 등록
+window.map = map;
+  
 // 로드뷰
 var rv = new kakao.maps.Roadview(rvContainer); 
 var rvClient = new kakao.maps.RoadviewClient(); 
