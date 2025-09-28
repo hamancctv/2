@@ -5,18 +5,8 @@
   style.textContent = `
     .overlay-hover {
       padding:2px 6px;
-      background:rgba(255,255,255,0.70); /* ✅ 투명도 조금 더 높임 */
-      border:1px solid #ccc;
-      border-radius:5px;
-      font-size:14px;
-      white-space: nowrap;
-      user-select: none;
-      transition: transform 0.15s ease;
-    }
-    .overlay-click {
-      padding:5px 8px;
       background:rgba(255,255,255,0.70);
-      border:1px solid #666;
+      border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
       white-space: nowrap;
@@ -31,6 +21,15 @@
   let selectedMarker = null;
   let selectedOverlay = null;
   let clickStartTime = 0;
+
+  // === menu_wrap 필터링 함수 (검색창 대신 직접 적용) ===
+  function filterMenu(prefix) {
+    const items = document.getElementsByClassName("sel_txt");
+    for (let j = 0; j < items.length; j++) {
+      const text = items[j].innerText.toUpperCase().replace(/\s+/g, "");
+      items[j].style.display = text.indexOf(prefix) > -1 ? "flex" : "none";
+    }
+  }
 
   // === 마커 초기화 함수 ===
   window.initMarkers = function (map, positions) {
@@ -105,6 +104,7 @@
           if (marker !== selectedMarker) marker.setImage(normalImage);
           overlayContent.style.transform = `translateY(${baseY}px)`;
           if (map.getLevel() > 3) overlay.setMap(null);
+          else overlay.setMap(null); // ✅ mouseout 시 숨김
         }
 
         kakao.maps.event.addListener(marker, "mouseover", activateHover);
@@ -112,58 +112,20 @@
         overlayContent.addEventListener("mouseover", activateHover);
         overlayContent.addEventListener("mouseout", deactivateHover);
 
-        // === Click ===
+        // === Click (마커) ===
         kakao.maps.event.addListener(marker, "mousedown", function () {
           marker.setImage(jumpImage); // 점프 시작
-          clickStartTime = Date.now();
-
-          // 오버레이도 점프 위치
           overlayContent.style.transform = `translateY(${jumpY}px)`;
+          clickStartTime = Date.now();
         });
 
-  kakao.maps.event.addListener(marker, "mouseup", function() {
-  const elapsed = Date.now() - clickStartTime;
-  const delay = Math.max(0, 100 - elapsed);
+        kakao.maps.event.addListener(marker, "mouseup", function () {
+          const elapsed = Date.now() - clickStartTime;
+          const delay = Math.max(0, 100 - elapsed);
 
-  setTimeout(function() {
-    if (marker === selectedMarker) {
-      if (marker.__isMouseOver) {
-        marker.setImage(hoverImage);
-      } else {
-        marker.setImage(normalImage);
-      }
-
-      clickOverlay.setContent(makeOverlayContent("click", positions[i].content, "click"));
-      clickOverlay.setMap(map);
-      clickOverlays.push(clickOverlay);
-
-      document.getElementById("gpsyx").value =
-        positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
-
-      // ⭐⭐⭐ 이곳의 필터링 로직을 수정합니다. ⭐⭐⭐
-      
-      const markerContent = positions[i].content;
-      // 1. 마커 내용의 앞에서 5글자 추출 (필터링에 사용할 값)
-      const filterKeyword = markerContent.substring(0, 5).toUpperCase(); // filter() 함수가 대문자를 사용하므로 통일
-      
-      // 2. #keyword input에 값을 설정하는 코드를 제거합니다. (원하는 대로)
-      //    **대신, filter() 함수가 인자를 받아 필터링하도록 임시로 재정의해야 합니다.**
-
-      // 3. 임시 filter 함수를 정의하고 호출 (기존 filter 함수를 덮어쓰지 않습니다)
-      if (typeof filter === 'function') {
-          // filter() 함수와 동일한 로직을 사용하되, #keyword 대신 추출된 값을 사용합니다.
-          const item = document.getElementsByClassName("sel_txt");
-          for(let j=0; j<item.length; j++){
-            // markerContent.substring(0, 5)와 비교
-            const text = item[j].innerText.toUpperCase().replace(/\s+/g,"");
-            item[j].style.display = (text.indexOf(filterKeyword) > -1) ? "flex" : "none";
-          }
-      }
-      
-      // ⭐⭐⭐ 수정된 로직 끝 ⭐⭐⭐
-    }
-  }, delay);
-});
+          setTimeout(function () {
+            selectedMarker = marker;
+            marker.setImage(normalImage);
 
             // 기존 강조 해제
             if (selectedOverlay) {
@@ -171,44 +133,43 @@
               selectedOverlay = null;
             }
 
-            // hover 오버레이 숨김
+            // hover 오버레이 숨김 후 다시 표시
             overlay.setMap(null);
-
-            // 현재 오버레이 강조 (테두리만 파랗게)
             overlay.setMap(map);
+
+            // 테두리만 파랗게 강조
             overlayContent.style.border = "2px solid blue";
-            overlayContent.style.transition = "transform 0.2s ease";
             overlayContent.style.transform = `translateY(${baseY}px)`;
-
-            setTimeout(() => {
-              overlayContent.style.transition = "transform 0.15s ease";
-            }, 200);
-
             selectedOverlay = overlayContent;
+
+            // menu_wrap 필터링
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = positions[i].content;
+            const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+            const prefix = nameText.substring(0, 5).toUpperCase();
+            filterMenu(prefix);
           }, delay);
         });
 
-        // === Overlay Click → 마커와 동일 효과 ===
+        // === Overlay Click → 동일한 점프 효과 ===
         overlayContent.addEventListener("click", function () {
-          // 좌표 input 갱신
-          const lat = positions[i].latlng.getLat();
-          const lng = positions[i].latlng.getLng();
-          document.getElementById("gpsyx").value = lat + ", " + lng;
+          marker.setImage(jumpImage);
+          overlayContent.style.transform = `translateY(${jumpY}px)`;
 
-          // menu_wrap 필터 적용
-          const tempDiv = document.createElement("div");
-          tempDiv.innerHTML = positions[i].content;
-          const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
-          const prefix = nameText.substring(0, 5).toUpperCase();
-          document.getElementById("keyword").value = prefix;
-          filter();
+          setTimeout(function () {
+            marker.setImage(normalImage);
+            overlayContent.style.transform = `translateY(${baseY}px)`;
+            overlayContent.style.border = "2px solid blue";
+            selectedOverlay = overlayContent;
+            selectedMarker = marker;
 
-          // 클릭 효과 동일 적용
-          if (selectedOverlay) {
-            selectedOverlay.style.border = "1px solid #ccc";
-          }
-          overlayContent.style.border = "2px solid blue";
-          selectedOverlay = overlayContent;
+            // menu_wrap 필터링
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = positions[i].content;
+            const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+            const prefix = nameText.substring(0, 5).toUpperCase();
+            filterMenu(prefix);
+          }, 150);
         });
 
         markers.push(marker);
