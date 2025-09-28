@@ -5,24 +5,24 @@
 style.textContent = `
   .overlay-hover {
     padding:2px 6px;
-    background:rgba(255,255,255,0.90); /* ⬅️ 0.9 → 0.95 */
+    background:rgba(255,255,255,0.80); /* ⬅️ 0.9 → 0.95 */
     border:1px solid #ccc;
     border-radius:5px;
-    font-size:14px;
+    font-size:12px;
     white-space: nowrap;
     user-select: none;
     transition: transform 0.15s ease;
-    transform: scale(1.2);
+    transform: scale(1.0);
   }
   .overlay-click {
     padding:5px 8px;
-    background:rgba(255,255,255,0.90); /* ⬅️ 0.95 → 0.97 */
+    background:rgba(255,255,255,0.80); /* ⬅️ 0.95 → 0.97 */
     border:1px solid #666;
     border-radius:5px;
-    font-size:14px;
+    font-size:12px;
     white-space: nowrap;
     user-select: none;
-    transform: scale(1.2);
+    transform: scale(1.0);
   }
 `;
 
