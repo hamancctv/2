@@ -2,28 +2,29 @@
 (function () {
   // 기본 스타일
   const style = document.createElement("style");
-  style.textContent = `
-    .overlay-hover {
-      padding:2px 6px;
-      background:rgba(255,255,255,0.9);
-      border:1px solid #ccc;
-      border-radius:5px;
-      font-size:12px;
-      white-space: nowrap;
-      user-select: none;
-      transition: transform 0.15s ease;
-    }
-    .overlay-click {
-      padding:5px 8px;
-      background:rgba(255,255,255,0.95);
-      border:1px solid #666;
-      border-radius:5px;
-      font-size:13px;
-      white-space: nowrap;
-      user-select: none;
-      transition: transform 0.15s ease;
-    }
-  `;
+style.textContent = `
+  .overlay-hover {
+    padding:2px 6px;
+    background:rgba(255,255,255,0.9);
+    border:1px solid #ccc;
+    border-radius:5px;
+    font-size:12px;
+    white-space: nowrap;
+    user-select: none;
+    transition: transform 0.15s ease;
+    transform: scale(1.2);  /* ✅ 20% 확대 */
+  }
+  .overlay-click {
+    padding:5px 8px;
+    background:rgba(255,255,255,0.95);
+    border:1px solid #666;
+    border-radius:5px;
+    font-size:13px;
+    white-space: nowrap;
+    user-select: none;
+    transform: scale(1.2);  /* ✅ 클릭 오버레이도 동일하게 확대 */
+  }
+`;
   document.head.appendChild(style);
 
   // 전역 상태
