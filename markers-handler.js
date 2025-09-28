@@ -39,16 +39,13 @@
   /**
    * 두 좌표(LatLng) 사이의 거리를 km 단위로 계산합니다. (Haversine 공식)
    */
+// markers-handler.js
 (function () {
-  // === 전역 상태 ===
   let zCounter = 100;
-  let selectedMarker = null;
-  let selectedOverlay = null;
-  let clickStartTime = 0;
   let currentPolyline = null; 
   let groupPositions = {};    
 
-  // === 유틸 함수 ===
+  // === 거리 계산 ===
   function getDistance(latLng1, latLng2) {
       const R = 6371;
       const dLat = (latLng2.getLat() - latLng1.getLat()) * (Math.PI / 180);
@@ -93,7 +90,7 @@
       }
   }
 
-  function drawPolylineForGroup(groupKey) {
+  function drawPolylineForGroup(map, groupKey) {
       removePolyline();
       const latLngs = groupPositions[groupKey];
       if (latLngs && latLngs.length >= 2) {
@@ -118,7 +115,6 @@
   // === 마커 초기화 ===
   window.initMarkers = function (map, positions) {
       const markers = [];
-      const overlays = [];
 
       // 그룹 분류
       groupPositions = {};
@@ -140,9 +136,8 @@
           });
           marker.group = positions[i].group ? String(positions[i].group) : 'NO_GROUP';
 
-          // 클릭 시 연결
           kakao.maps.event.addListener(marker, "click", function () {
-              drawPolylineForGroup(marker.group);
+              drawPolylineForGroup(map, marker.group);
           });
 
           markers.push(marker);
