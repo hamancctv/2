@@ -8,10 +8,12 @@
       will-change: transform; 
       transform: translateZ(0); 
       cursor: pointer; /* 클릭 가능한 요소임을 명시 */
+      opacity: 1.0 !important; /* ⭐ 중요: 전체 요소 투명도 1.0 유지 */
     }
     .overlay-hover {
       padding:2px 6px;
-      background:rgba(255,255,255,0.90); /* 투명도 조정 */
+      /* 배경 투명도 0.8로 설정 */
+      background:rgba(255,255,255,0.8); 
       border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
@@ -21,7 +23,8 @@
     }
     .overlay-click {
       padding:5px 8px;
-      background:rgba(255,255,255,1.0); /* 클릭 강조 시 완전 불투명 */
+      /* 배경 투명도 0.8로 설정 */
+      background:rgba(255,255,255,0.8); 
       border:1px solid #666;
       border-radius:5px;
       font-size:14px;
@@ -30,6 +33,8 @@
       transition: transform 0.15s ease;
     }
   `;
+  
+  
   document.head.appendChild(style);
 
   // === 전역 상태 ===
