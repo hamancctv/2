@@ -4,6 +4,12 @@
   window.groupLines = window.groupLines || [];
 
   window.drawGroupLinesMST = function () {
+    const map = window.map; // ✅ 전역 map 참조
+    if (!map) {
+      console.error("지도(map)가 정의되지 않았습니다.");
+      return;
+    }
+
     // 이미 선이 있으면 모두 제거 (토글 Off)
     if (window.groupLines.length > 0) {
       window.groupLines.forEach(line => line.setMap(null));
@@ -29,7 +35,6 @@
       if (group.length < 2) return;
 
       const connected = [group[0]];
-      const edges = [];
 
       while (connected.length < group.length) {
         let minEdge = null;
@@ -49,9 +54,9 @@
           const polyline = new kakao.maps.Polyline({
             map: map,
             path: [minEdge.from.getPosition(), minEdge.to.getPosition()],
-            strokeWeight: 6,          // ✅ 굵기
+            strokeWeight: 5,          // ✅ 굵기
             strokeColor: "#FF0000",   // ✅ 색상
-            strokeOpacity: 0.4,       // ✅ 불투명도
+            strokeOpacity: 0.9,       // ✅ 불투명도
           });
           window.groupLines.push(polyline);
           connected.push(minEdge.to);
