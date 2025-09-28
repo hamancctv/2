@@ -1,4 +1,3 @@
-<!-- 마커 핸들러 분리 -->
 // markers-handler.js
 (function() {
   const style = document.createElement("style");
@@ -45,7 +44,7 @@
     const clickImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(36, 50.4),
-      { offset: new kakao.maps.Point(18, 70.4) }
+      { offset: new kakao.maps.Point(18, 70.4) } // 점프 효과
     );
 
     let selectedMarker = null;
@@ -59,6 +58,9 @@
           image: normalImage,
           clickable: true
         });
+
+        // 그룹 정보 저장 (drawGroupLinesMST.js 에서 사용)
+        marker.group = positions[i].group;
 
         // hover overlay
         const overlay = new kakao.maps.CustomOverlay({
@@ -90,12 +92,9 @@
 
         // click 이벤트 (mousedown + mouseup 분리)
         kakao.maps.event.addListener(marker, "mousedown", function() {
-          // 다른 선택 마커 초기화
           if (selectedMarker && selectedMarker !== marker) {
             selectedMarker.setImage(normalImage);
           }
-
-          // 기존 클릭 오버레이 제거
           clickOverlays.forEach(ov => ov.setMap(null));
           clickOverlays.length = 0;
 
@@ -110,17 +109,20 @@
           setTimeout(function() {
             if (marker === selectedMarker) {
               if (marker.__isMouseOver) {
-                marker.setImage(hoverImage); // hover 유지
+                marker.setImage(hoverImage);
               } else {
-                marker.setImage(normalImage); // 아니면 normal
+                marker.setImage(normalImage);
               }
               // 클릭 오버레이 표시
               clickOverlay.setMap(map);
               clickOverlays.push(clickOverlay);
 
               // 좌표 input 업데이트
-              document.getElementById("gpsyx").value =
-                positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
+              const input = document.getElementById("gpsyx");
+              if (input) {
+                input.value =
+                  positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
+              }
             }
           }, delay);
         });
@@ -148,6 +150,9 @@
       clickOverlays.forEach(ov => ov.setMap(null));
       clickOverlays.length = 0;
     });
+
+    // 전역 저장 (그룹선 연결에서 사용)
+    window.markers = markers;
 
     return markers;
   };
