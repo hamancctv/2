@@ -4,13 +4,13 @@
   window.groupLines = window.groupLines || [];
 
   window.drawGroupLinesMST = function () {
-    const map = window.map; // ✅ 전역 map 참조
+    const map = window.map; // 전역 map 참조
     if (!map) {
       console.error("지도(map)가 정의되지 않았습니다.");
       return;
     }
 
-    // 이미 선이 있으면 모두 제거 (토글 Off)
+    // 🔹 이미 선이 있으면 모두 제거 (토글 Off)
     if (window.groupLines.length > 0) {
       window.groupLines.forEach(line => line.setMap(null));
       window.groupLines = [];
@@ -18,7 +18,6 @@
     }
 
     if (!window.markers || window.markers.length === 0) return;
-
     const markers = window.markers;
 
     // === 그룹별 마커 묶기 ===
@@ -54,9 +53,9 @@
           const polyline = new kakao.maps.Polyline({
             map: map,
             path: [minEdge.from.getPosition(), minEdge.to.getPosition()],
-            strokeWeight: 5,          // ✅ 굵기
-            strokeColor: "#FF0000",   // ✅ 색상
-            strokeOpacity: 0.9,       // ✅ 불투명도
+            strokeWeight: 5,          // 선 굵기
+            strokeColor: "#FF0000",   // 선 색
+            strokeOpacity: 0.9,       // 불투명도 (1에 가까울수록 진함)
           });
           window.groupLines.push(polyline);
           connected.push(minEdge.to);
