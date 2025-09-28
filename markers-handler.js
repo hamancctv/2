@@ -43,7 +43,7 @@
 
     // Y 위치 계산
     const baseY = -(normalHeight + baseGap); // -44px (클릭 해제 시 최종 위치)
-    const hoverY = -(hoverHeight + baseGap); // -52.4px
+    const hoverY = -(hoverHeight + baseGap); // -52.4px (호버 시 오버레이 위치)
     const jumpY = -(70 + baseGap);           // -72px (클릭/점프 시 오버레이 위치)
 
     // 마커 이미지
@@ -60,7 +60,7 @@
     const jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(30, 42),
-      { offset: new kakao.maps.Point(15, 70) }  // 점프 offset (이미지 하단 기준 70px)
+      { offset: new kakao.maps.Point(15, 70) }
     );
 
     // === 마커 생성 루프 ===
@@ -95,16 +95,28 @@
           marker.setZIndex(zCounter + 1);
           overlay.setZIndex(zCounter);
 
-          if (marker !== selectedMarker) marker.setImage(hoverImage);
+          // ⭐ 수정: 선택된 마커일지라도 호버 시 hoverImage 적용
+          marker.setImage(hoverImage);
+
           overlay.setMap(map);
-          overlayContent.style.transform = `translateY(${hoverY}px)`;
+          overlayContent.style.transform = `translateY(${hoverY}px)`; // 호버 위치로 이동 (-52.4px)
         }
 
         function deactivateHover() {
           marker.__isMouseOver = false;
-          if (marker !== selectedMarker) marker.setImage(normalImage);
-          overlayContent.style.transform = `translateY(${baseY}px)`;
-          if (map.getLevel() > 3 && marker !== selectedMarker) overlay.setMap(null);
+
+          // ⭐ 수정: 선택된 마커인지 아닌지에 따라 복귀 로직 분리
+          if (marker === selectedMarker) {
+            // 선택된 마커: normalImage로 복귀, 오버레이는 baseY 위치 유지 (선택 스타일 유지)
+            marker.setImage(normalImage);
+            overlayContent.style.transform = `translateY(${baseY}px)`; // 정상 위치로 복귀 (-44px)
+            // 오버레이는 selectedOverlay로 인해 setMap(null)되지 않음
+          } else {
+            // 미선택 마커: normalImage로 복귀, 오버레이는 baseY 위치로 이동, 줌 레벨에 따라 숨김
+            marker.setImage(normalImage);
+            overlayContent.style.transform = `translateY(${baseY}px)`; // 정상 위치로 복귀 (-44px)
+            if (map.getLevel() > 3) overlay.setMap(null);
+          }
         }
 
         kakao.maps.event.addListener(marker, "mouseover", activateHover);
@@ -126,34 +138,35 @@
           const delay = Math.max(0, 100 - elapsed);
 
           setTimeout(function () {
-            selectedMarker = marker;
-            marker.setImage(normalImage); // 마커를 정상 이미지로
-
-            // 기존 강조 해제
+            // 1. 기존 강조 해제
             if (selectedOverlay) {
               selectedOverlay.style.border = "1px solid #ccc";
-              selectedOverlay = null;
             }
 
-            // hover 오버레이 숨김 (선택된 마커의 오버레이는 유지)
-            // overlay.setMap(null); // 이미 아래에서 setMap(map)을 하므로 불필요
+            // 2. 현재 마커를 선택 상태로 지정 및 이미지 복귀
+            selectedMarker = marker;
+            marker.setImage(normalImage);
 
-            // 현재 오버레이 강조 및 위치 조정
+            // 3. 오버레이를 정상 위치 (baseY: -44px)로 이동 및 강조
             overlay.setMap(map);
+
             overlayContent.style.border = "2px solid blue";
 
-            // ⭐ 수정: transition을 먼저 설정하여 부드럽게 움직이도록 함
+            // ⭐ 마우스업 시 오버레이 위치 복귀 및 트랜지션 설정
             overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
-
-            // ⭐ 수정: baseY (-44px)로 명시적으로 위치 설정하여 2px 간격 유지
             overlayContent.style.transform = `translateY(${baseY}px)`; // 정상 위치로 복귀 (-44px)
+
+            selectedOverlay = overlayContent;
+
+            // 4. zIndex 재조정 (선택된 요소 맨 앞으로)
+            zCounter++;
+            marker.setZIndex(zCounter + 1);
+            overlay.setZIndex(zCounter);
 
             setTimeout(() => {
               // 원래의 transition 설정으로 복구
               overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease";
             }, 200);
-
-            selectedOverlay = overlayContent;
           }, delay);
         });
 
@@ -164,40 +177,37 @@
           const lng = positions[i].latlng.getLng();
           document.getElementById("gpsyx").value = lat + ", " + lng;
 
-          // menu_wrap 필터 적용
+          // menu_wrap 필터 적용 (생략)
           const tempDiv = document.createElement("div");
           tempDiv.innerHTML = positions[i].content;
           const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
           const prefix = nameText.substring(0, 5).toUpperCase();
           document.getElementById("keyword").value = prefix;
-          // filter 함수는 외부에서 정의되었다고 가정하고 호출합니다.
           if (typeof filter === 'function') {
             filter();
           }
 
           // 클릭 효과 동일 적용
- // 클릭 효과 동일 적용
           if (selectedOverlay) {
             selectedOverlay.style.border = "1px solid #ccc";
           }
-          
+
           // 마커 상태 업데이트
           selectedMarker = marker;
           marker.setImage(normalImage);
 
-          // ⭐ 수정: transition을 먼저 설정하고
-          overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease"; 
-          // ⭐ 수정: baseY (-44px)로 명시적으로 위치 설정하여 2px 간격 유지
+          // ⭐ 오버레이 클릭 시 위치 복귀 및 트랜지션 설정
+          overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
           overlayContent.style.transform = `translateY(${baseY}px)`; // 정상 위치로 복귀 (-44px)
-          
+
           overlayContent.style.border = "2px solid blue";
           selectedOverlay = overlayContent;
-          
+
           // zIndex 재조정
           zCounter++;
           marker.setZIndex(zCounter + 1);
           overlay.setZIndex(zCounter);
-          overlay.setMap(map); // 오버레이가 지도 레벨 때문에 숨겨졌을 경우를 대비해 다시 표시
+          overlay.setMap(map);
 
           setTimeout(() => {
             // 원래의 transition 설정으로 복구
