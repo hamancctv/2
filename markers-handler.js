@@ -121,13 +121,49 @@
           overlayContent.style.transform = `translateY(${jumpY}px)`;
         });
 
-        kakao.maps.event.addListener(marker, "mouseup", function () {
-          const elapsed = Date.now() - clickStartTime;
-          const delay = Math.max(0, 100 - elapsed);
+  kakao.maps.event.addListener(marker, "mouseup", function() {
+  const elapsed = Date.now() - clickStartTime;
+  const delay = Math.max(0, 100 - elapsed);
 
-          setTimeout(function () {
-            selectedMarker = marker;
-            marker.setImage(normalImage);
+  setTimeout(function() {
+    if (marker === selectedMarker) {
+      if (marker.__isMouseOver) {
+        marker.setImage(hoverImage);
+      } else {
+        marker.setImage(normalImage);
+      }
+
+      clickOverlay.setContent(makeOverlayContent("click", positions[i].content, "click"));
+      clickOverlay.setMap(map);
+      clickOverlays.push(clickOverlay);
+
+      document.getElementById("gpsyx").value =
+        positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
+
+      // ⭐⭐⭐ 이곳의 필터링 로직을 수정합니다. ⭐⭐⭐
+      
+      const markerContent = positions[i].content;
+      // 1. 마커 내용의 앞에서 5글자 추출 (필터링에 사용할 값)
+      const filterKeyword = markerContent.substring(0, 5).toUpperCase(); // filter() 함수가 대문자를 사용하므로 통일
+      
+      // 2. #keyword input에 값을 설정하는 코드를 제거합니다. (원하는 대로)
+      //    **대신, filter() 함수가 인자를 받아 필터링하도록 임시로 재정의해야 합니다.**
+
+      // 3. 임시 filter 함수를 정의하고 호출 (기존 filter 함수를 덮어쓰지 않습니다)
+      if (typeof filter === 'function') {
+          // filter() 함수와 동일한 로직을 사용하되, #keyword 대신 추출된 값을 사용합니다.
+          const item = document.getElementsByClassName("sel_txt");
+          for(let j=0; j<item.length; j++){
+            // markerContent.substring(0, 5)와 비교
+            const text = item[j].innerText.toUpperCase().replace(/\s+/g,"");
+            item[j].style.display = (text.indexOf(filterKeyword) > -1) ? "flex" : "none";
+          }
+      }
+      
+      // ⭐⭐⭐ 수정된 로직 끝 ⭐⭐⭐
+    }
+  }, delay);
+});
 
             // 기존 강조 해제
             if (selectedOverlay) {
