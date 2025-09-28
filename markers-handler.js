@@ -125,15 +125,20 @@
           const elapsed = Date.now() - clickStartTime;
           const delay = Math.max(0, 100 - elapsed);
 
-          setTimeout(function () {
-            selectedMarker = marker;
-            marker.setImage(normalImage);
+          setTimeout(function () {
+            selectedMarker = marker;
+            marker.setImage(normalImage);
 
-            // 기존 강조 해제
-            if (selectedOverlay) {
-              selectedOverlay.style.border = "1px solid #ccc";
-              selectedOverlay = null;
-            }
+            // 기존 강조 해제 (기존 선택된 마커와 오버레이의 Z-Index 원복)
+            if (selectedOverlay) {
+              selectedOverlay.style.border = "1px solid #ccc";
+              // 마커가 있다면 마커의 zIndex도 낮춰야 하지만, 여기서는 selectedOverlay만 관리
+              selectedOverlay = null; 
+            }
+            // ⭐ Z-Index 최상위로 설정 (강조 효과)
+            zCounter++;
+            marker.setZIndex(zCounter + 1);
+            overlay.setZIndex(zCounter);
 
             // hover 오버레이 숨김
             overlay.setMap(null);
@@ -157,21 +162,68 @@
 });
 
         // 클릭이벤트 좌표 넣기 및 멘 필터 적용
-        // === Overlay Click → 마커와 동일 효과 ===
-        overlayContent.addEventListener("click", function () {
-          // 좌표 input 갱신
-          const lat = positions[i].latlng.getLat();
-          const lng = positions[i].latlng.getLng();
-          document.getElementById("gpsyx").value = lat + ", " + lng;
+// markers-handler.js 파일 내 'overlayContent.addEventListener("click")' 리스너 전체 교체
 
-          // menu_wrap 필터 적용
-          const tempDiv = document.createElement("div");
-          tempDiv.innerHTML = positions[i].content;
-          const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
-          const prefix = nameText.substring(0, 5).toUpperCase();
-          document.getElementById("keyword").value = prefix;
-          filter();
+        // === Overlay Click → 마커 클릭과 동일한 효과 및 애니메이션 적용 ===
+        overlayContent.addEventListener("click", function () {
+            // 마커 클릭 시 발생하는 '점프' 효과를 시뮬레이션합니다.
+            
+            // 1. mousedown 로직 실행 (점프 시작)
+            marker.setImage(jumpImage); 
+            clickStartTime = Date.now();
+            overlayContent.style.transform = `translateY(${jumpY}px)`; // 오버레이 점프 위치
+            
+            // 2. mouseup 로직 실행 (강조 및 착지)
+            const elapsed = Date.now() - clickStartTime;
+            const delay = Math.max(0, 100 - elapsed);
 
+            setTimeout(function () {
+                // 기존 강조 해제
+                if (selectedOverlay) {
+                    selectedOverlay.style.border = "1px solid #ccc";
+                    selectedOverlay = null;
+                }
+
+                // ⭐ Z-Index 최상위로 설정 (강조 효과)
+                zCounter++;
+                marker.setZIndex(zCounter + 1);
+                overlay.setZIndex(zCounter);
+                selectedMarker = marker;
+                marker.setImage(normalImage); // 착지
+
+                // hover 오버레이 숨김
+                overlay.setMap(null); 
+                
+                // 현재 오버레이 강조 (테두리 파랗게 & 위치 복원)
+                overlay.setMap(map);
+                overlayContent.style.border = "2px solid blue";
+                overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
+                overlayContent.style.transform = `translateY(${baseY}px)`; // 2px 간격 유지하며 착지
+
+                setTimeout(() => {
+                    overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease";
+                }, 200);
+
+                selectedOverlay = overlayContent;
+
+                // 3. 좌표 input 갱신 및 필터 적용 (기존 로직 유지)
+                const lat = positions[i].latlng.getLat();
+                const lng = positions[i].latlng.getLng();
+                document.getElementById("gpsyx").value = lat + ", " + lng;
+                
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = positions[i].content;
+                const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+                const prefix = nameText.substring(0, 5).toUpperCase();
+                
+                // 검색창에 값 넣지 않고 필터링 (이전 요청대로)
+                const item = document.getElementsByClassName("sel_txt");
+                for(let j=0; j<item.length; j++){
+                    const text = item[j].innerText.toUpperCase().replace(/\s+/g,"");
+                    item[j].style.display = (text.indexOf(prefix) > -1) ? "flex" : "none";
+                }
+            }, delay);
+        });
        // 클릭 효과 동일 적용
   if (selectedOverlay) {
     selectedOverlay.style.border = "1px solid #ccc";
