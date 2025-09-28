@@ -1,4 +1,11 @@
 // markers-handler.js
+/* markers-handler.js 상단 스타일 정의 부분에 추가 */
+.overlay-hover, .overlay-click {
+    /* 하드웨어 가속 활성화 */
+    will-change: transform; 
+    /* 미세한 성능 개선 */
+    transform: translateZ(0); 
+}
 (function () {
   // === 기본 스타일 정의 ===
   const style = document.createElement("style");
