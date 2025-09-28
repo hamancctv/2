@@ -22,58 +22,40 @@
       </div>
   </div>
 
-  <!-- 좌측 툴바 (검색) -->
   <div class="search-container">
       <input type="search" id="keyword" 
-          onkeyup="filter()" autocomplete="off"
+           onkeyup="filter()" autocomplete="off"
           onkeydown="if(event.keyCode === 13) { btnsearch_click(); }" 
-          class="form-control" 
-          placeholder="검색어 입력"/>
+           class="form-control" 
+           placeholder="검색어 입력"/>
       <button id="searchBtn" onclick="btnsearch_click()">검색</button>
   </div>
 
-  <!-- 우측 툴바 (좌표/복사) -->
   <div class="toolbar-right">
-    <input type="text" id="gpsyx" class="input-common" inputmode="none"
+    <input type="text" id="gpsyx" class="input-common" inputmode="none" 
            value="35.2725308711779, 128.406307024695"/>
     <button id="btn_input_copy" class="btn-common">복사</button>
   </div>
 
-  <!-- 하단 컨트롤 -->
-  <div class="custom_typecontrol2_m radius_border">
-<span id="toggle_group" class="btn btn-common">회선</span>
+  <div class="custom_typecontrol2_m radius_border"><span id="toggle_group" class="btn btn-common">회선</span>
     <span id="btnCurrentMe" class="btn btn-common" onclick="toggleMyLocation()">위치</span>
     <span id="btnTrackMe" class="btn btn-common" onclick="toggleTracking()">추적</span>
-  </div>
-    
+  </div>    
 
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services,clusterer,drawing" async></script>
 <script src="https://code.jquery.com/jquery-3.6.1.js" integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI=" crossorigin="anonymous"></script>
 
-<!-- 위치 데이터 -->
 <script type="text/javascript" src="https://hamancctv.github.io/2/positions.js"></script> 
 
 <script>
-const toggleGroupBtn = document.getElementById('toggle_group');
-toggleGroupBtn.addEventListener('click', function() {
-    drawGroupLinesMST();
-    toggleGroupBtn.classList.toggle('selected_btn');
-});
+var overlayOn = false,    container = document.getElementById('container'),    mapWrapper = document.getElementById('mapWrapper'),    mapContainer = document.getElementById('map'),    rvContainer = document.getElementById('roadview');
 
-var overlayOn = false,
-    container = document.getElementById('container'),
-    mapWrapper = document.getElementById('mapWrapper'),
-    mapContainer = document.getElementById('map'),
-    rvContainer = document.getElementById('roadview');
-
-var mapCenter = new kakao.maps.LatLng(35.2725308711779, 128.406307024695),
-    mapOption = { center: mapCenter, level: 4 };
+var mapCenter = new kakao.maps.LatLng(35.2725308711779, 128.406307024695),    mapOption = { center: mapCenter, level: 4 };
 
 var map = new kakao.maps.Map(mapContainer, mapOption);
 map.setMaxLevel(9);
-// ⭐ 전역 등록
-window.map = map;
-  
+window.map = map; // 전역 등록
+
 // 로드뷰
 var rv = new kakao.maps.Roadview(rvContainer); 
 var rvClient = new kakao.maps.RoadviewClient(); 
@@ -91,8 +73,7 @@ var markImage = new kakao.maps.MarkerImage(
         spriteSize: new kakao.maps.Size(1666, 168),
         spriteOrigin: new kakao.maps.Point(705, 114),
         offset: new kakao.maps.Point(13, 46)
-    }
-);
+    });
 
 var marker = new kakao.maps.Marker({
     image : markImage,
@@ -180,8 +161,8 @@ function setCenter(Lat, Lng) {
         strokeStyle: 'dashed',
         fillColor: '#FF1000',
         fillOpacity: 0.3
-    }); 
-    circle.setMap(map);     
+    });     
+    circle.setMap(map);         
     setTimeout(()=>circle.setMap(null), 1000);        
 }
 
@@ -197,8 +178,7 @@ var trackInterval = null, watchId = null;
 var markerImage = new kakao.maps.MarkerImage(
     'https://hamancctv.github.io/2/icon-target.png',
     new kakao.maps.Size(32,32),
-    { offset: new kakao.maps.Point(16,16) }
-);
+    { offset: new kakao.maps.Point(16,16) });
 
 function toggleMyLocation() {
     if(trackOn) stopTracking();
@@ -333,7 +313,6 @@ document.getElementById("btn_input_copy").onclick = function(){
 };
 </script>
 
-<!-- sel_txt -->
 <div id="menu_wrap" class="bg_white" style="border:1px solid #919191;border-radius:10px;"></div>
 <script>
 fetch("https://raw.githubusercontent.com/hamancctv/2/refs/heads/main/sel_txt.html")
@@ -353,25 +332,14 @@ function filter(){
 }
 </script>
 
-<!-- 그룹 선 연결 -->
 <script src="https://hamancctv.github.io/2/drawGroupLinesMST.js?v=20250929a"></script>
 
-<!-- 거리 측정 -->
 <script src="https://hamancctv.github.io/2/btnDistance.js?v=20250929a"></script>
 
-<!-- 마커 핸들러 분리 -->
 <script src="https://hamancctv.github.io/2/markers-handler.js?v=20250929a"></script>
+
 <script>
-  // ✅ drawGroupLinesMST.js 불러온 뒤에 이벤트 등록
-  const toggleGroupBtn = document.getElementById("toggle_group");
-  toggleGroupBtn.addEventListener("click", function () {
-    drawGroupLinesMST();
-    toggleGroupBtn.classList.toggle("selected_btn");
-  });
-</script>
-  
-<script>
-  // 필터링된 positions 배열 준비 후 실행
+  // 1. 마커 데이터 준비 (중복 제거)
   const unique = {};
   const filtered = [];
   for (let i = 0; i < positions.length; i++) {
@@ -384,8 +352,23 @@ function filter(){
     }
   }
 
-  // 전역 markers 에 저장됨 → drawGroupLinesMST() 에서 접근 가능
+  // 2. 마커 초기화 시작 (비동기 배치 처리)
   initMarkers(map, filtered);
+  
+  // 3. toggle_group 이벤트 리스너 정의 (마커 로딩 완료를 기다려야 함)
+  const toggleGroupBtn = document.getElementById("toggle_group");
+  
+  toggleGroupBtn.addEventListener("click", function () {
+    // ⭐ window.markers에 마커 배열이 완전히 할당되었는지 확인합니다.
+    if (window.markers && window.markers.length > 0) {
+      drawGroupLinesMST();
+      toggleGroupBtn.classList.toggle("selected_btn");
+    } else {
+      // 마커 로딩이 완료되지 않았다면 사용자에게 안내합니다.
+      showAlert("마커 로딩 중입니다. 잠시 후 다시 시도해주세요.");
+    }
+  });
 </script>
+
 </body>
 </html>
