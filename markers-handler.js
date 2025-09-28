@@ -207,24 +207,27 @@
 
                 selectedOverlay = overlayContent;
 
-                // 3. 좌표 input 갱신 및 필터 적용 
-                const lat = positions[i].latlng.getLat();
-                const lng = positions[i].latlng.getLng();
-                document.getElementById("gpsyx").value = lat + ", " + lng;
-                
-                const tempDiv = document.createElement("div");
-                tempDiv.innerHTML = positions[i].content;
-                const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
-                const prefix = nameText.substring(0, 5).toUpperCase();
-                
-                // 검색창에 값 넣지 않고 필터링 
-                const item = document.getElementsByClassName("sel_txt");
-                for(let j=0; j<item.length; j++){
-                    const text = item[j].innerText.toUpperCase().replace(/\s+/g,"");
-                    item[j].style.display = (text.indexOf(prefix) > -1) ? "flex" : "none";
-                }
-            }, delay);
-        });
+// overlayContent.addEventListener("click", ...) 내부의 setTimeout 끝 부분 수정
+setTimeout(function () {
+    // ... (기존 Z-Index, 이미지, 오버레이 강조 로직) ...
+    
+    // 3. 좌표 input 갱신
+    // ... (좌표 갱신 로직) ...
+
+    // ⭐ 필터링 로직을 밖으로 빼서 딜레이를 줌 ⭐
+    const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+    const prefix = nameText.substring(0, 5).toUpperCase();
+
+    // 맵 애니메이션/클릭 처리가 끝난 후 필터링 시작 (10ms 지연)
+    setTimeout(() => {
+        const item = document.getElementsByClassName("sel_txt");
+        for(let j=0; j<item.length; j++){
+            const text = item[j].innerText.toUpperCase().replace(/\s+/g,"");
+            item[j].style.display = (text.indexOf(prefix) > -1) ? "flex" : "none";
+        }
+    }, 10); // 10ms 지연
+    
+}, delay);
 
         markers.push(marker);
         overlays.push(overlay);
