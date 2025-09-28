@@ -1,5 +1,6 @@
 // markers-handler.js
-(function() {
+(function () {
+  // 기본 스타일
   const style = document.createElement("style");
   style.textContent = `
     .overlay-hover {
@@ -25,11 +26,15 @@
   document.head.appendChild(style);
 
   // 마커 초기화 함수
-  window.initMarkers = function(map, positions) {
+  window.initMarkers = function (map, positions) {
     const markers = [];
     const overlays = [];
     const clickOverlays = [];
-    const markerHeight = 42;
+
+    const normalHeight = 42;     // 마커 normal 높이
+    const hoverHeight  = 50.4;   // 마커 hover  높이
+    const baseY   = -(normalHeight + 2); // -44px
+    const hoverY  = -(hoverHeight  + 2); // -54.4px
 
     // 마커 이미지 (normal / hover / click)
     const normalImage = new kakao.maps.MarkerImage(
@@ -48,90 +53,125 @@
       { offset: new kakao.maps.Point(18, 70.4) } // 점프 효과
     );
 
+    // zIndex 전면 유지용 카운터 (hover마다 1씩 증가, 해제해도 낮추지 않음)
+    let zCounter = 100;
+
+    // 선택(클릭) 상태
     let selectedMarker = null;
     let clickStartTime = 0;
 
     for (let i = 0; i < positions.length; i++) {
-      (function(i) {
+      (function (i) {
+        // 1) 마커
         const marker = new kakao.maps.Marker({
-          map: map,
+          map,
           position: positions[i].latlng,
           image: normalImage,
-          clickable: true
+          clickable: true,
         });
 
-        // hover overlay
-        const overlayId = `overlay-${i}`;
+        // 2) hover 오버레이 (DOM 노드로 생성 → 이벤트/스타일 유지)
+        const overlayContent = document.createElement("div");
+        overlayContent.className = "overlay-hover";
+        overlayContent.style.transform = `translateY(${baseY}px)`;
+        overlayContent.textContent = positions[i].content;
+
         const overlay = new kakao.maps.CustomOverlay({
           position: positions[i].latlng,
-          content: `<div class="overlay-hover" id="${overlayId}" style="transform:translateY(-44px)">${positions[i].content}</div>`,
+          content: overlayContent,
           yAnchor: 1,
-          map: null
+          map: null,
         });
 
-        // click overlay
+        // 3) 클릭 오버레이 (크기 변화 없음, 기본 -44px 위치)
+        const clickOverlayContent = document.createElement("div");
+        clickOverlayContent.className = "overlay-click";
+        clickOverlayContent.style.transform = `translateY(${baseY}px)`;
+        clickOverlayContent.textContent = positions[i].content;
+
         const clickOverlay = new kakao.maps.CustomOverlay({
           position: positions[i].latlng,
-          content: `<div class="overlay-click">${positions[i].content}</div>`,
+          content: clickOverlayContent,
           yAnchor: 1,
-          map: null
+          map: null,
         });
 
-        // hover 이벤트
-        kakao.maps.event.addListener(marker, "mouseover", function() {
+        // === Hover 공통 동작 (마커/오버레이 둘 다) ===
+        function activateHover() {
           marker.__isMouseOver = true;
+
+          // zIndex: 항상 증가 → 이전 전면 상태 유지
+          zCounter++;
+          marker.setZIndex(zCounter);
+          overlay.setZIndex(zCounter);
+
+          // 마커 이미지 hover
           if (marker !== selectedMarker) marker.setImage(hoverImage);
-          if (map.getLevel() > 3 && !overlay.getMap()) overlay.setMap(map);
 
-          // 오버레이 위치 위로 +2px (기본 -44px → -54.4px)
-          const el = document.getElementById(overlayId);
-          if (el) el.style.transform = "translateY(-54.4px)";
-        });
+          // 오버레이 표시 + 위치를 hover 위치(-54.4px)로
+          overlay.setMap(map);
+          overlayContent.style.transform = `translateY(${hoverY}px)`;
+        }
 
-        kakao.maps.event.addListener(marker, "mouseout", function() {
+        function deactivateHover() {
           marker.__isMouseOver = false;
+
+          // 마커 이미지는 선택된 마커가 아니면 normal로 복귀
           if (marker !== selectedMarker) marker.setImage(normalImage);
-          if (map.getLevel() > 3) setTimeout(() => overlay.setMap(null), 50);
 
-          // 오버레이 원위치 (기본 -44px)
-          const el = document.getElementById(overlayId);
-          if (el) el.style.transform = "translateY(-44px)";
-        });
+          // 오버레이 위치는 기본(-44px)로 복귀
+          overlayContent.style.transform = `translateY(${baseY}px)`;
 
-        // click 이벤트 (mousedown + mouseup 분리)
-        kakao.maps.event.addListener(marker, "mousedown", function() {
-          // 다른 선택 마커 초기화
+          // 레벨 > 3 이면 mouseout 시 자동 숨김
+          if (map.getLevel() > 3) overlay.setMap(null);
+
+          // zIndex는 내리지 않음(전면 유지)
+        }
+
+        // 마커 hover
+        kakao.maps.event.addListener(marker, "mouseover", activateHover);
+        kakao.maps.event.addListener(marker, "mouseout",  deactivateHover);
+
+        // 오버레이 hover (오버레이 위로 마우스 이동해도 동일 효과)
+        overlayContent.addEventListener("mouseover", activateHover);
+        overlayContent.addEventListener("mouseout",  deactivateHover);
+
+        // === Click (mousedown/up 분리) ===
+        kakao.maps.event.addListener(marker, "mousedown", function () {
+          // 다른 선택 마커 normal로
           if (selectedMarker && selectedMarker !== marker) {
             selectedMarker.setImage(normalImage);
           }
 
-          // 기존 클릭 오버레이 제거
-          clickOverlays.forEach(ov => ov.setMap(null));
+          // 기존 클릭 오버레이 모두 닫기
+          clickOverlays.forEach((ov) => ov.setMap(null));
           clickOverlays.length = 0;
 
-          marker.setImage(clickImage); // 점프
+          // 점프
+          marker.setImage(clickImage);
           selectedMarker = marker;
           clickStartTime = Date.now();
         });
 
-        kakao.maps.event.addListener(marker, "mouseup", function() {
+        kakao.maps.event.addListener(marker, "mouseup", function () {
           const elapsed = Date.now() - clickStartTime;
-          const delay = Math.max(0, 100 - elapsed); // 최소 0.1초 보장
-          setTimeout(function() {
+          const delay = Math.max(0, 100 - elapsed);
+
+          setTimeout(function () {
             if (marker === selectedMarker) {
-              if (marker.__isMouseOver) {
-                marker.setImage(hoverImage); // hover 유지
-              } else {
-                marker.setImage(normalImage); // 아니면 normal
-              }
-              // 클릭 오버레이 표시
+              // hover중이면 hover 이미지 유지, 아니면 normal
+              marker.setImage(marker.__isMouseOver ? hoverImage : normalImage);
+
+              // 클릭 오버레이 표시(크기 변화 없음, 위치 -44px)
+              clickOverlay.setZIndex(zCounter); // 최신 z 위에 표시
               clickOverlay.setMap(map);
               clickOverlays.push(clickOverlay);
 
               // 좌표 input 업데이트
               const gpsyx = document.getElementById("gpsyx");
               if (gpsyx) {
-                gpsyx.value = positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
+                gpsyx.value =
+                  positions[i].latlng.getLat() + ", " + positions[i].latlng.getLng();
               }
             }
           }, delay);
@@ -142,32 +182,37 @@
       })(i);
     }
 
-    // 지도 레벨 이벤트 (자동 표시/숨김)
-    kakao.maps.event.addListener(map, "idle", function() {
+    // === 지도 레벨 변경: 레벨 3 이하 자동 표시 / 초과 시 숨김 ===
+    kakao.maps.event.addListener(map, "idle", function () {
       const level = map.getLevel();
-      overlays.forEach(o => {
-        if (level <= 3) o.setMap(map);
-        else o.setMap(null);
-      });
+      overlays.forEach((o) => (level <= 3 ? o.setMap(map) : o.setMap(null)));
     });
 
-    // 지도 클릭 → 선택 해제
-    kakao.maps.event.addListener(map, "click", function() {
+    // === 지도 클릭 ===
+    kakao.maps.event.addListener(map, "click", function () {
+      const level = map.getLevel();
+
+      // 선택 마커 해제(이미지 복원), zIndex는 유지
       if (selectedMarker) {
         selectedMarker.setImage(normalImage);
         selectedMarker = null;
       }
-      clickOverlays.forEach(ov => ov.setMap(null));
+
+      // 클릭 오버레이 닫기
+      clickOverlays.forEach((ov) => ov.setMap(null));
       clickOverlays.length = 0;
 
-      // 모든 오버레이 위치 원래대로
-      overlays.forEach((o, idx) => {
-        const el = document.getElementById(`overlay-${idx}`);
-        if (el) el.style.transform = "translateY(-44px)";
-      });
+      // 레벨 3 이하일 때만 크기/위치 리셋 (zIndex는 그대로)
+      if (level <= 3) {
+        overlays.forEach((o) => {
+          const el = o.getContent();
+          if (el && el.style) el.style.transform = `translateY(${baseY}px)`;
+        });
+        markers.forEach((m) => m.setImage(normalImage));
+      }
     });
 
-    // markers 배열 전역에 저장해서 그룹 선 연결에서 접근 가능
+    // 그룹 선 연결 스크립트가 접근할 수 있도록 전역 등록
     window.markers = markers;
 
     return markers;
