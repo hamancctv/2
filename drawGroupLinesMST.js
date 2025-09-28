@@ -1,89 +1,64 @@
 // drawGroupLinesMST.js
 (function () {
-  let groupLines = []; // 현재 지도에 표시된 폴리라인들 저장용
+  // 전역 배열에 저장 → 토글 제어
+  window.groupLines = window.groupLines || [];
 
-  // ✅ 그룹 문자열 정규화: 숫자/하이픈 → 숫자만 비교, 공백 제거
-  function normalizeGroup(str) {
-    if (!str) return null;
-    const digits = str.replace(/[^0-9]/g, ""); // 숫자만 추출
-    return digits.length > 0 ? digits : str.replace(/\s+/g, "");
-  }
-
-  // ✅ 두 좌표 거리 계산
-  function getDistance(a, b) {
-    const dx = a.getLng() - b.getLng();
-    const dy = a.getLat() - b.getLat();
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
-  // ✅ MST (Prim’s Algorithm)
-  function buildMST(nodes) {
-    const edges = [];
-    if (nodes.length <= 1) return edges;
-
-    const used = new Set();
-    used.add(0);
-
-    while (used.size < nodes.length) {
-      let minEdge = null;
-      let minDist = Infinity;
-
-      used.forEach((i) => {
-        for (let j = 0; j < nodes.length; j++) {
-          if (used.has(j)) continue;
-          const dist = getDistance(nodes[i].getPosition(), nodes[j].getPosition());
-          if (dist < minDist) {
-            minDist = dist;
-            minEdge = [i, j];
-          }
-        }
-      });
-
-      if (minEdge) {
-        edges.push(minEdge);
-        used.add(minEdge[1]);
-      } else {
-        break;
-      }
-    }
-    return edges;
-  }
-
-  // ✅ 메인 함수
   window.drawGroupLinesMST = function () {
-    // 1) 기존 선 제거
-    groupLines.forEach((line) => line.setMap(null));
-    groupLines = [];
+    // 이미 선이 있으면 모두 제거 (토글 Off)
+    if (window.groupLines.length > 0) {
+      window.groupLines.forEach(line => line.setMap(null));
+      window.groupLines = [];
+      return;
+    }
 
     if (!window.markers || window.markers.length === 0) return;
 
-    // 2) 그룹 분류
+    const markers = window.markers;
+
+    // === 그룹별 마커 묶기 ===
     const groups = {};
-    window.markers.forEach((marker) => {
-      const key = normalizeGroup(marker.group);
-      if (!key) return;
+    markers.forEach(m => {
+      if (!m.group) return;
+      const key = m.group.replace(/[-\s]/g, ""); // 하이픈/공백 무시
       if (!groups[key]) groups[key] = [];
-      groups[key].push(marker);
+      groups[key].push(m);
     });
 
-    // 3) 그룹별 MST 적용
-    Object.values(groups).forEach((markersInGroup) => {
-      if (markersInGroup.length < 2) return;
-      const edges = buildMST(markersInGroup);
+    // === 그룹별 MST (Prim 알고리즘) ===
+    Object.values(groups).forEach(group => {
+      if (group.length < 2) return;
 
-      edges.forEach(([a, b]) => {
-        const line = new kakao.maps.Polyline({
-          map: window.map,
-          path: [
-            markersInGroup[a].getPosition(),
-            markersInGroup[b].getPosition(),
-          ],
-          strokeWeight: 8,   // <--------- 선굵기
-          strokeColor: "#FF0000",
-          strokeOpacity: 0.5,   // <------ 1에 가까울수록 불투명, 0에 가까울수록 투명
+      const connected = [group[0]];
+      const edges = [];
+
+      while (connected.length < group.length) {
+        let minEdge = null;
+
+        connected.forEach(cm => {
+          group.forEach(tm => {
+            if (connected.includes(tm)) return;
+
+            const dist = cm.getPosition().distance(tm.getPosition());
+            if (!minEdge || dist < minEdge.dist) {
+              minEdge = { from: cm, to: tm, dist };
+            }
+          });
         });
-        groupLines.push(line);
-      });
+
+        if (minEdge) {
+          const polyline = new kakao.maps.Polyline({
+            map: map,
+            path: [minEdge.from.getPosition(), minEdge.to.getPosition()],
+            strokeWeight: 6,          // ✅ 굵기
+            strokeColor: "#FF0000",   // ✅ 색상
+            strokeOpacity: 0.4,       // ✅ 불투명도
+          });
+          window.groupLines.push(polyline);
+          connected.push(minEdge.to);
+        } else {
+          break;
+        }
+      }
     });
   };
 })();
