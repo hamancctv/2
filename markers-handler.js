@@ -37,21 +37,27 @@
     const hoverY  = -(hoverHeight  + 2); // -54.4px
 
     // 마커 이미지 (normal / hover / click)
-    const normalImage = new kakao.maps.MarkerImage(
-      "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(30, 42),
-      { offset: new kakao.maps.Point(15, 42) }
-    );
-    const hoverImage = new kakao.maps.MarkerImage(
-      "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(36, 50.4),
-      { offset: new kakao.maps.Point(18, 50.4) }
-    );
-    const clickImage = new kakao.maps.MarkerImage(
-      "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(36, 50.4),
-      { offset: new kakao.maps.Point(18, 70.4) } // 점프 효과
-    );
+// normal 이미지와 같은 크기
+const normalImage = new kakao.maps.MarkerImage(
+  "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
+  new kakao.maps.Size(30, 42),
+  { offset: new kakao.maps.Point(15, 42) }
+);
+
+// hover 이미지는 그대로 유지
+const hoverImage = new kakao.maps.MarkerImage(
+  "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
+  new kakao.maps.Size(36, 50.4),
+  { offset: new kakao.maps.Point(18, 50.4) }
+);
+
+// 클릭 이미지는 normal과 같은 크기지만 offset만 변경
+const clickImage = new kakao.maps.MarkerImage(
+  "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
+  new kakao.maps.Size(30, 42),               // 👈 크기 동일
+  { offset: new kakao.maps.Point(15, 52) }   // 👈 Y값만 +10 내려 점프 효과
+);
+
 
     // zIndex 전면 유지용 카운터 (hover마다 1씩 증가, 해제해도 낮추지 않음)
     let zCounter = 100;
