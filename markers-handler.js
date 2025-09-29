@@ -63,25 +63,7 @@
   }
 
   // === 검색어 추출: "쓰-011-가야한전주변02(회전)" → "가야한전주변" ===
-  function extractSearchName(str){
-    // 1) 텍스트화
-    const tmp = document.createElement("div");
-    tmp.innerHTML = String(str ?? "");
-    let txt = tmp.textContent || tmp.innerText || "";
 
-    // 2) 괄호 내용 제거 (예: (회전) 제거)
-    txt = txt.replace(/\([^)]*\)/g, " ").trim();
-
-    // 3) 프리픽스(한글/영문 + -숫자- )가 맨 앞에 있으면, 그 다음 첫 한글 덩어리만 캡처
-    //    예: "쓰-011-가야한전주변02" -> "가야한전주변"
-    const m = txt.match(/^[A-Za-z가-힣]+-\d{1,}-\s*([가-힣]+)/u);
-    if (m) return m[1];
-
-    // 4) 일반 케이스: 숫자/기호 제거, 한글/공백만 남김
-    //    예: "함안군 보건소 02" -> "함안군 보건소"
-    const only = txt.replace(/[^가-힣\s]/g, " ").replace(/\s+/g, " ").trim();
-    return only;
-  }
 
   // === 검색창/제안 UI 주입 (searchSuggest 없어도 동작, 타이밍 충돌 대비 지연) ===
   function pushToSearchUI(query) {
