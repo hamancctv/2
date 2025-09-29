@@ -1,3 +1,6 @@
+/* 숨김 토글 전용 클래스 (reflow 최소화) */
+.sel-hidden { display: none !important; }
+
 /* 지도 전체에서 텍스트 선택 완전 차단 (input 포함) */
 #map,
 #map * {
