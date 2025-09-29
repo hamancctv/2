@@ -3,8 +3,8 @@
 
     // === Z 레이어 및 상태 변수 ===
     const Z = { BASE:100, FRONT:100000 };
-    let selectedMarker = null; let selectedOverlayObj = null;
-    let frontMarker = null; let frontOverlay = null;
+    let selectedMarker = null; let selectedOverlayObj = null; 
+    let frontMarker = null; let frontOverlay = null; 
     let normalImage, hoverImage, jumpImage; let clickStartTime = 0;
     const normalH = 42, hoverH = 50.4, gap = 2;
     const baseY  = -(normalH + gap); const hoverY = -(hoverH  + gap); const jumpY  = -(70  + gap);
@@ -40,8 +40,7 @@
     function bringToFront(map, marker, overlay, reason){
         if (frontMarker && frontMarker !== marker) {
             setDefaultZ(frontMarker, frontOverlay);
-            // frontMarker가 이전에 selectedMarker가 아니었다면 오버레이 숨김
-            if (frontMarker !== selectedMarker) frontOverlay.setMap(null);
+            if (frontMarker !== selectedMarker) frontOverlay.setMap(null); // 선택된 마커가 아니면 오버레이 숨김
         }
 
         if (selectedMarker && selectedMarker !== marker) {
@@ -65,7 +64,7 @@
     }
 
     function bindMapClickToClearSelection(map){
-        kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
+        kakao.maps.event.addListener(map, 'click', function(mouseEvent) {      
             if (selectedMarker) {
                 setDefaultZ(selectedMarker, selectedOverlayObj);
                 selectedOverlayObj.setMap(null);
@@ -99,13 +98,13 @@
                         map, position: pos.latlng, image: normalImage, clickable:true, zIndex: Z.BASE+1
                     });
                     marker.group = pos.group;
-
+                    
                     // --- Overlay ---
                     const el = document.createElement("div");
                     el.className = "overlay-hover";
                     el.style.transform = `translateY(${baseY}px)`;
                     // 🌟 name1을 기준으로 간소화된 이름을 표시합니다.
-                    el.textContent = extractOverlayName(pos.content);
+                    el.textContent = extractOverlayName(pos.content); 
 
                     const overlay = new kakao.maps.CustomOverlay({
                         position: pos.latlng, content: el, yAnchor:1, map:null
@@ -116,8 +115,8 @@
                     marker.__overlay = overlay; overlay.__marker = marker;
                     marker.__lat = pos.latlng.getLat(); marker.__lng = pos.latlng.getLng();
                     // 🌟 검색용 name2를 마커에 저장해둡니다.
-                    marker.__searchName = pos.searchName;
-
+                    marker.__searchName = pos.searchName; 
+                    
                     // === 이벤트 리스너 ===
                     function onOver(){
                         if (selectedMarker === marker) return;
@@ -161,13 +160,13 @@
                             let searchName = marker.__searchName || "";
                             let newQuery = searchName;
 
-                            // name2가 한글 문자열이라고 가정하고, 7글자부터 끝까지 자릅니다.
+                            // 7글자부터 (인덱스 6부터) 자르기
                             if (searchName.length >= 7) {
                                 // JavaScript의 `substring(6)`은 인덱스 6부터 (즉, 7번째 글자부터) 끝까지 잘라냅니다.
                                 newQuery = searchName.substring(6);
                             }
 
-                            pushToSearchUI(newQuery);
+                            pushToSearchUI(newQuery); 
 
                             setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
                         }, delay);
