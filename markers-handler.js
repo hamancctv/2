@@ -1,6 +1,6 @@
-// markers-handler.js  (v2025-09-29c)
+// markers-handler.js  (v2025-09-29d)
 (function () {
-  console.log("[markers-handler] loaded v2025-09-29c");
+  console.log("[markers-handler] loaded v2025-09-29d");
 
   // === 오버레이 기본 스타일 ===
   const style = document.createElement("style");
@@ -42,7 +42,7 @@
   const hoverY = -(hoverH  + gap);  // -52.4
   const jumpY  = -(70      + gap);  // -72
 
-  // === 유틸: z-index ===
+  // === z-index 유틸 ===
   function setDefaultZ(marker, overlay){ // 기본: 마커 > 오버레이
     if (marker) marker.setZIndex(Z.BASE + 1);
     if (overlay) overlay.setZIndex(Z.BASE);
@@ -54,7 +54,6 @@
   function bringToFront(map, marker, overlay, reason){
     if (!marker || !overlay) return;
     if (frontMarker && frontOverlay && (frontMarker !== marker || frontOverlay !== overlay)) {
-      // 이전 전면 쌍은 기본으로
       setDefaultZ(frontMarker, frontOverlay);
       if (map.getLevel() > 3 && frontMarker !== selectedMarker) frontOverlay.setMap(null);
     }
@@ -63,34 +62,43 @@
     frontMarker = marker; frontOverlay = overlay; frontReason = reason;
   }
 
-  // === 유틸: 내용에서 "순수 한글"만 추출(코드/숫자/기호 제외) ===
+  // === 순수 한글만 추출(숫자/기호/영문 제거, 공백 정리) ===
   function extractPureHangul(str){
-    const m = (str || "").match(/[가-힣\s]+/g);
+    // HTML 가능성도 있어 대비
+    const tmp = document.createElement("div");
+    tmp.innerHTML = String(str ?? "");
+    const plain = tmp.textContent || tmp.innerText || "";
+    const m = plain.match(/[가-힣\s]+/g);
     return m ? m.join(" ").replace(/\s+/g, " ").trim() : "";
   }
 
-  // === 유틸: 검색창/제안 UI에 안전하게 쿼리 주입 (searchSuggest 없어도 작동) ===
+  // === 검색창/제안 UI 주입 (searchSuggest 없어도 동작, 타이밍 충돌 대비 지연) ===
   function pushToSearchUI(query) {
-    if (!query) return;
+    if (!query) { console.warn("[markers-handler] empty query; skip"); return; }
     const kw = document.getElementById('keyword');
-    if (!kw) return;
+    if (!kw) { console.warn("[markers-handler] #keyword not found"); return; }
 
-    // 입력창 값 주입
-    kw.value = query;
+    // 지연 주입으로 다른 핸들러와 충돌 최소화
+    setTimeout(() => {
+      try {
+        kw.value = query;
+        console.log("[markers-handler] injected query:", query);
 
-    // 1순위: searchSuggest가 있으면 그 API 사용 (제안 자동 오픈)
-    if (window.searchSuggest && typeof window.searchSuggest.setQuery === "function") {
-      window.searchSuggest.setQuery(query, true); // true: 즉시 오픈/렌더
-      return;
-    }
+        // 1) 고급 제안기 사용
+        if (window.searchSuggest && typeof window.searchSuggest.setQuery === "function") {
+          window.searchSuggest.setQuery(query, true); // true: 즉시 오픈/렌더
+        } else if (typeof window.filterSelTxt === "function") {
+          // 2) sel_txt 필터 방식
+          window.filterSelTxt(query);
+        }
 
-    // 2순위: 기존 sel_txt 필터 함수가 있으면 호출
-    if (typeof window.filterSelTxt === "function") {
-      window.filterSelTxt(query);
-    }
-
-    // 3순위: 어떤 경우든 input 이벤트를 쏴서 실시간 리스너가 반응하도록
-    kw.dispatchEvent(new Event('input', { bubbles: true }));
+        // 3) 어떤 경우든 input/change 이벤트를 발생시켜 리스너가 있으면 반응
+        kw.dispatchEvent(new Event('input',  { bubbles: true }));
+        kw.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch(e){
+        console.error("[markers-handler] pushToSearchUI error:", e);
+      }
+    }, 0);
   }
 
   // === 지도 클릭: 파란 테두리만 해제(전면 상태/레이어 유지) ===
@@ -158,7 +166,6 @@
             marker.setImage(normalImage);
             const wasHoverFront = (frontMarker===marker && frontOverlay===overlay && frontReason==='hover');
             if (wasHoverFront){
-              // 호버 끝 → 선택 쌍이 있다면 다시 전면 복귀
               el.style.transform=`translateY(${baseY}px)`;
               if (selectedMarker && selectedOverlayObj){
                 bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
@@ -170,11 +177,9 @@
               return;
             }
             if (marker===selectedMarker){
-              // 선택은 gap=4 유지 + 전면 보장
               el.style.transform=`translateY(${baseY-2}px)`; el.style.border="2px solid blue";
               bringToFront(map, selectedMarker, selectedOverlayObj||overlay, 'clickMarker');
             } else {
-              // 비선택은 기본으로
               el.style.transform=`translateY(${baseY}px)`;
               if (map.getLevel()>3 && overlay!==frontOverlay && overlay!==selectedOverlayObj) overlay.setMap(null);
               if (!(frontMarker===marker && frontOverlay===overlay)) setDefaultZ(marker, overlay);
@@ -210,8 +215,15 @@
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-              // ② 마커 표시명에서 "순수 한글"만 추출 → 검색창/제안에 주입
-              const pure = extractPureHangul(pos.content); // 예: "도-001 함안군 보건소" → "함안군 보건소"
+              // ② 마커 표시명에서 "순수 한글"만 추출 → 실패 시 3중 백업 후 주입
+              let pure = extractPureHangul(pos.content);
+              if (!pure) pure = extractPureHangul(el.textContent || "");
+              if (!pure) {
+                const t = document.createElement("div");
+                t.innerHTML = String(pos.content ?? "");
+                pure = extractPureHangul(t.textContent || "");
+              }
+              console.log("[markers-handler] pureHangul:", pure);
               pushToSearchUI(pure);
 
               setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
@@ -230,7 +242,7 @@
       }
       idx=end;
       if (idx<positions.length) setTimeout(createBatch, 0);
-      else window.markers=markers; // 다른 모듈(drawGroupLinesMST 등)에서 접근
+      else window.markers=markers;
     }
     createBatch();
 
