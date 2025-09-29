@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -54,7 +55,12 @@
 <!-- 위치 데이터 -->
 <script type="text/javascript" src="https://hamancctv.github.io/2/positions.js"></script> 
 
-
+<script>
+const toggleGroupBtn = document.getElementById('toggle_group');
+toggleGroupBtn.addEventListener('click', function() {
+    drawGroupLinesMST();
+    toggleGroupBtn.classList.toggle('selected_btn');
+});
 
 var overlayOn = false,
     container = document.getElementById('container'),
@@ -322,33 +328,17 @@ function showAlert(message) {
 }
 
 // 복사 버튼
-// 복사 버튼
 document.getElementById("btn_input_copy").onclick = function(){
     const gpsyx = document.getElementById("gpsyx");
-    
-    // ⭐ 최신 API 및 showAlert 사용
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(gpsyx.value)
-            .then(() => {
-                showAlert("좌표가 복사되었습니다.");
-            })
-            .catch(err => {
-                console.error('복사 실패:', err);
-                showAlert("복사에 실패했습니다."); // 실패 시에도 알림
-            });
-    } else {
-        // 폴백(Fallback) - 구형 브라우저 처리 (기존 로직 유지)
-        gpsyx.select();
-        document.execCommand('copy');
-        showAlert("좌표가 복사되었습니다.");
-    }
+    gpsyx.select();
+    document.execCommand('copy');
 };
 </script>
 
 <!-- sel_txt -->
 <div id="menu_wrap" class="bg_white" style="border:1px solid #919191;border-radius:10px;"></div>
 <script>
-fetch("https://hamancctv.github.io/5/sel_txt.html")
+fetch("https://raw.githubusercontent.com/hamancctv/2/refs/heads/main/sel_txt.html")
   .then(res => res.text())
   .then(html => { document.getElementById("menu_wrap").innerHTML = html; })
   .catch(err => console.error("메뉴 로드 실패:", err));
