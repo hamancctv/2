@@ -13,16 +13,6 @@
       user-select: none;
       transition: transform 0.15s ease;
     }
-    .overlay-click {
-      padding:5px 8px;
-      background:rgba(255,255,255,0.70);
-      border:1px solid #666;
-      border-radius:5px;
-      font-size:14px;
-      white-space: nowrap;
-      user-select: none;
-      transition: transform 0.15s ease;
-    }
   `;
   document.head.appendChild(style);
 
@@ -42,9 +32,9 @@
     const baseGap = 2;
 
     // Y 위치 계산
-    const baseY = -(normalHeight + baseGap); // -44px
-    const hoverY = -(hoverHeight + baseGap); // -52.4px
-    const jumpY = -(70 + baseGap);           // -72px
+    const baseY = -(normalHeight + baseGap);
+    const hoverY = -(hoverHeight + baseGap);
+    const jumpY = -(70 + baseGap);
 
     // 마커 이미지
     const normalImage = new kakao.maps.MarkerImage(
@@ -63,7 +53,6 @@
       { offset: new kakao.maps.Point(15, 70) }
     );
 
-    // === 마커 생성 루프 (비동기 배치 처리) ===
     const batchSize = 50; 
     let markerIndex = 0;
 
@@ -106,8 +95,7 @@
             overlay.setMap(map);
 
             if (marker === selectedMarker) {
-              // ✅ 클릭된 마커는 gap=4 유지
-              overlayContent.style.transform = `translateY(${hoverY - 2}px)`; 
+              overlayContent.style.transform = `translateY(${hoverY - 2}px)`; // 클릭 상태 → gap=4
             } else {
               overlayContent.style.transform = `translateY(${hoverY}px)`;
             }
@@ -117,8 +105,7 @@
             marker.__isMouseOver = false;
             if (marker === selectedMarker) {
               marker.setImage(normalImage);
-              // ✅ 클릭된 마커는 gap=4 유지
-              overlayContent.style.transform = `translateY(${baseY - 2}px)`;
+              overlayContent.style.transform = `translateY(${baseY - 2}px)`; // 클릭 상태 gap=4
               overlayContent.style.border = "2px solid blue";
             } else {
               marker.setImage(normalImage);
@@ -137,20 +124,26 @@
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
 
-            // 기존 선택 해제
+            // ✅ 기존 선택 해제
             if (selectedOverlay) {
               selectedOverlay.style.border = "1px solid #ccc";
             }
+            if (selectedMarker) {
+              selectedMarker.setZIndex(100); // 원래 레벨로 복귀
+            }
 
-            // 현재 선택
+            // ✅ 현재 선택
             selectedMarker = marker;
             selectedOverlay = overlayContent;
 
-            // ✅ 테두리 즉시 적용 + gap=4
             overlayContent.style.border = "2px solid blue";
-            overlayContent.style.transform = `translateY(${baseY - 2}px)`;
-
+            overlayContent.style.transform = `translateY(${baseY - 2}px)`; // gap=4
             overlay.setMap(map);
+
+            // ✅ 항상 맨 위로
+            zCounter++;
+            marker.setZIndex(zCounter + 1);
+            overlay.setZIndex(zCounter);
 
             // 점프 시에도 gap=4 유지
             overlayContent.style.transform = `translateY(${jumpY - 2}px)`;
@@ -176,7 +169,7 @@
                 filter();
               }
 
-              // ✅ 테두리 유지 + gap=4 복귀
+              // ✅ 유지: 선택된 마커/오버레이 항상 맨 위 + gap=4
               marker.setImage(normalImage);
               overlayContent.style.border = "2px solid blue";
               overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
@@ -220,10 +213,11 @@
       });
     });
 
-    // 지도 클릭 → 선택 해제
+    // === 지도 클릭 → 선택 해제 ===
     kakao.maps.event.addListener(map, "click", function () {
       if (selectedMarker) {
         selectedMarker.setImage(normalImage);
+        selectedMarker.setZIndex(100); // 초기화
         selectedMarker = null;
       }
       if (selectedOverlay) {
