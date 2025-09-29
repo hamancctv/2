@@ -625,65 +625,48 @@
     function geoError(err){ console.error('GPS error:', err); }
 
     // 지도 중심 좌표 input 갱신
-    kakao.maps.event.addListener(map,'center_changed',function(){
-      var latlng = map.getCenter(); $('#gpsyx').val(latlng.getLat()+', '+latlng.getLng());
-    });
+   // 지도 중심 좌표 input 갱신
+    kakao.maps.event.addListener(map,'center_changed',function(){
+      var latlng = map.getCenter(); $('#gpsyx').val(latlng.getLat()+', '+latlng.getLng());
+    });
 
-    // 복사 버튼
-    document.getElementById("btn_input_copy").onclick = function(){
-      const g = document.getElementById("gpsyx"); g.select(); document.execCommand('copy');
-    };
-
-    // ===== positions 생성: sel_suggest → positions (group= line) =====
-  const positions = (window.SEL_SUGGEST || [])
-   .map(it => {
-     const lat = parseFloat(it.lat);
-     const lng = parseFloat(it.lng);
-     if (!isFinite(lat) || !isFinite(lng)) return null; // 좌표가 없거나 NaN이면 스킵
-     return {
-       latlng: new kakao.maps.LatLng(lat, lng),
-       content: it.name,
-       group: it.line || null
-     };
-   })
-   .filter(Boolean);
-
-  // 디버깅용: 몇 개 찍혔는지 확인
-  console.log('SEL_SUGGEST:', (window.SEL_SUGGEST||[]).length, ' → positions:', positions.length);
-
-    // 중복 좌표 제거(기존 로직 유지)
-// 1. 좌표를 기준으로 중복 제거 (기존 로직 유지)
-// ... (Kakao.maps.load 내부) ...
-
-// ===== 마커용 positions 생성 (좌표 중복 제거) - 수정됨! =====
-const rawPositions = (window.SEL_SUGGEST || [])
-  .map(it => {
-    const lat = parseFloat(it.lat);
-    const lng = parseFloat(it.lng);
-    if (!isFinite(lat) || !isFinite(lng)) return null; 
-    return {
-      latlng: new kakao.maps.LatLng(lat, lng),
-      content: it.name, 
-      group: it.line || null
+    // 복사 버튼
+    document.getElementById("btn_input_copy").onclick = function(){
+      const g = document.getElementById("gpsyx"); g.select(); document.execCommand('copy');
     };
-  })
-  .filter(Boolean);
 
-// 1. 좌표를 기준으로 중복 제거 (마커/오버레이 표시용)
-const uniqueCoord = new Map();
-for (const pos of rawPositions) {
-  // Map의 키로 사용하여 중복 제거를 확실하게 합니다.
-  const key = pos.latlng.getLat() + "," + pos.latlng.getLng();
-  if (!uniqueCoord.has(key)) {
-    uniqueCoord.set(key, pos);
-  }
-}
-const finalPositions = Array.from(uniqueCoord.values()); // 👈 좌표 중복 제거 완료
+    // ===== positions 생성: name1(마커/오버레이용) 기준으로 배열 생성 및 중복 제거! (수정됨) =====
+    const rawPositions = (window.SEL_SUGGEST || [])
+     .map(it => {
+       const lat = parseFloat(it.lat);
+       const lng = parseFloat(it.lng);
+       if (!isFinite(lat) || !isFinite(lng)) return null; 
+       return {
+         latlng: new kakao.maps.LatLng(lat, lng),
+         // 🌟 오버레이/마커용 이름은 name1을 사용합니다.
+         content: it.name1 || it.name, 
+         // 🌟 검색/제안용 이름은 name2를 사용합니다.
+         searchName: it.name2 || it.name, 
+         group: it.line || null
+       };
+     })
+     .filter(Boolean);
 
-console.log('SEL_SUGGEST (원본):', (window.SEL_SUGGEST||[]).length, ' → Final positions (마커용):', finalPositions.length);
+    // 1. 좌표를 기준으로 중복 제거 (마커/오버레이 표시용)
+    const uniqueCoord = new Map();
+    for (const pos of rawPositions) {
+      // Map의 키로 사용하여 중복 제거를 확실하게 합니다.
+      const key = pos.latlng.getLat() + "," + pos.latlng.getLng();
+      if (!uniqueCoord.has(key)) {
+        uniqueCoord.set(key, pos);
+      }
+    }
+    const finalPositions = Array.from(uniqueCoord.values()); // 👈 좌표 중복 제거 완료
 
-// 마커 생성
-if (window.initMarkers) initMarkers(map, finalPositions); 
+    console.log('SEL_SUGGEST (원본):', (window.SEL_SUGGEST||[]).length, ' → Final positions (마커용):', finalPositions.length);
+    
+    // 마커 생성
+    if (window.initMarkers) initMarkers(map, finalPositions); 
 // ... (나머지 로직 유지) ...
     
     // 회선 토글
