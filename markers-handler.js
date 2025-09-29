@@ -57,15 +57,15 @@
         frontMarker = marker; frontOverlay = overlay; frontReason = reason;
     }
 
-    function pushToSearchUI(query) {
-        // 검색창에 값을 주입하는 함수
-        const kw = document.querySelector('.gx-suggest-search .gx-input');
-        if (kw) {
-            kw.value = query;
-            // 🌟 검색창 값 변경 후, input 이벤트 트리거하여 검색 제안 기능 호출
-            kw.dispatchEvent(new Event('input', { bubbles: true }));
-        }
+// markers-handler.js 내부, pushToSearchUI 함수 수정
+function pushToSearchUI(query) {
+    const kw = document.querySelector('.gx-suggest-search .gx-input');
+    if (kw) {
+        kw.value = query;
+        // 🌟 이 라인이 추가되어 검색 제안을 활성화합니다.
+        kw.dispatchEvent(new Event('input', { bubbles: true }));
     }
+}
 
     function bindMapClickToClearSelection(map){
         kakao.maps.event.addListener(map, 'click', function(mouseEvent) {      
