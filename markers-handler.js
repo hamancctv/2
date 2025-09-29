@@ -5,7 +5,7 @@
   style.textContent = `
     .overlay-hover {
       padding:2px 6px;
-      background:rgba(255,255,255,0.90);
+      background:rgba(255,255,255,0.70);
       border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
@@ -94,13 +94,13 @@
 
       for (let i = start; i < end; i++) {
         (function (i) {
-          // 마커
+          // 마커 (기본: 오버레이보다 앞)
           const marker = new kakao.maps.Marker({
             map,
             position: positions[i].latlng,
             image: normalImage,
             clickable: true,
-            zIndex: Z.BASE
+            zIndex: Z.BASE + 1
           });
 
           // 오버레이
@@ -118,7 +118,7 @@
           overlay.setZIndex(Z.BASE);
 
           // 복원용
-          marker.__prevZ  = Z.BASE;
+          marker.__prevZ  = Z.BASE + 1;
           overlay.__prevZ = Z.BASE;
 
           // === Hover in ===
@@ -133,7 +133,7 @@
               overlayContent.style.transform = `translateY(${hoverY}px)`;
               marker.__prevZ  = marker.getZIndex();
               overlay.__prevZ = overlay.getZIndex();
-              marker.setZIndex(Z.HOVER + 2);   // 마커 > 오버레이
+              marker.setZIndex(Z.HOVER + 2);   // hover 시 마커 > 오버레이
               overlay.setZIndex(Z.HOVER);
             }
           }
@@ -148,7 +148,7 @@
             } else {
               overlayContent.style.transform = `translateY(${baseY}px)`;
               if (map.getLevel() > 3) overlay.setMap(null);
-              marker.setZIndex(marker.__prevZ ?? Z.BASE);
+              marker.setZIndex(marker.__prevZ ?? Z.BASE + 1);
               overlay.setZIndex(overlay.__prevZ ?? Z.BASE);
               // hover 끝나면 선택 마커 다시 최상위 복귀
               if (selectedMarker && selectedOverlayObj) {
@@ -169,7 +169,7 @@
 
             if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
             if (selectedMarker && selectedMarker !== marker) {
-              selectedMarker.setZIndex(Z.BASE);
+              selectedMarker.setZIndex(Z.BASE + 1);
               if (selectedOverlayObj) selectedOverlayObj.setZIndex(Z.BASE);
             }
 
@@ -220,15 +220,11 @@
             }, delay);
           });
 
-          // 오버레이 클릭 → 선택 유지
+          // === 오버레이 클릭 (테두리 없음, 전면만) ===
           overlayContent.addEventListener("click", function () {
-            if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
-            selectedMarker     = marker;
-            selectedOverlayEl  = overlayContent;
-            selectedOverlayObj = overlay;
-            overlayContent.style.border = "2px solid blue";
+            marker.setZIndex(Z.SELECT + 2);
+            overlay.setZIndex(Z.SELECT);
             overlay.setMap(map);
-            setSelectZ(marker, overlay);
           });
 
           markers.push(marker);
@@ -259,7 +255,6 @@
       });
     });
 
-    // === 지도 클릭 시 선택 해제하지 않음 ===
-    // (clearSelection 호출 제거)
+    // 지도 클릭 시 해제 없음
   };
 })();
