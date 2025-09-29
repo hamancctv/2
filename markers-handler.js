@@ -250,13 +250,18 @@
             }, delay);
           });
 
-          // === 오버레이 클릭 (전면만, 다른 효과 없음) ===
+          // === 오버레이 클릭 (전면만, 테두리 없음) ===
           overlayContent.addEventListener("click", function () {
-            // 선택 상태 갱신 (전면 유지 위해)
+            // 선택 상태 갱신
             selectedMarker     = marker;
-            selectedOverlayEl  = null; // 테두리 없음
+            selectedOverlayEl  = overlayContent;
             selectedOverlayObj = overlay;
 
+            // 테두리/클릭 상태 제거 → 강조 효과 없음
+            overlayContent.classList.remove("click-active");
+            overlayContent.style.border = "1px solid #ccc";
+
+            // 전면으로 올리기만
             marker.setZIndex(Z.SELECT + 2);
             overlay.setZIndex(Z.SELECT);
             overlay.setMap(map);
