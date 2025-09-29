@@ -31,6 +31,7 @@
   oninput="filterSelTxt(this.value)" autocomplete="off"
   onkeydown="if(event.keyCode === 13) { btnsearch_click(); }"
   class="form-control" placeholder="검색어 입력"/>
+    
       <button id="searchBtn" onclick="btnsearch_click()">검색</button>
   </div>
 
@@ -338,40 +339,84 @@ document.getElementById("btn_input_copy").onclick = function(){
 <!-- sel_txt -->
 <!-- sel_txt -->
 <div id="menu_wrap" class="bg_white" style="border:1px solid #919191;border-radius:10px;"></div>
+
 <script>
-/* 캐시 */
-let __selCache = []; // [{root, text}]
-function cacheSelTxt() {
+// ===== 초성(두음자) 검색 유틸 =====
+const CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const CHO_SET = new Set(CHO);
+
+function normalize(str){
+  return (str||"").toUpperCase().replace(/\s+/g,"");
+}
+function toChosung(str){
+  let out = "";
+  for (const ch of (str||"")){
+    const code = ch.charCodeAt(0);
+    if (code >= 0xAC00 && code <= 0xD7A3) {
+      // 한글 음절 → 초성 인덱스
+      const idx = Math.floor((code - 0xAC00) / 588);
+      out += CHO[idx];
+    } else if (CHO_SET.has(ch)) {
+      // 사용자가 자음만 입력한 경우 그대로 인정
+      out += ch;
+    }
+  }
+  return out;
+}
+function containsHangulSyllable(str){
+  for (const ch of (str||"")){
+    const code = ch.charCodeAt(0);
+    if (code >= 0xAC00 && code <= 0xD7A3) return true;
+  }
+  return false;
+}
+
+// ===== 캐시 =====
+let __selCache = []; // [{root, text, chosung}]
+function cacheSelTxt(){
   const nodes = document.getElementsByClassName("sel_txt");
   __selCache = Array.from(nodes).map(el => {
     const nameEl = el.querySelector(".name");
-    const text = ((nameEl ? nameEl.innerText : el.innerText) || "")
-      .toUpperCase().replace(/\s+/g,"");
-    return { root: el, text };
+    const raw = (nameEl ? nameEl.innerText : el.innerText) || "";
+    return {
+      root: el,
+      text: normalize(raw),   // 일반 텍스트(대문자/공백 제거)
+      chosung: toChosung(raw) // 초성 시퀀스
+    };
   });
 }
 
-/* 실시간 필터 (초고속) */
-function filterSelTxt(q) {
-  const query = (q||"").toUpperCase().replace(/\s+/g,"");
-  if (!__selCache.length) cacheSelTxt(); // 최초 1회 안전
-  for (const item of __selCache) {
-    // 기존 레이아웃 그대로 유지하려면 flex / none 토글
-    item.root.style.display = item.text.indexOf(query) > -1 ? "flex" : "none";
+// ===== 실시간 필터(텍스트+초성 둘 다 매칭) =====
+function filterSelTxt(q){
+  if (!__selCache.length) cacheSelTxt();  // 최초 1회 안전
+  const qText = normalize(q);
+
+  // 초성 쿼리 만들기: 사용자가 자음만 넣었거나, 한글 음절을 넣었으면 초성으로 변환
+  let qCho = "";
+  const onlyChoTyped = Array.from(q||"").filter(ch => CHO_SET.has(ch)).join("");
+  if (onlyChoTyped.length) qCho = onlyChoTyped;
+  else if (containsHangulSyllable(q||"")) qCho = toChosung(q);
+
+  for (const item of __selCache){
+    const okText = qText ? item.text.indexOf(qText) > -1 : true;
+    const okCho  = qCho  ? item.chosung.indexOf(qCho) > -1 : false;
+    item.root.style.display = (okText || okCho) ? "flex" : "none";
   }
 }
 
-/* sel_txt 로드 후 1회 캐시 */
+// ===== sel_txt 로드 & 캐시 =====
 fetch("https://raw.githubusercontent.com/hamancctv/2/refs/heads/main/sel_txt.html")
   .then(res => res.text())
   .then(html => {
     const menu = document.getElementById("menu_wrap");
     menu.innerHTML = html;
-    cacheSelTxt();          // ✅ 로드 직후 캐시완료
+    cacheSelTxt(); // 로드 직후 1회 캐시
+    // 페이지 처음 열 때 입력창에 값이 있으면 바로 반영
+    const kw = document.getElementById("keyword");
+    if (kw && kw.value) filterSelTxt(kw.value);
   })
   .catch(err => console.error("메뉴 로드 실패:", err));
 </script>
-
 
 <!-- 그룹 선 연결 -->
 <script src="https://hamancctv.github.io/2/drawGroupLinesMST.js?v=20250929a"></script>
