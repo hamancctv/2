@@ -80,16 +80,12 @@
 
 
     // ===== 메인 초기화 (기존과 동일) =====
+  // ... (script for search-suggest.js 내부) ...
+
     function initSuggestUI(opts){
-      const {
-        map,
-        data = window.SEL_SUGGEST || [],
-        parent = document.getElementById('mapWrapper') || document.body,
-        getMarkers = () => window.markers || [],
-        badges = ['line','encloser','ip'],
-        maxItems = 30,
-        chooseOnEnter = true,
-        openOnFocus = true
+      // ... (앞부분 생략) ...
+            chooseOnEnter = true,
+            openOnFocus = true
       } = opts || {};
       if (!map) { console.error('initSuggestUI: map 필요'); }
 
@@ -103,9 +99,11 @@
       parent.appendChild(wrap); parent.appendChild(box);
 
       const kw = wrap.querySelector('.gx-input');
-      const RAW = (data||[]).filter(it => it && (it.name||it.addr||it.ip)).map((it,idx)=>({
+      // 🌟 RAW 데이터 생성 시 name1은 name으로, name2는 nameForSearch로 사용 (수정됨)
+      const RAW = (data||[]).filter(it => it && (it.name1||it.name2||it.name||it.addr||it.ip)).map((it,idx)=>({
         id: it.id || `s_${idx}`,
-        name: it.name || "",
+        name: it.name1 || it.name || "", // 👈 표시 이름 (name1)
+        nameForSearch: it.name2 || it.name || "", // 👈 검색/초성 키 생성에 사용할 이름 (name2)
         line: it.line || "",
         encloser: it.encloser || "",
         addr: it.addr || "",
@@ -113,10 +111,13 @@
         ip: it.ip || ""
       }));
       RAW.forEach(it=>{
-        it.key = buildKey([it.name, it.line, it.encloser, it.ip].filter(Boolean).join(" "));
+        // 🌟 키를 nameForSearch 기준으로 생성
+        it.key = buildKey([it.nameForSearch, it.line, it.encloser, it.ip].filter(Boolean).join(" "));
         it.nameLen = (it.name||"").length;
       });
       const IDMAP = Object.fromEntries(RAW.map(it => [it.id, it]));
+      
+      // ... (나머지 로직 생략/유지) ...
 
       function match(q){
         const k = buildKey(q); if (!k) return [];
