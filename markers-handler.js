@@ -95,30 +95,38 @@
             map: null,
           });
 
-          // === Hover ===
-          function activateHover() {
-            marker.__isMouseOver = true;
-            zCounter++;
-            marker.setZIndex(zCounter + 1);
-            overlay.setZIndex(zCounter);
+// === Hover ===
+function activateHover() {
+  marker.__isMouseOver = true;
+  zCounter++;
+  marker.setZIndex(zCounter + 1);
+  overlay.setZIndex(zCounter);
 
-            marker.setImage(hoverImage);
-            overlay.setMap(map);
-            overlayContent.style.transform = `translateY(${hoverY}px)`;
-          }
+  marker.setImage(hoverImage);
 
-          function deactivateHover() {
-            marker.__isMouseOver = false;
-            if (marker === selectedMarker) {
-              marker.setImage(normalImage);
-              overlayContent.style.transform = `translateY(${baseY - 1}px)`; // 선택된 마커 gap=3 유지
-            } else {
-              marker.setImage(normalImage);
-              overlayContent.style.transform = `translateY(${baseY}px)`;
-              if (map.getLevel() > 3) overlay.setMap(null);
-            }
-          }
+  overlay.setMap(map);
 
+  // ✅ 선택된 마커면 gap=3 적용
+  if (marker === selectedMarker) {
+    overlayContent.style.transform = `translateY(${hoverY - 1}px)`; 
+  } else {
+    overlayContent.style.transform = `translateY(${hoverY}px)`;
+  }
+}
+
+function deactivateHover() {
+  marker.__isMouseOver = false;
+
+  if (marker === selectedMarker) {
+    marker.setImage(normalImage);
+    // ✅ 선택된 마커는 gap=3 유지
+    overlayContent.style.transform = `translateY(${baseY - 1}px)`;
+  } else {
+    marker.setImage(normalImage);
+    overlayContent.style.transform = `translateY(${baseY}px)`;
+    if (map.getLevel() > 3) overlay.setMap(null);
+  }
+}
           kakao.maps.event.addListener(marker, "mouseover", activateHover);
           kakao.maps.event.addListener(marker, "mouseout", deactivateHover);
           overlayContent.addEventListener("mouseover", activateHover);
