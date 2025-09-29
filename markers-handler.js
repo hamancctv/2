@@ -1,6 +1,6 @@
 // markers-handler.js (v2025-09-29d-FINAL-FIXED)
 (function () {
-  console.log("[markers-handler] loaded v2025-09-29d-FINAL-FIXED");
+  console.log("[markers-handler] loaded v2025-09-29d-FINAL-FIXED (Search Fix Applied)");
 
   // === 오버레이 기본 스타일 ===
   const style = document.createElement("style");
@@ -62,57 +62,47 @@
     frontMarker = marker; frontOverlay = overlay; frontReason = reason;
   }
 
-  // 💥 새로운 검색어 추출 함수: 코드(쓰-012-), 숫자(04), 괄호((회전)) 모두 제거
-  function extractFacilityName(fullContent) {
-    if (!fullContent) return "";
-    let name = String(fullContent).trim();
-    
-    // 1. 앞부분의 모든 코드, 하이픈, 공백을 제거하고 첫 한글부터 시작하도록 정제합니다.
-    // 예: "쓰-012-함안배수장04(회전)" -> "함안배수장04(회전)"
-    name = name.replace(/^[^가-힣]*([가-힣].*)/, '$1').trim();
-    
-    // 2. 끝의 괄호와 괄호 안의 내용(예: (회전))을 제거합니다.
-    // 예: "함안배수장04(회전)" -> "함안배수장04"
-    name = name.replace(/\s*\(.*\)$/, '').trim();
-    
-    // 3. 끝의 숫자와 공백(예: 04)을 제거합니다.
-    // 예: "함안배수장04" -> "함안배수장"
-    name = name.replace(/(\s*[0-9]+)$/, '').trim();
-    
-    return name;
+  // 💥 [수정됨] 검색어 추출 함수: 한글, 숫자, 하이픈, 괄호, 공백 모두 포함
+  function extractSearchQuery(str){
+    // HTML 태그 제거 및 평문 추출
+    const tmp = document.createElement("div");
+    tmp.innerHTML = String(str ?? "");
+    const plain = tmp.textContent || tmp.innerText || "";
+    
+    // 한글(가-힣), 숫자(0-9), 괄호(()), 공백(\s), 하이픈(-)만 매칭
+    const m = plain.match(/[가-힣0-9()\s-]+/g); 
+    
+    // 추출된 문자열 배열을 공백으로 합치고, 다중 공백을 하나로 정리 후 반환
+    return m ? m.join(" ").replace(/\s+/g, " ").trim() : "";
   }
-  
-  // 🚫 기존의 extractPureHangul 함수는 사용하지 않으므로 제거합니다.
+  
+  // === 검색창/제안 UI 주입 (원래 로직에서 .gx-input을 찾도록 복원) ===
+  function pushToSearchUI(query) {
+    if (!query) { console.warn("[markers-handler] empty query; skip"); return; }
+                        
+    // ⚠️ 수정된 부분: 동적으로 삽입된 input을 찾기 위해 querySelector 사용
+    // 주입된 전체 HTML 코드를 기반으로 .gx-suggest-search .gx-input을 찾습니다.
+    const kw = document.querySelector('.gx-suggest-search .gx-input');
+                        
+    if (!kw) {                 
+        console.warn("[markers-handler] .gx-suggest-search .gx-input not found");                 
+        return;             
+    }
 
-  // === 검색창/제안 UI 주입 ===
-  function pushToSearchUI(query) {
-    if (!query) { console.warn("[markers-handler] empty query; skip"); return; }
-    const kw = document.getElementById('keyword');
-    if (!kw) { console.warn("[markers-handler] #keyword not found"); return; }
+    // 지연 주입으로 다른 핸들러와 충돌 최소화
+    setTimeout(() => {
+        try {
+            kw.value = query;
+            console.log("[markers-handler] injected query:", query);
 
-    // 지연 주입으로 다른 핸들러와 충돌 최소화
-    setTimeout(() => {
-      try {
-        kw.value = query;
-        console.log("[markers-handler] injected query:", query);
-
-        // input 이벤트를 발생시켜 제안창이 뜨도록 유도 (필수)
-        kw.dispatchEvent(new Event('input',  { bubbles: true }));
-        kw.dispatchEvent(new Event('change', { bubbles: true }));
-        
-        // 1) 고급 제안기 사용 (기존 로직 유지)
-        if (window.searchSuggest && typeof window.searchSuggest.setQuery === "function") {
-          window.searchSuggest.setQuery(query, true); 
-        } else if (typeof window.filterSelTxt === "function") {
-          // 2) sel_txt 필터 방식 (기존 로직 유지)
-          window.filterSelTxt(query);
-        }
-
-      } catch(e){
-        console.error("[markers-handler] pushToSearchUI error:", e);
-      }
-    }, 0);
-  }
+            // input 이벤트를 발생시켜 search-suggest.js의 리스너가 반응하도록 유도
+            kw.dispatchEvent(new Event('input',  { bubbles: true }));
+            kw.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch(e){
+            console.error("[markers-handler] pushToSearchUI error:", e);
+        }
+    }, 0);
+  }
 
   // === 지도 클릭: 파란 테두리만 해제(전면 상태/레이어 유지) ===
   function bindMapClickToClearSelection(map){
@@ -228,10 +218,10 @@
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-              // 💥 ② 마커 표시명에서 '순수 시설명'만 추출하여 주입
-              const facilityName = extractFacilityName(pos.content); // 💥 새로운 함수 사용
-              console.log("[markers-handler] facilityName:", facilityName);
-              pushToSearchUI(facilityName);
+              // 💥 ② 마커 표시명에서 검색에 필요한 모든 문자를 추출하여 주입
+              const searchQuery = extractSearchQuery(pos.content); // 💥 새로운 함수 사용
+              console.log("[markers-handler] searchQuery:", searchQuery);
+              pushToSearchUI(searchQuery);
 
               setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
             }, delay);
