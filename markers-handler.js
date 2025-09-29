@@ -1,6 +1,6 @@
-// markers-handler.js (v2025-09-29d-FINAL-FIXED)
+// markers-handler.js (v2025-09-29d-FINAL-FIXED - Substring 5)
 (function () {
-  console.log("[markers-handler] loaded v2025-09-29d-FINAL-FIXED (Pure Facility Name Fix Applied)");
+  console.log("[markers-handler] loaded v2025-09-29d-FINAL-FIXED (Substring 5 Fix Applied)");
 
   // === 오버레이 기본 스타일 ===
   const style = document.createElement("style");
@@ -62,22 +62,12 @@
     frontMarker = marker; frontOverlay = overlay; frontReason = reason;
   }
 
-  // 💥 최종 수정된 검색어 추출 함수: 코드, 숫자, 괄호 등 한글 외 문자 제거
-  function extractFacilityName(fullContent) {
+  // 💥 새로운 검색어 추출 함수: 앞에서 5글자만 추출
+  function extractSearchQuery(fullContent) {
     if (!fullContent) return "";
-    let name = String(fullContent).trim();
-    
-    // 1. 앞부분의 모든 코드, 하이픈, 공백을 제거하고 첫 한글부터 시작하도록 정제합니다.
-    // [^\s가-힣]* : 공백이나 한글이 아닌 문자들이 0개 이상 반복되는 경우
-    name = name.replace(/^[^\s가-힣]*([가-힣].*)/, '$1').trim();
-    
-    // 2. 끝의 괄호와 괄호 안의 내용(예: (회전))을 제거합니다.
-    name = name.replace(/\s*\(.*\)$/, '').trim();
-    
-    // 3. 끝의 숫자와 공백(예: 2322)을 제거합니다.
-    name = name.replace(/(\s*[0-9]+)$/, '').trim();
-    
-    return name;
+    const rawContent = String(fullContent || "").trim();
+    // 문자열의 앞에서 5글자만 자릅니다.
+    return rawContent.substring(0, 5);
   }
   
   // === 검색창/제안 UI 주입 (ID를 기준으로 통일) ===
@@ -220,10 +210,10 @@
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-              // 💥 ② 마커 표시명에서 '순수 시설명'만 추출하여 주입
-              const facilityName = extractFacilityName(pos.content); // 💥 최종 수정된 함수 사용
-              console.log("[markers-handler] facilityName:", facilityName);
-              pushToSearchUI(facilityName);
+              // 💥 ② 마커 표시명에서 '앞에서 5글자'만 추출하여 주입
+                const searchQuery = extractSearchQuery(pos.content); // 💥 새로운 함수 사용
+              console.log("[markers-handler] searchQuery:", searchQuery);
+              pushToSearchUI(searchQuery);
 
               setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
             }, delay);
