@@ -11,13 +11,16 @@
 
     // ❌ extractSearchQuery 함수 제거됨 (이전에 문제의 원인이었습니다)
 
-    // === 오버레이 이름 간소화 (name1 사용) ===
-function extractOverlayName(fullContent) {
-    if (window.SEL_SUGGEST && window.SEL_SUGGEST.name1) {
-        // 앞 6글자 제거 → "도-900-가야동산" → "가야동산"
-        return window.SEL_SUGGEST.name1.slice(6);
-    }
-    return "";
+// === 순수 한글 첫 단어만 추출 ===
+function extractPureHangul(str){
+  // HTML 태그 가능성 대비
+  const tmp = document.createElement("div");
+  tmp.innerHTML = String(str ?? "");
+  const plain = tmp.textContent || tmp.innerText || "";
+
+  // ✅ 문자열에서 첫 번째 한글 덩어리만 추출
+  const m = plain.match(/[가-힣]+/);
+  return m ? m[0] : "";
 }
 
 
