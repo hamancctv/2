@@ -652,16 +652,29 @@
   console.log('SEL_SUGGEST:', (window.SEL_SUGGEST||[]).length, ' → positions:', positions.length);
 
     // 중복 좌표 제거(기존 로직 유지)
-    const unique={}, filtered=[];
+// 1. 좌표를 기준으로 중복 제거 (기존 로직 유지)
+    const uniqueCoord = {}, filteredCoord = [];
     for (let i=0;i<positions.length;i++){
-      const lat=positions[i].latlng.getLat(), lng=positions[i].latlng.getLng();
-      const key = lat+","+lng;
-      if (!unique[key]) { unique[key]=true; filtered.push(positions[i]); }
+        const lat=positions[i].latlng.getLat(), lng=positions[i].latlng.getLng();
+        const key = lat+","+lng;
+        if (!uniqueCoord[key]) { uniqueCoord[key]=true; filteredCoord.push(positions[i]); }
     }
 
-    // 마커 생성
-    if (window.initMarkers) initMarkers(map, filtered); // markers-handler.js 가 window.markers 설정
+    // 2. 이름(content)을 기준으로 최종 중복 제거 (핵심 개선)
+    const uniqueContentMap = new Map();
+    for (const pos of filteredCoord) {
+        if (!uniqueContentMap.has(pos.content)) {
+            uniqueContentMap.set(pos.content, pos);
+        }
+    }
+    const finalPositions = Array.from(uniqueContentMap.values());
 
+    console.log('Final positions after double filtering:', finalPositions.length);
+    
+    // 마커 생성
+    if (window.initMarkers) initMarkers(map, finalPositions); // finalPositions 배열 사용
+
+    
     // 회선 토글
     const toggleGroupBtn = document.getElementById("toggle_group");
     if (window.drawGroupLinesMST) { // drawGroupLinesMST.js가 로드되었다고 가정
