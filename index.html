@@ -54,12 +54,7 @@
 <!-- 위치 데이터 -->
 <script type="text/javascript" src="https://hamancctv.github.io/2/positions.js"></script> 
 
-<script>
-const toggleGroupBtn = document.getElementById('toggle_group');
-toggleGroupBtn.addEventListener('click', function() {
-    drawGroupLinesMST();
-    toggleGroupBtn.classList.toggle('selected_btn');
-});
+
 
 var overlayOn = false,
     container = document.getElementById('container'),
@@ -337,7 +332,7 @@ document.getElementById("btn_input_copy").onclick = function(){
 <!-- sel_txt -->
 <div id="menu_wrap" class="bg_white" style="border:1px solid #919191;border-radius:10px;"></div>
 <script>
-fetch("https://raw.githubusercontent.com/hamancctv/2/refs/heads/main/sel_txt.html")
+fetch("https://hamancctv.github.io/5/sel_txt.html")
   .then(res => res.text())
   .then(html => { document.getElementById("menu_wrap").innerHTML = html; })
   .catch(err => console.error("메뉴 로드 실패:", err));
