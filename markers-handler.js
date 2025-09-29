@@ -1,6 +1,6 @@
 // markers-handler.js (v2025-09-29d-FINAL-FIXED)
 (function () {
-  console.log("[markers-handler] loaded v2025-09-29d-FINAL-FIXED (Search Fix Applied)");
+  console.log("[markers-handler] loaded v2025-09-29d-FINAL-FIXED (Pure Facility Name Fix Applied)");
 
   // === 오버레이 기본 스타일 ===
   const style = document.createElement("style");
@@ -62,30 +62,32 @@
     frontMarker = marker; frontOverlay = overlay; frontReason = reason;
   }
 
-  // 💥 [수정됨] 검색어 추출 함수: 한글, 숫자, 하이픈, 괄호, 공백 모두 포함
-  function extractSearchQuery(str){
-    // HTML 태그 제거 및 평문 추출
-    const tmp = document.createElement("div");
-    tmp.innerHTML = String(str ?? "");
-    const plain = tmp.textContent || tmp.innerText || "";
+  // 💥 최종 수정된 검색어 추출 함수: 코드, 숫자, 괄호 등 한글 외 문자 제거
+  function extractFacilityName(fullContent) {
+    if (!fullContent) return "";
+    let name = String(fullContent).trim();
     
-    // 한글(가-힣), 숫자(0-9), 괄호(()), 공백(\s), 하이픈(-)만 매칭
-    const m = plain.match(/[가-힣0-9()\s-]+/g); 
+    // 1. 앞부분의 모든 코드, 하이픈, 공백을 제거하고 첫 한글부터 시작하도록 정제합니다.
+    // [^\s가-힣]* : 공백이나 한글이 아닌 문자들이 0개 이상 반복되는 경우
+    name = name.replace(/^[^\s가-힣]*([가-힣].*)/, '$1').trim();
     
-    // 추출된 문자열 배열을 공백으로 합치고, 다중 공백을 하나로 정리 후 반환
-    return m ? m.join(" ").replace(/\s+/g, " ").trim() : "";
+    // 2. 끝의 괄호와 괄호 안의 내용(예: (회전))을 제거합니다.
+    name = name.replace(/\s*\(.*\)$/, '').trim();
+    
+    // 3. 끝의 숫자와 공백(예: 2322)을 제거합니다.
+    name = name.replace(/(\s*[0-9]+)$/, '').trim();
+    
+    return name;
   }
   
-  // === 검색창/제안 UI 주입 (원래 로직에서 .gx-input을 찾도록 복원) ===
+  // === 검색창/제안 UI 주입 (ID를 기준으로 통일) ===
   function pushToSearchUI(query) {
     if (!query) { console.warn("[markers-handler] empty query; skip"); return; }
-                        
-    // ⚠️ 수정된 부분: 동적으로 삽입된 input을 찾기 위해 querySelector 사용
-    // 주입된 전체 HTML 코드를 기반으로 .gx-suggest-search .gx-input을 찾습니다.
-    const kw = document.querySelector('.gx-suggest-search .gx-input');
+    // ⚠️ #keyword ID를 사용하여 검색창을 찾습니다. (search-suggest.js에서 ID="keyword"를 사용한다고 가정)
+    const kw = document.getElementById('keyword'); 
                         
     if (!kw) {                 
-        console.warn("[markers-handler] .gx-suggest-search .gx-input not found");                 
+        console.warn("[markers-handler] #keyword not found");                 
         return;             
     }
 
@@ -218,10 +220,10 @@
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-              // 💥 ② 마커 표시명에서 검색에 필요한 모든 문자를 추출하여 주입
-              const searchQuery = extractSearchQuery(pos.content); // 💥 새로운 함수 사용
-              console.log("[markers-handler] searchQuery:", searchQuery);
-              pushToSearchUI(searchQuery);
+              // 💥 ② 마커 표시명에서 '순수 시설명'만 추출하여 주입
+              const facilityName = extractFacilityName(pos.content); // 💥 최종 수정된 함수 사용
+              console.log("[markers-handler] facilityName:", facilityName);
+              pushToSearchUI(facilityName);
 
               setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
             }, delay);
