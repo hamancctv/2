@@ -258,7 +258,7 @@
         window.markers = markers;
       }
     }
-
+ 
     createMarkerBatch();
 
     // 지도 idle
