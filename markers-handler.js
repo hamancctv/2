@@ -158,29 +158,33 @@
                     });
 
                     // 🌟 마우스 업 이벤트 리스너 수정
-                    kakao.maps.event.addListener(marker, "mouseup", function(){
-                        const elapsed=Date.now()-clickStartTime; const delay=Math.max(0,100-elapsed);
-                        setTimeout(function(){
-                            // 클릭 상태 복구 및 선택 상태 설정
-                            marker.setImage(normalImage);
-                            el.style.border="2px solid blue";
-                            el.style.transition="transform .2s ease, border .2s ease";
-                            el.style.transform=`translateY(${baseY-2}px)`;
-                            bringToFront(map, marker, overlay, 'clickMarker');
+      // markers-handler.js 내부, kakao.maps.event.addListener(marker, "mouseup", ...) 발췌 및 수정
 
-                            // ① 좌표 input 업데이트
-                            const g = document.getElementById("gpsyx");
-                            if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
+// ... [앞부분 생략] ...
 
-                            // 🌟 ② 새로운 로직 적용: 앞 6자리 자르고 한글만 추출하여 검색창에 주입
-                            const searchName = marker.__searchName || "";
-                            const newQuery = extractSearchQuery(searchName); // 새로 정의된 함수 호출
+// 🌟 마우스 업 이벤트 리스너 수정
+kakao.maps.event.addListener(marker, "mouseup", function(){
+    const elapsed=Date.now()-clickStartTime; const delay=Math.max(0,100-elapsed);
+    setTimeout(function(){
+        // ... (클릭 상태 복구 및 좌표 업데이트 로직 생략) ...
 
-                            pushToSearchUI(newQuery); 
+        // ① 좌표 input 업데이트
+        const g = document.getElementById("gpsyx");
+        if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-                            setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
-                        }, delay);
-                    });
+        // 🌟 ② 새로운 로직 적용: pos.content (name1)에서 7번째 글자부터 추출
+        // (주의: pos.content는 createBatch 함수 내부에서만 접근 가능하므로,
+        // 현재 로직을 pos.content를 사용하여 수정합니다.)
+        
+        // **🚨 안전한 방법:** 'pos.content'가 클로저 내부에 있으므로,
+        // 여기서 직접 'extractSearchQuery(pos.content)'를 사용합니다.
+        const newQuery = extractSearchQuery(pos.content); // 👈 name1을 인수로 전달!
+
+        pushToSearchUI(newQuery); 
+
+        setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
+    }, delay);
+});
                     
                     el.addEventListener("click", function(){
                         // 오버레이 클릭 시 마커 클릭 이벤트와 동일하게 처리
