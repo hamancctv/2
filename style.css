@@ -1,20 +1,11 @@
-/* 지도 전체에서 텍스트 선택 방지 */
+/* 지도 전체에서 텍스트 선택 완전 차단 (input 포함) */
 #map,
 #map * {
-  user-select: none;
-  -webkit-user-select: none; /* 크롬/사파리 */
-  -moz-user-select: none;    /* 파이어폭스 */
-  -ms-user-select: none;     /* IE/Edge */
-  -khtml-user-select: none;
-}
-/* menu_wrap 영역에서도 텍스트 선택 방지 */
-#menu_wrap,
-#menu_wrap * {
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  -khtml-user-select: none;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -khtml-user-select: none !important;
 }
 
     #container {overflow:hidden;height:100%;position:relative;}
