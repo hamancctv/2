@@ -1,5 +1,7 @@
-// markers-handler.js
+// markers-handler.js  (v2025-09-29c)
 (function () {
+  console.log("[markers-handler] loaded v2025-09-29c");
+
   // === 오버레이 기본 스타일 ===
   const style = document.createElement("style");
   style.textContent = `
@@ -67,6 +69,30 @@
     return m ? m.join(" ").replace(/\s+/g, " ").trim() : "";
   }
 
+  // === 유틸: 검색창/제안 UI에 안전하게 쿼리 주입 (searchSuggest 없어도 작동) ===
+  function pushToSearchUI(query) {
+    if (!query) return;
+    const kw = document.getElementById('keyword');
+    if (!kw) return;
+
+    // 입력창 값 주입
+    kw.value = query;
+
+    // 1순위: searchSuggest가 있으면 그 API 사용 (제안 자동 오픈)
+    if (window.searchSuggest && typeof window.searchSuggest.setQuery === "function") {
+      window.searchSuggest.setQuery(query, true); // true: 즉시 오픈/렌더
+      return;
+    }
+
+    // 2순위: 기존 sel_txt 필터 함수가 있으면 호출
+    if (typeof window.filterSelTxt === "function") {
+      window.filterSelTxt(query);
+    }
+
+    // 3순위: 어떤 경우든 input 이벤트를 쏴서 실시간 리스너가 반응하도록
+    kw.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   // === 지도 클릭: 파란 테두리만 해제(전면 상태/레이어 유지) ===
   function bindMapClickToClearSelection(map){
     kakao.maps.event.addListener(map, "click", function(){
@@ -92,7 +118,7 @@
       new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,70) }
     );
 
-    const markers = [], overlays = [];
+    const markers = []; const overlays = [];
     const batchSize = 50; let idx = 0;
 
     function createBatch(){
@@ -136,8 +162,10 @@
               el.style.transform=`translateY(${baseY}px)`;
               if (selectedMarker && selectedOverlayObj){
                 bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
-                selectedOverlayEl && (selectedOverlayEl.style.border="2px solid blue");
-                selectedOverlayEl && (selectedOverlayEl.style.transform=`translateY(${baseY-2}px)`);
+                if (selectedOverlayEl){
+                  selectedOverlayEl.style.border="2px solid blue";
+                  selectedOverlayEl.style.transform=`translateY(${baseY-2}px)`;
+                }
               }
               return;
             }
@@ -178,15 +206,13 @@
               el.style.transform=`translateY(${baseY-2}px)`;
               bringToFront(map, marker, overlay, 'clickMarker');
 
-              // 좌표 input 업데이트
+              // ① 좌표 input 업데이트
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-              // 🔹 마커 이름에서 "순수 한글"만 추출 → 검색창/제안 자동 오픈
-              const pure = extractPureHangul(pos.content);
-              if (pure && window.searchSuggest && typeof window.searchSuggest.setQuery === "function") {
-                window.searchSuggest.setQuery(pure, true);
-              }
+              // ② 마커 표시명에서 "순수 한글"만 추출 → 검색창/제안에 주입
+              const pure = extractPureHangul(pos.content); // 예: "도-001 함안군 보건소" → "함안군 보건소"
+              pushToSearchUI(pure);
 
               setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
             }, delay);
@@ -211,10 +237,6 @@
     // === idle: 전면/선택은 항상 표시, 나머지는 level<=3에서만 ===
     kakao.maps.event.addListener(map, "idle", function(){
       const level = map.getLevel();
-      // overlays는 createBatch 클로저에서 캡처됨
-      // 이 함수에서 접근하려면 window.markers 기반으로 다시 얻거나,
-      // 상단 스코프에 overlays를 두고 사용.
-      // 여기서는 간단히 window.markers 통해 처리:
       const list = window.markers || [];
       for (const m of list){
         const o = m.__overlay; if (!o) continue;
