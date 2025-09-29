@@ -209,3 +209,58 @@
         window.initSuggestUI = initSuggestUI;
     }
 })();
+// search-suggest.js 내부
+
+function initSuggestUI(opts) {
+  // ... UI 초기화, 이벤트 바인딩 등등 ...
+}
+
+// ===== 검색 로직 연결 추가 =====
+(function(){
+  const box = document.querySelector('.gx-suggest-box'); 
+  const kw = document.querySelector('.gx-input');
+
+  if (!kw || !box) return;
+
+  function openBox(){ box.classList.add('open'); }
+  function closeBox(){ box.classList.remove('open'); }
+
+  kw.addEventListener('input', () => {
+    const v = kw.value.trim(); 
+    if (!v) { closeBox(); return; }
+
+    const items = (window.SEL_SUGGEST || []).filter(it => it.name && it.name.includes(v));
+
+    if (items.length) {
+      box.innerHTML = items.map(it => `
+        <div class="gx-suggest-item" data-lat="${it.lat}" data-lng="${it.lng}">
+          <span class="gx-suggest-title">${it.name}</span>
+          ${it.line ? `<span class="gx-badge">${it.line}</span>` : ""}
+          ${it.encloser ? `<span class="gx-badge">${it.encloser}</span>` : ""}
+          ${it.addr ? `<span class="gx-badge">${it.addr}</span>` : ""}
+          ${it.ip ? `<span class="gx-badge">${it.ip}</span>` : ""}
+        </div>
+      `).join('');
+      openBox();
+    } else {
+      box.innerHTML = `<div class="gx-suggest-empty">검색 결과 없음</div>`;
+      openBox();
+    }
+  });
+
+  box.addEventListener('mousedown', e => {
+    const el = e.target.closest('.gx-suggest-item'); if (!el) return;
+    const lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng);
+    const m = (window.markers || []).find(mm => mm.__lat == lat && mm.__lng == lng);
+    if (m) {
+      kakao.maps.event.trigger(m, "mousedown");
+      setTimeout(() => kakao.maps.event.trigger(m, "mouseup"), 0);
+      map.panTo(m.getPosition());
+    }
+    closeBox();
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.gx-suggest-search') && !e.target.closest('.gx-suggest-box')) closeBox();
+  });
+})();
