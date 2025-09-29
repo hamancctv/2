@@ -112,6 +112,21 @@
     const finalPositions=[...unique.values()];
     if(window.initMarkers) initMarkers(map,finalPositions);
 
+
+    if (window.initSuggestUI) {
+  initSuggestUI({
+    map,
+    data: window.SEL_SUGGEST,
+    parent: document.getElementById('mapWrapper'),
+    getMarkers: () => window.markers,
+    badges: ['line','encloser','addr','ip'],
+    maxItems: 30,
+    chooseOnEnter: true,
+    openOnFocus: true
+  });
+}
+
+    
     // ===== 검색 로직 연결 =====
     const box=document.querySelector('.gx-suggest-box');const kw=document.querySelector('.gx-input');
     function openBox(){box.classList.add('open');}function closeBox(){box.classList.remove('open');}
