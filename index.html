@@ -26,11 +26,11 @@
 
   <!-- 좌측 툴바 (검색) -->
   <div class="search-container">
-      <input type="search" id="keyword" 
-         autocomplete="off"
-          onkeydown="if(event.keyCode === 13) { btnsearch_click(); }" 
-          class="form-control" 
-          placeholder="검색어 입력"/>
+    <!-- 교체 후 : 실시간 필터 -->
+<input type="search" id="keyword"
+  oninput="filterSelTxt(this.value)" autocomplete="off"
+  onkeydown="if(event.keyCode === 13) { btnsearch_click(); }"
+  class="form-control" placeholder="검색어 입력"/>
       <button id="searchBtn" onclick="btnsearch_click()">검색</button>
   </div>
 
@@ -338,74 +338,38 @@ document.getElementById("btn_input_copy").onclick = function(){
 <!-- sel_txt -->
 <!-- sel_txt -->
 <div id="menu_wrap" class="bg_white" style="border:1px solid #919191;border-radius:10px;"></div>
-
 <script>
-/** 캐시 */
-let __selCache = [];        // [{root:Element, text:String}]
-let __lastQ = "";
-let __raf = null;
-let __composing = false;    // 한글 입력 조합 처리
-
+/* 캐시 */
+let __selCache = []; // [{root, text}]
 function cacheSelTxt() {
   const nodes = document.getElementsByClassName("sel_txt");
   __selCache = Array.from(nodes).map(el => {
-    // .name 요소가 있으면 우선 사용, 없으면 전체 텍스트
     const nameEl = el.querySelector(".name");
     const text = ((nameEl ? nameEl.innerText : el.innerText) || "")
-      .toUpperCase()
-      .replace(/\s+/g, "");  // 공백 제거
+      .toUpperCase().replace(/\s+/g,"");
     return { root: el, text };
   });
 }
 
+/* 실시간 필터 (초고속) */
 function filterSelTxt(q) {
-  const query = (q || "").toUpperCase().replace(/\s+/g, "");
-  if (!__selCache.length) cacheSelTxt();  // 최초 1회 안전
-  // 변경 없으면 스킵
-  if (query === __lastQ) return;
-  __lastQ = query;
-
+  const query = (q||"").toUpperCase().replace(/\s+/g,"");
+  if (!__selCache.length) cacheSelTxt(); // 최초 1회 안전
   for (const item of __selCache) {
-    // display 직접 건드리는 대신 클래스 토글(성능차는 미미하지만 유지보수 좋음)
-    if (item.text.indexOf(query) > -1) {
-      item.root.classList.remove("sel-hidden");
-      item.root.style.display = "flex";        // 기존 레이아웃 유지
-    } else {
-      item.root.classList.add("sel-hidden");
-      // 혹시 인라인 display가 강제되어 있다면 보장
-      item.root.style.display = "none";
-    }
+    // 기존 레이아웃 그대로 유지하려면 flex / none 토글
+    item.root.style.display = item.text.indexOf(query) > -1 ? "flex" : "none";
   }
 }
 
-/** 타이핑 프레임 보호: rAF로 배치 */
-function scheduleFilterSelTxt(q) {
-  __lastTyped = q;
-  if (__composing) return;     // 한글 조합 중엔 대기
-  if (__raf) return;
-  __raf = requestAnimationFrame(() => {
-    __raf = null;
-    filterSelTxt(q);
-  });
-}
-
-/** sel_txt 로드 후 캐시 1회 */
+/* sel_txt 로드 후 1회 캐시 */
 fetch("https://raw.githubusercontent.com/hamancctv/2/refs/heads/main/sel_txt.html")
   .then(res => res.text())
   .then(html => {
     const menu = document.getElementById("menu_wrap");
     menu.innerHTML = html;
-    cacheSelTxt();
+    cacheSelTxt();          // ✅ 로드 직후 캐시완료
   })
   .catch(err => console.error("메뉴 로드 실패:", err));
-
-/** 입력창 이벤트 연결 (IME 대응) */
-const kw = document.getElementById("keyword");
-// 한글 조합 처리
-kw.addEventListener("compositionstart", () => { __composing = true; });
-kw.addEventListener("compositionend",   (e) => { __composing = false; scheduleFilterSelTxt(e.target.value); });
-// 실시간 입력
-kw.addEventListener("input", (e) => scheduleFilterSelTxt(e.target.value));
 </script>
 
 
