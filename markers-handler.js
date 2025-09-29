@@ -13,13 +13,13 @@
 
     // === 오버레이 이름 간소화 (name1 사용) ===
 function extractOverlayName(fullContent) {
-    // `window.SEL_SUGGEST.name1`에서 앞 6글자 제거
     if (window.SEL_SUGGEST && window.SEL_SUGGEST.name1) {
-        const name1 = window.SEL_SUGGEST.name1;
-        return name1.slice(6);  // 7번째 글자부터 반환 (0부터 인덱스 시작)
+        // 앞 6글자 제거 → "도-900-가야동산" → "가야동산"
+        return window.SEL_SUGGEST.name1.slice(6);
     }
     return "";
 }
+
 
     // === Z-Index 및 상태 관리 유틸 ===
     function setDefaultZ(marker, overlay){
