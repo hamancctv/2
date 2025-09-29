@@ -1,11 +1,12 @@
-    /* 지도 전체에서 텍스트 선택 방지 */
-    #map, #map * {
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        -khtml-user-select: none;
-    }
+/* 지도 전체에서 텍스트 선택 방지 */
+#map,
+#map * {
+  user-select: none;
+  -webkit-user-select: none; /* 크롬/사파리 */
+  -moz-user-select: none;    /* 파이어폭스 */
+  -ms-user-select: none;     /* IE/Edge */
+  -khtml-user-select: none;
+}
     /* 입력 가능한 영역은 선택 가능 */
 
 
