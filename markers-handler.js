@@ -21,14 +21,7 @@
             // 6자리 미만이면 자르지 않고 전체 사용
         }
 
-        // 2. 7번째 글자부터 마지막 한글까지 추출 (숫자/특수문자 제거)
-        // 한글, 영문, 숫자, 공백 모두 포함된 문자열에서 '한글'만 추출 후 공백 정리
-        const m = query.match(/[가-힣\s]+/g);
-        let pureHangul = m ? m.join(" ").replace(/\s+/g, " ").trim() : "";
-
-        // 만약 순수 한글이 없으면, 자른 원본(코드 포함)을 반환 (백업)
-        return pureHangul || query;
-    }
+ 
 
     // === 오버레이 이름 간소화 (name1 사용) ===
     function extractOverlayName(fullContent) {
