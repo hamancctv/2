@@ -32,9 +32,9 @@
     const baseGap = 2;
 
     // Y 위치 계산
-    const baseY = -(normalHeight + baseGap);
-    const hoverY = -(hoverHeight + baseGap);
-    const jumpY = -(70 + baseGap);
+    const baseY = -(normalHeight + baseGap); // -44px
+    const hoverY = -(hoverHeight + baseGap); // -52.4px
+    const jumpY = -(70 + baseGap);           // -72px
 
     // 마커 이미지
     const normalImage = new kakao.maps.MarkerImage(
@@ -87,15 +87,17 @@
           // === Hover ===
           function activateHover() {
             marker.__isMouseOver = true;
+
+            // ✅ hover 시 클릭마커보다 앞에 오도록
             zCounter++;
-            marker.setZIndex(zCounter + 1);
-            overlay.setZIndex(zCounter);
+            marker.setZIndex(zCounter + 2);
+            overlay.setZIndex(zCounter + 1);
 
             marker.setImage(hoverImage);
             overlay.setMap(map);
 
             if (marker === selectedMarker) {
-              overlayContent.style.transform = `translateY(${hoverY - 2}px)`; // 클릭 상태 → gap=4
+              overlayContent.style.transform = `translateY(${hoverY - 2}px)`; // 클릭 상태 gap=4
             } else {
               overlayContent.style.transform = `translateY(${hoverY}px)`;
             }
@@ -103,10 +105,16 @@
 
           function deactivateHover() {
             marker.__isMouseOver = false;
+
             if (marker === selectedMarker) {
               marker.setImage(normalImage);
-              overlayContent.style.transform = `translateY(${baseY - 2}px)`; // 클릭 상태 gap=4
+              overlayContent.style.transform = `translateY(${baseY - 2}px)`; // gap=4
               overlayContent.style.border = "2px solid blue";
+
+              // ✅ hover 빠지면 다시 선택마커가 최상위 복귀
+              zCounter++;
+              marker.setZIndex(zCounter + 1);
+              overlay.setZIndex(zCounter);
             } else {
               marker.setImage(normalImage);
               overlayContent.style.transform = `translateY(${baseY}px)`;
@@ -124,15 +132,15 @@
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
 
-            // ✅ 기존 선택 해제
+            // 기존 선택 해제
             if (selectedOverlay) {
               selectedOverlay.style.border = "1px solid #ccc";
             }
             if (selectedMarker) {
-              selectedMarker.setZIndex(100); // 원래 레벨로 복귀
+              selectedMarker.setZIndex(100); // 초기 레벨로
             }
 
-            // ✅ 현재 선택
+            // 현재 선택
             selectedMarker = marker;
             selectedOverlay = overlayContent;
 
@@ -140,7 +148,7 @@
             overlayContent.style.transform = `translateY(${baseY - 2}px)`; // gap=4
             overlay.setMap(map);
 
-            // ✅ 항상 맨 위로
+            // ✅ 클릭마커 + 오버레이 항상 최상위
             zCounter++;
             marker.setZIndex(zCounter + 1);
             overlay.setZIndex(zCounter);
@@ -169,11 +177,11 @@
                 filter();
               }
 
-              // ✅ 유지: 선택된 마커/오버레이 항상 맨 위 + gap=4
+              // ✅ 선택마커 + 오버레이 최상위 유지
               marker.setImage(normalImage);
               overlayContent.style.border = "2px solid blue";
               overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
-              overlayContent.style.transform = `translateY(${baseY - 2}px)`;
+              overlayContent.style.transform = `translateY(${baseY - 2}px)`; // gap=4
 
               zCounter++;
               marker.setZIndex(zCounter + 1);
