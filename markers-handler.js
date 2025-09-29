@@ -188,9 +188,8 @@
           overlayContent.addEventListener("mouseover", () => kakao.maps.event.trigger(marker, "mouseover"));
           overlayContent.addEventListener("mouseout",  () => kakao.maps.event.trigger(marker, "mouseout"));
 
-          // === 마커 클릭 (mousedown)
+          // 마커 클릭
           kakao.maps.event.addListener(marker, "mousedown", function () {
-            marker.__isMarkerClick = true; // 마커 클릭 시작 표시
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
 
@@ -207,45 +206,60 @@
             selectedOverlayEl  = overlayContent;
             selectedOverlayObj = overlay;
 
+            overlayContent.classList.add("click-active");
+            overlayContent.style.border = "2px solid blue";
+            overlayContent.style.transform = `translateY(${baseY - 2}px)`;
             overlay.setMap(map);
+
             setSelectZ(marker, overlay);
+            overlayContent.style.transform = `translateY(${jumpY - 2}px)`;
           });
 
-          // === 마커 클릭 (mouseup)
           kakao.maps.event.addListener(marker, "mouseup", function () {
             const elapsed = Date.now() - clickStartTime;
             const delay = Math.max(0, 100 - elapsed);
 
             setTimeout(function () {
-              if (marker.__isMarkerClick) {
-                overlayContent.classList.add("click-active");
-                overlayContent.style.border = "2px solid blue";
-              }
+              const lat = positions[i].latlng.getLat();
+              const lng = positions[i].latlng.getLng();
+              const gpsyx = document.getElementById("gpsyx");
+              if (gpsyx) gpsyx.value = `${lat}, ${lng}`;
+
+              const tempDiv = document.createElement("div");
+              tempDiv.innerHTML = positions[i].content;
+              const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+              const prefix = nameText.substring(0, 5).toUpperCase();
+
+              const keyword = document.getElementById("keyword");
+              if (keyword) keyword.value = prefix;
+
+              if (selTxtItems.length === 0) cacheSelTxt();
+              filterSelTxt(prefix);
 
               marker.setImage(normalImage);
+              overlayContent.classList.add("click-active");
+              overlayContent.style.border = "2px solid blue";
+              overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease, background 0.2s ease";
               overlayContent.style.transform = `translateY(${baseY - 2}px)`;
 
               setSelectZ(marker, overlay);
 
-              marker.__isMarkerClick = false; // 초기화
+              setTimeout(() => {
+                overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease, background 0.15s ease";
+              }, 200);
             }, delay);
           });
 
-          // === 오버레이 클릭 (전면만, 테두리 없음) ===
+          // === 오버레이 클릭 (전면만, 다른 효과 없음) ===
           overlayContent.addEventListener("click", function () {
+            // 선택 상태 갱신 (전면 유지 위해)
             selectedMarker     = marker;
-            selectedOverlayEl  = overlayContent;
+            selectedOverlayEl  = null; // 테두리 없음
             selectedOverlayObj = overlay;
-
-            // 테두리 적용 금지
-            overlayContent.classList.remove("click-active", "hover-active");
-            overlayContent.style.border = "1px solid #ccc";
 
             marker.setZIndex(Z.SELECT + 2);
             overlay.setZIndex(Z.SELECT);
             overlay.setMap(map);
-
-            marker.__isMarkerClick = false; // 오버레이 클릭임을 명시
           });
 
           markers.push(marker);
