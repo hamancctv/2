@@ -252,7 +252,11 @@
 
           // === 오버레이 클릭 (전면만, 다른 효과 없음) ===
           overlayContent.addEventListener("click", function () {
-            // 테두리 변경/hover 해제/좌표 입력 등은 하지 않음
+            // 선택 상태 갱신 (전면 유지 위해)
+            selectedMarker     = marker;
+            selectedOverlayEl  = null; // 테두리 없음
+            selectedOverlayObj = overlay;
+
             marker.setZIndex(Z.SELECT + 2);
             overlay.setZIndex(Z.SELECT);
             overlay.setMap(map);
