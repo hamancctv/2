@@ -1,5 +1,5 @@
 (function () {
-    console.log("[markers-handler] loaded v2025-09-30-FINAL-NAME (Modified for substring from 7th char)");
+    console.log("[markers-handler] loaded v2025-09-30-FINAL-NAME (Fixed for full name & search bug)");
 
     // === Z 레이어 및 상태 변수 ===
     const Z = { BASE:100, FRONT:100000 };
@@ -40,11 +40,10 @@
     function bringToFront(map, marker, overlay, reason){
         if (frontMarker && frontMarker !== marker) {
             setDefaultZ(frontMarker, frontOverlay);
-            if (frontMarker !== selectedMarker) frontOverlay.setMap(null); // 선택된 마커가 아니면 오버레이 숨김
+            if (frontMarker !== selectedMarker) frontOverlay.setMap(null);
         }
 
         if (selectedMarker && selectedMarker !== marker) {
-            // 이전에 선택된 마커 해제
             setDefaultZ(selectedMarker, selectedOverlayObj);
             selectedMarker = null; selectedOverlayObj = null;
         }
@@ -59,8 +58,13 @@
     }
 
     function pushToSearchUI(query) {
+        // 검색창에 값을 주입하는 함수
         const kw = document.querySelector('.gx-suggest-search .gx-input');
-        if (kw) kw.value = query;
+        if (kw) {
+            kw.value = query;
+            // 🌟 검색창 값 변경 후, input 이벤트 트리거하여 검색 제안 기능 호출
+            kw.dispatchEvent(new Event('input', { bubbles: true }));
+        }
     }
 
     function bindMapClickToClearSelection(map){
@@ -103,7 +107,7 @@
                     const el = document.createElement("div");
                     el.className = "overlay-hover";
                     el.style.transform = `translateY(${baseY}px)`;
-                    // 🌟 name1을 기준으로 간소화된 이름을 표시합니다.
+                    // 🌟 오버레이는 간소화된 이름(name1)을 사용합니다.
                     el.textContent = extractOverlayName(pos.content); 
 
                     const overlay = new kakao.maps.CustomOverlay({
@@ -156,13 +160,12 @@
                             const g = document.getElementById("gpsyx");
                             if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-                            // 🌟 ② 마커에 저장된 searchName (name2)을 7번째 글자부터 끝까지 잘라서 검색창에 주입합니다.
+                            // 🌟 ② 마커에 저장된 searchName (name2)을 7번째 글자부터 끝까지 잘라서 검색창에 주입하고, input 이벤트를 트리거합니다.
                             let searchName = marker.__searchName || "";
                             let newQuery = searchName;
 
                             // 7글자부터 (인덱스 6부터) 자르기
                             if (searchName.length >= 7) {
-                                // JavaScript의 `substring(6)`은 인덱스 6부터 (즉, 7번째 글자부터) 끝까지 잘라냅니다.
                                 newQuery = searchName.substring(6);
                             }
 
@@ -172,6 +175,7 @@
                         }, delay);
                     });
                     el.addEventListener("click", function(){
+                        // 오버레이 클릭 시 마커 클릭 이벤트와 동일하게 처리
                         kakao.maps.event.trigger(marker,"mousedown");
                         kakao.maps.event.trigger(marker,"mouseup");
                     });
