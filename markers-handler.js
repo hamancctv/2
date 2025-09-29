@@ -12,6 +12,9 @@
       white-space: nowrap;
       user-select: none;
       transition: transform 0.15s ease, border 0.15s ease;
+      will-change: transform, border;
+      transform: translateZ(0);
+      backface-visibility: hidden;
     }
     .overlay-click {
       padding:5px 8px;
@@ -22,6 +25,9 @@
       white-space: nowrap;
       user-select: none;
       transition: transform 0.15s ease, border 0.15s ease;
+      will-change: transform, border;
+      transform: translateZ(0);
+      backface-visibility: hidden;
     }
   `;
   document.head.appendChild(style);
@@ -38,6 +44,31 @@
   let selectedOverlayEl = null;   // DOM element (content)
   let selectedOverlayObj = null;  // kakao.maps.CustomOverlay
   let clickStartTime = 0;
+
+  // === sel_txt 캐시 전역 제공(없으면 생성) ===
+  if (!window.__selTxtItems) window.__selTxtItems = [];
+  if (typeof window.cacheSelTxt !== "function") {
+    window.cacheSelTxt = function () {
+      const nodes = document.getElementsByClassName("sel_txt");
+      window.__selTxtItems = Array.from(nodes).map(el => {
+        const nameEl = el.querySelector(".name");
+        const text = ((nameEl ? nameEl.innerText : el.innerText) || "")
+          .toUpperCase()
+          .replace(/\s+/g, "");
+        return { root: el, text };
+      });
+    };
+  }
+  if (typeof window.filterSelTxt !== "function") {
+    window.filterSelTxt = function (val) {
+      const q = (val || "").toUpperCase().replace(/\s+/g, "");
+      // 캐시 없으면 즉시 구축
+      if (!window.__selTxtItems || window.__selTxtItems.length === 0) window.cacheSelTxt();
+      for (const item of window.__selTxtItems) {
+        item.root.style.display = item.text.indexOf(q) > -1 ? "flex" : "none";
+      }
+    };
+  }
 
   // === 마커 초기화 함수 ===
   window.initMarkers = function (map, positions) {
@@ -70,6 +101,31 @@
       { offset: new kakao.maps.Point(15, 70) }
     );
 
+    // ✅ 캐시 필터 지연 실행 (첫 클릭 프레임 보호)
+    let _pendingFilterVal = "", _idleFlag = false, _rafId = null;
+    function scheduleFilterSelTxt(val) {
+      _pendingFilterVal = val || "";
+      if (typeof window.filterSelTxt !== "function") {
+        // 캐시 준비 전엔 기존 filter()로 폴백
+        if (typeof window.filter === "function") window.filter();
+        return;
+      }
+      if ("requestIdleCallback" in window) {
+        if (_idleFlag) return;
+        _idleFlag = true;
+        requestIdleCallback(() => {
+          _idleFlag = false;
+          window.filterSelTxt(_pendingFilterVal);
+        }, { timeout: 200 });
+      } else {
+        if (_rafId) return;
+        _rafId = requestAnimationFrame(() => {
+          _rafId = null;
+          window.filterSelTxt(_pendingFilterVal);
+        });
+      }
+    }
+
     // === 마커 생성 배치 ===
     const batchSize = 50;
     let markerIndex = 0;
@@ -91,6 +147,16 @@
           });
           marker.group = positions[i].group ? String(positions[i].group) : null;
 
+          // ✅ 클릭 시 DOM 파싱 방지: 미리 계산 저장
+          marker.__lat = positions[i].latlng.getLat();
+          marker.__lng = positions[i].latlng.getLng();
+          (function cachePrefix() {
+            const t = document.createElement('div');
+            t.innerHTML = positions[i].content;
+            const nameText = (t.textContent || t.innerText || '').trim();
+            marker.__prefix = nameText.substring(0, 5).toUpperCase();
+          })();
+
           // --- 오버레이 생성 ---
           const overlayContent = document.createElement("div");
           overlayContent.className = "overlay-hover";
@@ -111,7 +177,6 @@
 
           // === Hover 핸들러 ===
           function activateHover() {
-            // 호버 시 이미지/표시
             marker.setImage(hoverImage);
             overlay.setMap(map);
 
@@ -183,12 +248,9 @@
             selectedOverlayEl  = overlayContent;
             selectedOverlayObj = overlay;
 
-            // 선택 스타일 + gap=4
+            // 선택 스타일 + gap=4 + 전면
             overlayContent.style.border = "2px solid blue";
-            overlayContent.style.transform = `translateY(${baseY - 2}px)`;
             overlay.setMap(map);
-
-            // 선택 레이어로 고정
             setSelectZ(marker, overlay);
 
             // 점프 시에도 gap=4 유지
@@ -201,19 +263,18 @@
             const delay = Math.max(0, 100 - elapsed);
 
             setTimeout(function () {
-              // 좌표/필터 갱신 (기존 로직 유지)
-              const lat = positions[i].latlng.getLat();
-              const lng = positions[i].latlng.getLng();
-              const tempDiv = document.createElement("div");
-              tempDiv.innerHTML = positions[i].content;
-              const nameText = (tempDiv.textContent || tempDiv.innerText || "").trim();
-              const prefix = nameText.substring(0, 5).toUpperCase();
+              // ✅ 사전 계산값 사용(버벅임 감소)
+              const lat = marker.__lat;
+              const lng = marker.__lng;
+              const prefix = marker.__prefix;
 
               const gpsyx  = document.getElementById("gpsyx");
               const keyword= document.getElementById("keyword");
               if (gpsyx)   gpsyx.value   = `${lat}, ${lng}`;
               if (keyword) keyword.value = prefix;
-              if (typeof filter === 'function') filter();
+
+              // ✅ 캐시 필터 지연 실행(첫 클릭 프레임 보호)
+              scheduleFilterSelTxt(prefix);
 
               // 선택 상태 유지: normal 이미지 + gap=4 + 최상위 보장
               marker.setImage(normalImage);
