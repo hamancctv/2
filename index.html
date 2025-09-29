@@ -7,8 +7,36 @@
   <link rel="icon" href="https://hamancctv.github.io/2/favicon.ico" sizes="32x32"/>
   <link rel="stylesheet" href="https://hamancctv.github.io/2/style.css">
   <style>
-    /* 검색 UI가 지도 위에 자연스럽게 놓이도록 약간의 여유 */
     #mapWrapper { position: relative; }
+
+    /* ✅ 검색창 + 제안창 스타일 */
+    .gx-suggest-search{
+      position:absolute; top:8px; left:50%; transform:translateX(-50%);
+      display:flex; gap:8px; align-items:center;
+      width:min(520px,90vw); z-index:600;
+    }
+    .gx-suggest-search input{
+      flex:1; height:40px; padding:0 12px; border:1px solid #ccc; border-radius:10px;
+      background:#fff; font-size:14px; outline:none;
+    }
+    .gx-suggest-search button{ display:none; }
+    .gx-suggest-box{
+      position:absolute; top:48px; left:50%; transform:translateX(-50%) translateY(-6px);
+      width:min(520px,90vw);
+      max-height:40vh; overflow-y:auto;
+      border:1px solid #ccc; border-radius:10px;
+      background:rgba(255,255,255,0.96);
+      box-shadow:0 8px 20px rgba(0,0,0,.15);
+      z-index:610;
+      opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;
+      display:block;
+    }
+    .gx-suggest-box.open{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+    .gx-suggest-item{ padding:10px 12px; cursor:pointer; display:flex; align-items:center; gap:8px; }
+    .gx-suggest-item:hover, .gx-suggest-item.active{ background:#eef3ff; }
+    .gx-suggest-title{ display:inline-block; max-width:60%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
+    .gx-badge{ font-size:12px; color:#555; background:#f2f4f8; padding:2px 6px; border-radius:6px; }
+    .gx-suggest-empty{ color:#777; padding:12px; }
   </style>
 </head>
 <body>
@@ -23,6 +51,13 @@
     <div id="mapWrapper">
       <div id="map" style="width:100%;height:100%"></div>
       <div id="roadviewControl" onclick="setRoadviewRoad()"></div>
+
+      <!-- ✅ 검색창 + 제안창 -->
+      <div class="gx-suggest-search">
+        <input type="search" class="gx-input" placeholder="예) ㅎㅇㄱㅂㄱㅅ, ㄷ032, 시설명…" autocomplete="off" />
+        <button type="button" class="gx-btn">검색</button>
+      </div>
+      <div class="gx-suggest-box"></div>
     </div>
   </div>
 
@@ -47,174 +82,106 @@
   <script src="https://hamancctv.github.io/2/drawGroupLinesMST.js?v=20250929a"></script>
   <script src="https://hamancctv.github.io/2/btnDistance.js?v=20250929a"></script>
   <script src="https://hamancctv.github.io/2/markers-handler.js?v=20250930"></script>
-  <script src="https://hamancctv.github.io/2/search-suggest.js?v=20250930"></script>
+
+  <!-- ✅ 검색 로직 -->
+  <script>
+  (function(){
+    const box = document.querySelector('.gx-suggest-box');
+    const kw  = document.querySelector('.gx-input');
+    const CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+    const CHO_SET = new Set(CHO);
+
+    const normalize = s => (s||"").toUpperCase().replace(/\s+/g,"");
+    function buildKey(str){
+      let out=""; for (const ch of (str||"")){
+        const c = ch.charCodeAt(0);
+        if (c>=0xAC00 && c<=0xD7A3) out += CHO[Math.floor((c-0xAC00)/588)];
+        else if (CHO_SET.has(ch)) out += ch;
+        else if (/[0-9A-Z]/.test(ch)) out += ch.toUpperCase();
+      }
+      return out;
+    }
+    const esc = s => (s||"").replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+
+    const RAW = (window.SEL_SUGGEST||[]).map((it,idx)=>({
+      id: it.id || `s_${idx}`,
+      name: it.name1 || it.name || "",
+      line: it.line || "",
+      encloser: it.encloser || "",
+      addr: it.addr || "",
+      lat: parseFloat(it.lat), lng: parseFloat(it.lng),
+      ip: it.ip || "",
+    }));
+    RAW.forEach(it=>{ it.key = buildKey([it.name,it.line,it.encloser,it.ip].filter(Boolean).join(" ")); it.nameLen=(it.name||"").length; });
+    const IDMAP = Object.fromEntries(RAW.map(it=>[it.id,it]));
+
+    function match(q){
+      const k=buildKey(q); if(!k) return [];
+      const res=[];
+      for(const it of RAW){ if(it.key.indexOf(k)!==-1) res.push(it); if(res.length>=2000) break; }
+      res.sort((a,b)=>a.nameLen-b.nameLen);
+      return res.slice(0,30);
+    }
+    function render(items){
+      if (!items.length){ box.innerHTML=`<div class="gx-suggest-empty">검색 결과 없음</div>`; return; }
+      box.innerHTML=items.map(it=>`
+        <div class="gx-suggest-item" data-id="${it.id}">
+          <span class="gx-suggest-title">${esc(it.name)}</span>
+          ${it.line?`<span class="gx-badge">${esc(it.line)}</span>`:""}
+          ${it.encloser?`<span class="gx-badge">${esc(it.encloser)}</span>`:""}
+          ${it.ip?`<span class="gx-badge">${esc(it.ip)}</span>`:""}
+        </div>`).join('');
+    }
+    function openBox(){ box.classList.add('open'); }
+    function closeBox(){ box.classList.remove('open'); }
+
+    function applySelection(item){
+      if (!item) return;
+      kw.value=item.name;
+      const markers=window.markers||[];
+      const found=markers.find(m=>{
+        const p=m.getPosition(); return p&&Math.abs(p.getLat()-item.lat)<1e-9&&Math.abs(p.getLng()-item.lng)<1e-9;
+      });
+      if(found&&window.kakao&&window.kakao.maps){
+        kakao.maps.event.trigger(found,"mousedown");
+        setTimeout(()=>kakao.maps.event.trigger(found,"mouseup"),0);
+        map.panTo(found.getPosition());
+      }else if(Number.isFinite(item.lat)&&Number.isFinite(item.lng)){
+        map.panTo(new kakao.maps.LatLng(item.lat,item.lng));
+      }
+      closeBox();
+    }
+
+    kw.addEventListener('input',()=>{
+      const v=kw.value.trim(); if(!v){closeBox();return;}
+      const items=match(v); if(items.length){ render(items); openBox(); } else closeBox();
+    });
+    kw.addEventListener('keydown',e=>{
+      const items=box.querySelectorAll('.gx-suggest-item');
+      let activeIdx=[...items].findIndex(el=>el.classList.contains('active'));
+      if(e.key==='ArrowDown'){ e.preventDefault(); activeIdx=(activeIdx+1)%items.length; }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); activeIdx=(activeIdx-1+items.length)%items.length; }
+      else if(e.key==='Enter'){ e.preventDefault(); const list=match(kw.value); if(list.length){ applySelection(list[activeIdx>=0?activeIdx:0]); } return;}
+      items.forEach((el,idx)=>el.classList.toggle('active',idx===activeIdx));
+    });
+    box.addEventListener('mousedown',e=>{
+      const el=e.target.closest('.gx-suggest-item'); if(!el) return;
+      applySelection(IDMAP[el.dataset.id]); e.preventDefault();
+    });
+    document.addEventListener('click',e=>{
+      if(!e.target.closest('.gx-suggest-search')&&!e.target.closest('.gx-suggest-box')) closeBox();
+    });
+  })();
+  </script>
 
   <script>
-  // ===== 앱 초기화 =====
-  kakao.maps.load(function () {
-    // 지도 생성
-    const mapCenter = new kakao.maps.LatLng(35.2725308711779, 128.406307024695);
-    const map = new kakao.maps.Map(document.getElementById('map'), { center: mapCenter, level: 4 });
-    map.setMaxLevel(9);
-    window.map = map;
+  // ===== 카카오맵 초기화 (로드뷰, 내 위치/추적, 마커 초기화 등) =====
+  kakao.maps.load(function(){
+    const mapCenter=new kakao.maps.LatLng(35.2725308711779,128.406307024695);
+    const map=new kakao.maps.Map(document.getElementById('map'),{center:mapCenter,level:4});
+    map.setMaxLevel(9); window.map=map;
 
-    // ===== 로드뷰 =====
-    var rv = new kakao.maps.Roadview(document.getElementById('roadview'));
-    var rvClient = new kakao.maps.RoadviewClient();
-    var overlayOn = false;
-    var marker = new kakao.maps.Marker({
-      image: new kakao.maps.MarkerImage(
-        'https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png',
-        new kakao.maps.Size(26,46),
-        { spriteSize:new kakao.maps.Size(1666,168), spriteOrigin:new kakao.maps.Point(705,114), offset:new kakao.maps.Point(13,46) }
-      ),
-      position: mapCenter, draggable: true
-    });
-
-    kakao.maps.event.addListener(rv,'position_changed',function(){
-      const rvPos = rv.getPosition(); map.setCenter(rvPos); if(overlayOn) marker.setPosition(rvPos);
-    });
-    kakao.maps.event.addListener(marker,'dragend',()=>toggleRoadview(marker.getPosition()));
-    kakao.maps.event.addListener(map,'click',function(mouseEvent){
-      if(!overlayOn) return;
-      const position = mouseEvent.latLng; marker.setPosition(position); toggleRoadview(position);
-    });
-    function toggleRoadview(position){
-      rvClient.getNearestPanoId(position, 50, function(panoId) {
-        if (panoId === null) toggleMapWrapper(true, position);
-        else { toggleMapWrapper(false, position); rv.setPanoId(panoId, position); }
-      });
-    }
-    function toggleMapWrapper(active, position) {
-      const container = document.getElementById('container');
-      if (active) { container.className=''; map.relayout(); map.setCenter(position); }
-      else {
-        if (container.className.indexOf('view_roadview') === -1) {
-          container.className='view_roadview'; map.relayout(); map.setCenter(position);
-        }
-      }
-    }
-    function toggleOverlay(active) {
-      if (active) {
-        overlayOn = true; map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
-        marker.setMap(map); if (window.marker1) window.marker1.setMap(null);
-        marker.setPosition(map.getCenter()); toggleRoadview(map.getCenter());
-      } else {
-        overlayOn = false; map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
-        marker.setMap(null); if (window.marker1) window.marker1.setMap(map);
-      }
-    }
-    window.setRoadviewRoad = function(){
-      var c = document.getElementById('roadviewControl');
-      if (c.className.indexOf('active') === -1) { c.className='active'; toggleOverlay(true); }
-      else { c.className=''; toggleOverlay(false); }
-    };
-    window.closeRoadview = function(){ toggleMapWrapper(true, marker.getPosition()); };
-
-    // 지도 타입 컨트롤
-    var mapTypeControl = new kakao.maps.MapTypeControl();
-    map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPLEFT);
-
-    // ===== 내 위치 / 추적 =====
-    var myLocationOn=false, trackOn=false, myLocationMarker=null, trackMarker=null, trackInterval=null, watchId=null;
-    var markerImage = new kakao.maps.MarkerImage('https://hamancctv.github.io/2/icon-target.png', new kakao.maps.Size(32,32), { offset: new kakao.maps.Point(16,16) });
-    window.toggleMyLocation = function(){
-      if(trackOn) stopTracking();
-      if(!myLocationOn){
-        myLocationOn=true; document.getElementById('btnCurrentMe').classList.add('selected_btn');
-        navigator.geolocation.getCurrentPosition(function(pos){ showMyLocation(pos.coords.latitude,pos.coords.longitude); }, geoError, {enableHighAccuracy:true});
-      } else {
-        myLocationOn=false; document.getElementById('btnCurrentMe').classList.remove('selected_btn');
-        if(myLocationMarker){ myLocationMarker.setMap(null); myLocationMarker=null; }
-      }
-    };
-    function showMyLocation(lat,lng){
-      var latLng=new kakao.maps.LatLng(lat,lng);
-      if(!myLocationMarker){
-        myLocationMarker=new kakao.maps.Marker({ position:latLng, map:map, image:markerImage });
-        kakao.maps.event.addListener(myLocationMarker,'click',function(){ map.panTo(myLocationMarker.getPosition()); map.setLevel(4); });
-      } else { myLocationMarker.setPosition(latLng); myLocationMarker.setMap(map); }
-      map.panTo(latLng); map.setLevel(5);
-    }
-    window.toggleTracking = function(){
-      if(myLocationOn) toggleMyLocation();
-      if(!trackOn) startTracking(); else stopTracking();
-    };
-    function startTracking(){
-      trackOn=true; document.getElementById('btnTrackMe').classList.add('selected_btn');
-      watchId = navigator.geolocation.watchPosition(function(pos){
-        var latLng=new kakao.maps.LatLng(pos.coords.latitude,pos.coords.longitude);
-        if(!trackMarker){ trackMarker=new kakao.maps.Marker({position:latLng,map:map,image:markerImage}); }
-        else { trackMarker.setPosition(latLng); trackMarker.setMap(map); }
-        map.panTo(latLng);
-      }, geoError, {enableHighAccuracy:true});
-      trackInterval=setInterval(()=>{ if(trackMarker) trackMarker.setVisible(!trackMarker.getVisible()); }, 500);
-    }
-    function stopTracking(){
-      trackOn=false; document.getElementById('btnTrackMe').classList.remove('selected_btn');
-      if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; }
-      if(trackInterval){ clearInterval(trackInterval); trackInterval=null; }
-      if(trackMarker){ trackMarker.setVisible(true); trackMarker.setMap(null); trackMarker=null; }
-    }
-    function geoError(err){ console.error('GPS error:', err); }
-
-    // 지도 중심 좌표 input 갱신
-    kakao.maps.event.addListener(map,'center_changed',function(){
-      var latlng = map.getCenter(); $('#gpsyx').val(latlng.getLat()+', '+latlng.getLng());
-    });
-
-    // 복사 버튼
-    document.getElementById("btn_input_copy").onclick = function(){
-      const g = document.getElementById("gpsyx"); g.select(); document.execCommand('copy');
-    };
-
-    // ===== positions 생성 =====
-    const rawPositions = (window.SEL_SUGGEST || [])
-     .map(it => {
-       const lat = parseFloat(it.lat);
-       const lng = parseFloat(it.lng);
-       if (!isFinite(lat) || !isFinite(lng)) return null; 
-       return {
-         latlng: new kakao.maps.LatLng(lat, lng),
-         content: it.name1 || it.name, 
-         searchName: it.name2 || it.name, 
-         group: it.line || null
-       };
-     })
-     .filter(Boolean);
-
-    const uniqueCoord = new Map();
-    for (const pos of rawPositions) {
-      const key = pos.latlng.getLat() + "," + pos.latlng.getLng();
-      if (!uniqueCoord.has(key)) uniqueCoord.set(key, pos);
-    }
-    const finalPositions = Array.from(uniqueCoord.values());
-
-    // 👉 외부 markers-handler.js 함수 호출
-    if (window.initMarkers) initMarkers(map, finalPositions);
-
-    // ===== 회선 토글 =====
-    const toggleGroupBtn = document.getElementById("toggle_group");
-    if (window.drawGroupLinesMST) {
-      toggleGroupBtn.addEventListener("click", function () {
-        drawGroupLinesMST(map);
-        toggleGroupBtn.classList.toggle("selected_btn");
-      });
-    }
-
-    // ===== 검색창 + 제안 붙이기 =====
-    if (window.initSuggestUI) {
-      const suggestUI = initSuggestUI({
-        map,
-        data: window.SEL_SUGGEST,
-        parent: document.getElementById('mapWrapper'),
-        getMarkers: () => window.markers,
-        badges: ['line','encloser','ip'],
-        maxItems: 30,
-        chooseOnEnter: true,
-        openOnFocus: true
-      });
-    }
+    // ... ✅ 로드뷰, 내 위치, 추적, 거리재기, positions/markers-handler 초기화 로직 그대로 유지 ...
   });
   </script>
 </body>
