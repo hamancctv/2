@@ -51,6 +51,19 @@
   }
   const esc = s => (s||"").replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 
+  // ===== 한글 부분 추출 =====
+  function extractKorean(str){
+    if (!str) return "";
+    // 앞의 코드(예: 쓰-001-) 제거
+    let s = str.replace(/^[^-]*-\d+-/, "");
+    // 숫자 및 괄호 이후 제거
+    s = s.replace(/\d.*$/, "");
+    s = s.replace(/\(.*\).*$/, "");
+    // 한글만 남기기
+    const m = s.match(/[가-힣]+/g);
+    return m ? m.join("") : s.trim();
+  }
+
   // ===== 메인 초기화 =====
   function initSuggestUI(opts){
     const {
@@ -92,7 +105,6 @@
         ip: it.ip || ""
       }));
     RAW.forEach(it=>{
-      // 검색키: 이름 + line + encloser + ip (addr은 UI 숨김/검색 키에서 제외)
       it.key = buildKey([it.name, it.line, it.encloser, it.ip].filter(Boolean).join(" "));
       it.nameLen = (it.name||"").length;
     });
@@ -104,10 +116,9 @@
       if (!k) return [];
       const res=[];
       for (const it of RAW){
-        if (it.key.indexOf(k) !== -1) res.push(it); // 순서 일치(연속 부분문자열)
+        if (it.key.indexOf(k) !== -1) res.push(it);
         if (res.length >= 2000) break;
       }
-      // 앞에서 맞은 것, 이름 짧은 것 우선
       res.sort((a,b)=>{
         const ai=a.key.indexOf(k), bi=b.key.indexOf(k);
         if (ai!==bi) return ai-bi;
@@ -159,9 +170,10 @@
     // 선택 적용
     function applySelection(item){
       if (!item) return;
-      kw.value = item.name;
+      // 가운데 한글 부분만 추출
+      kw.value = extractKorean(item.name);
 
-      // 마커 찾기(좌표로 매칭)
+      // 마커 찾기
       const markers = getMarkers() || [];
       const found = markers.find(m=>{
         const p=m.getPosition?.(); if (!p) return false;
@@ -177,7 +189,7 @@
       closeBox();
     }
 
-    // 이벤트: 입력/조합/키보드
+    // 이벤트
     kw.addEventListener('compositionupdate', ()=> {
       const v = kw.value.trim();
       if (!v) { closeBox(); return; }
