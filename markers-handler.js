@@ -1,6 +1,6 @@
 // markers-handler.js
 (function () {
-  // === 기본 스타일 ===
+  // === 오버레이 기본 스타일 ===
   const style = document.createElement("style");
   style.textContent = `
     .overlay-hover{
@@ -20,59 +20,27 @@
   document.head.appendChild(style);
 
   // === Z 레이어 ===
-  const Z = { BASE:100, FRONT:100000 }; // FRONT를 전면 고정에 사용
+  const Z = { BASE:100, FRONT:100000 }; // 기본/전면
 
   // === 전역 상태 ===
-  let selectedMarker = null;       // 마커 클릭 선택(파란 테두리) 쌍
+  let selectedMarker = null;     // 파란 테두리 쌍
   let selectedOverlayEl = null;
   let selectedOverlayObj = null;
 
-  let frontMarker = null;          // 마지막 상호작용(호버/클릭)으로 전면 고정된 쌍
+  let frontMarker = null;        // 현재 전면 쌍(호버/클릭)
   let frontOverlay = null;
-  let frontReason = null;          // 'hover' | 'clickMarker' | 'clickOverlay'
+  let frontReason = null;        // 'hover' | 'clickMarker' | 'clickOverlay'
 
+  let normalImage, hoverImage, jumpImage;
   let clickStartTime = 0;
 
-  // === sel_txt 캐시 기반 필터(있으면 사용, 없으면 폴백) ===
-  if (!window.__selTxtItems) window.__selTxtItems = [];
-  if (typeof window.cacheSelTxt !== "function") {
-    window.cacheSelTxt = function () {
-      const nodes = document.getElementsByClassName("sel_txt");
-      window.__selTxtItems = Array.from(nodes).map(el => {
-        const nameEl = el.querySelector(".name");
-        const text = ((nameEl ? nameEl.innerText : el.innerText) || "")
-          .toUpperCase().replace(/\s+/g,"");
-        return { root: el, text };
-      });
-    };
-  }
-  if (typeof window.filterSelTxt !== "function") {
-    window.filterSelTxt = function (val) {
-      const q = (val||"").toUpperCase().replace(/\s+/g,"");
-      if (!window.__selTxtItems.length) window.cacheSelTxt();
-      for (const it of window.__selTxtItems) {
-        it.root.style.display = it.text.indexOf(q) > -1 ? "flex" : "none";
-      }
-    };
-  }
-  let _pendingFilterVal = "", _idleFlag = false, _rafId = null;
-  function scheduleFilterSelTxt(val){
-    _pendingFilterVal = val||"";
-    if (typeof window.filterSelTxt !== "function") {
-      if (typeof window.filter === "function") window.filter(); // 폴백
-      return;
-    }
-    if ("requestIdleCallback" in window) {
-      if (_idleFlag) return;
-      _idleFlag = true;
-      requestIdleCallback(()=>{ _idleFlag=false; window.filterSelTxt(_pendingFilterVal); }, {timeout:200});
-    } else {
-      if (_rafId) return;
-      _rafId = requestAnimationFrame(()=>{ _rafId=null; window.filterSelTxt(_pendingFilterVal); });
-    }
-  }
+  // === 위치/높이 ===
+  const normalH = 42, hoverH = 50.4, gap = 2;
+  const baseY  = -(normalH + gap);  // -44
+  const hoverY = -(hoverH  + gap);  // -52.4
+  const jumpY  = -(70      + gap);  // -72
 
-  // === Z 유틸 ===
+  // === 유틸: z-index ===
   function setDefaultZ(marker, overlay){ // 기본: 마커 > 오버레이
     if (marker) marker.setZIndex(Z.BASE + 1);
     if (overlay) overlay.setZIndex(Z.BASE);
@@ -83,57 +51,33 @@
   }
   function bringToFront(map, marker, overlay, reason){
     if (!marker || !overlay) return;
-    // 이전 전면 쌍 강등
     if (frontMarker && frontOverlay && (frontMarker !== marker || frontOverlay !== overlay)) {
+      // 이전 전면 쌍은 기본으로
       setDefaultZ(frontMarker, frontOverlay);
       if (map.getLevel() > 3 && frontMarker !== selectedMarker) frontOverlay.setMap(null);
     }
-    // 새 전면 쌍 고정
-    overlay.setMap(map);       // 전면은 항상 표시
+    overlay.setMap(map);        // 전면은 항상 표시
     setFrontZ(marker, overlay);
-    frontMarker = marker;
-    frontOverlay = overlay;
-    frontReason = reason;      // 'hover' | 'clickMarker' | 'clickOverlay'
-  }
-  function clearFront(map){
-    if (frontMarker && frontOverlay) {
-      setDefaultZ(frontMarker, frontOverlay);
-      if (map.getLevel()>3 && frontMarker !== selectedMarker) frontOverlay.setMap(null);
-    }
-    frontMarker = frontOverlay = frontReason = null;
-  }
-  function clearSelection(map){
-    if (selectedMarker) {
-      selectedMarker.setImage(normalImage);
-      // 선택 해제 시 기본 z로
-      setDefaultZ(selectedMarker, selectedOverlayObj);
-      selectedMarker = null;
-    }
-    if (selectedOverlayEl){
-      selectedOverlayEl.style.border = "1px solid #ccc";
-      selectedOverlayEl = null;
-    }
-    if (selectedOverlayObj){
-      if (map.getLevel()>3 && (!frontOverlay || selectedOverlayObj !== frontOverlay)) {
-        selectedOverlayObj.setMap(null);
-      }
-      selectedOverlayObj = null;
-    }
+    frontMarker = marker; frontOverlay = overlay; frontReason = reason;
   }
 
-  // === 이미지/치수 ===
-  let normalImage, hoverImage, jumpImage;
-  const normalHeight = 42;
-  const hoverHeight  = 50.4;
-  const baseGap = 2;
-  const baseY  = -(normalHeight + baseGap); // -44
-  const hoverY = -(hoverHeight  + baseGap); // -52.4
-  const jumpY  = -(70           + baseGap); // -72
+  // === 유틸: 내용에서 "순수 한글"만 추출(코드/숫자/기호 제외) ===
+  function extractPureHangul(str){
+    const m = (str || "").match(/[가-힣\s]+/g);
+    return m ? m.join(" ").replace(/\s+/g, " ").trim() : "";
+  }
+
+  // === 지도 클릭: 파란 테두리만 해제(전면 상태/레이어 유지) ===
+  function bindMapClickToClearSelection(map){
+    kakao.maps.event.addListener(map, "click", function(){
+      if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
+      selectedMarker = null; selectedOverlayEl = null; selectedOverlayObj = null;
+    });
+  }
 
   // === 마커 초기화 ===
   window.initMarkers = function (map, positions) {
-    const markers = [];
-    const overlays = [];
+    bindMapClickToClearSelection(map);
 
     normalImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
@@ -148,8 +92,8 @@
       new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,70) }
     );
 
-    const batchSize = 50;
-    let idx = 0;
+    const markers = [], overlays = [];
+    const batchSize = 50; let idx = 0;
 
     function createBatch(){
       const end = Math.min(positions.length, idx + batchSize);
@@ -157,12 +101,13 @@
         (function(i){
           const pos = positions[i];
 
-          // 마커
+          // --- Marker ---
           const marker = new kakao.maps.Marker({
-            map, position: pos.latlng, image: normalImage, clickable:true, zIndex: Z.BASE + 1
+            map, position: pos.latlng, image: normalImage, clickable:true, zIndex: Z.BASE+1
           });
+          marker.group = pos.group ? String(pos.group) : (pos.line ? String(pos.line) : null);
 
-          // 오버레이
+          // --- Overlay ---
           const el = document.createElement("div");
           el.className = "overlay-hover";
           el.style.transform = `translateY(${baseY}px)`;
@@ -173,61 +118,37 @@
           });
           overlay.setZIndex(Z.BASE);
 
-          // 서로 참조
-          marker.__overlay = overlay;
-          overlay.__marker = marker;
+          marker.__overlay = overlay; overlay.__marker = marker;
+          marker.__lat = pos.latlng.getLat(); marker.__lng = pos.latlng.getLng();
 
-          // 사전 계산
-          marker.__lat = pos.latlng.getLat();
-          marker.__lng = pos.latlng.getLng();
-          const t = document.createElement('div');
-          t.innerHTML = pos.content;
-          marker.__prefix = ((t.textContent||t.innerText||"").trim().substring(0,5)||"").toUpperCase();
-
-          // === Hover in (전면 고정: hover) ===
+          // === Hover in ===
           function onOver(){
             marker.setImage(hoverImage);
-            // 호버는 일시 전면
             bringToFront(map, marker, overlay, 'hover');
-            el.style.transform = (marker === selectedMarker)
-              ? `translateY(${hoverY - 2}px)`   // 선택 마커 호버: gap=4
-              : `translateY(${hoverY}px)`;
+            el.style.transform = (marker===selectedMarker) ? `translateY(${hoverY-2}px)` : `translateY(${hoverY}px)`;
           }
-
-          // === Hover out (⭐ 선택 쌍이 있다면 전면을 선택 쌍으로 즉시 복귀) ===
+          // === Hover out ===
           function onOut(){
             marker.setImage(normalImage);
-
-            const isCurrentFrontHover =
-              (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover');
-
-            if (isCurrentFrontHover) {
-              // 호버 비주얼만 원복
-              el.style.transform = `translateY(${baseY}px)`;
-
-              // 🔑 파란 테두리(선택)가 존재하면 전면을 즉시 선택 쌍으로 되돌림
-              if (selectedMarker && selectedOverlayObj) {
+            const wasHoverFront = (frontMarker===marker && frontOverlay===overlay && frontReason==='hover');
+            if (wasHoverFront){
+              // 호버 끝 → 선택 쌍이 있다면 다시 전면 복귀
+              el.style.transform=`translateY(${baseY}px)`;
+              if (selectedMarker && selectedOverlayObj){
                 bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
-                if (selectedOverlayEl) {
-                  selectedOverlayEl.style.border = "2px solid blue";
-                  selectedOverlayEl.style.transform = `translateY(${baseY - 2}px)`; // gap=4 유지
-                }
+                selectedOverlayEl && (selectedOverlayEl.style.border="2px solid blue");
+                selectedOverlayEl && (selectedOverlayEl.style.transform=`translateY(${baseY-2}px)`);
               }
-              // 선택이 없으면(파란 테두리 없음) 이전 규칙대로: 마지막 호버 전면 유지
               return;
             }
-
-            if (marker === selectedMarker) {
-              // 선택 마커의 mouseout: 선택 비주얼 유지 + 전면 보증
-              el.style.transform = `translateY(${baseY - 2}px)`;
-              el.style.border = "2px solid blue";
+            if (marker===selectedMarker){
+              // 선택은 gap=4 유지 + 전면 보장
+              el.style.transform=`translateY(${baseY-2}px)`; el.style.border="2px solid blue";
               bringToFront(map, selectedMarker, selectedOverlayObj||overlay, 'clickMarker');
             } else {
-              // 비선택 일반 복귀
-              el.style.transform = `translateY(${baseY}px)`;
-              if (map.getLevel()>3 && overlay !== frontOverlay && overlay !== selectedOverlayObj) {
-                overlay.setMap(null);
-              }
+              // 비선택은 기본으로
+              el.style.transform=`translateY(${baseY}px)`;
+              if (map.getLevel()>3 && overlay!==frontOverlay && overlay!==selectedOverlayObj) overlay.setMap(null);
               if (!(frontMarker===marker && frontOverlay===overlay)) setDefaultZ(marker, overlay);
               if (frontMarker && frontOverlay) setFrontZ(frontMarker, frontOverlay);
             }
@@ -238,91 +159,73 @@
           el.addEventListener("mouseover", onOver);
           el.addEventListener("mouseout",  onOut);
 
-          // === 마커 클릭 (mousedown → 전면+점프, mouseup → 테두리/필터) ===
+          // === Marker mousedown: 점프/전면/선택 ===
           kakao.maps.event.addListener(marker, "mousedown", function(){
-            marker.setImage(jumpImage);
-            clickStartTime = Date.now();
-
-            // 이전 선택 외형 정리
-            if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
-
-            // 선택 교체
-            selectedMarker = marker;
-            selectedOverlayEl = el;
-            selectedOverlayObj = overlay;
-
-            // 전면 고정(클릭)
+            marker.setImage(jumpImage); clickStartTime=Date.now();
+            if (selectedOverlayEl) selectedOverlayEl.style.border="1px solid #ccc";
+            selectedMarker=marker; selectedOverlayEl=el; selectedOverlayObj=overlay;
             bringToFront(map, marker, overlay, 'clickMarker');
-
-            // 점프 (gap=4)
-            el.style.border = "2px solid blue";
-            el.style.transform = `translateY(${jumpY - 2}px)`;
+            el.style.border="2px solid blue"; el.style.transform=`translateY(${jumpY-2}px)`;
           });
 
+          // === Marker mouseup: 복귀 + 좌표/검색 주입 ===
           kakao.maps.event.addListener(marker, "mouseup", function(){
-            const elapsed = Date.now() - clickStartTime;
-            const delay = Math.max(0, 100 - elapsed);
+            const elapsed=Date.now()-clickStartTime; const delay=Math.max(0,100-elapsed);
             setTimeout(function(){
-              // 좌표/필터
-              const lat = marker.__lat, lng = marker.__lng, prefix = marker.__prefix;
-              const g = document.getElementById("gpsyx");
-              const k = document.getElementById("keyword");
-              if (g) g.value = `${lat}, ${lng}`;
-              if (k) k.value = prefix;
-              scheduleFilterSelTxt(prefix);
-
-              // 비주얼 복귀(선택 유지)
               marker.setImage(normalImage);
-              el.style.border = "2px solid blue";
-              el.style.transition = "transform .2s ease, border .2s ease";
-              el.style.transform = `translateY(${baseY - 2}px)`;
-
-              // 전면 유지(선택)
+              el.style.border="2px solid blue";
+              el.style.transition="transform .2s ease, border .2s ease";
+              el.style.transform=`translateY(${baseY-2}px)`;
               bringToFront(map, marker, overlay, 'clickMarker');
 
-              setTimeout(()=>{ el.style.transition = "transform .15s ease, border .15s ease"; },200);
+              // 좌표 input 업데이트
+              const g = document.getElementById("gpsyx");
+              if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
+
+              // 🔹 마커 이름에서 "순수 한글"만 추출 → 검색창/제안 자동 오픈
+              const pure = extractPureHangul(pos.content);
+              if (pure && window.searchSuggest && typeof window.searchSuggest.setQuery === "function") {
+                window.searchSuggest.setQuery(pure, true);
+              }
+
+              setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
             }, delay);
           });
 
-          // === 오버레이 클릭: 전면만, 테두리/입력/필터 X (sticky) ===
+          // === Overlay click: 전면만, 테두리/입력/검색 갱신 없음 ===
           el.addEventListener("click", function(){
             bringToFront(map, marker, overlay, 'clickOverlay');
-            el.style.border = "1px solid #ccc";              // 테두리 금지
-            el.style.transform = `translateY(${baseY}px)`;    // 호버 아님 → 기본 위치
+            el.style.border="1px solid #ccc";
+            el.style.transform=`translateY(${baseY}px)`;
           });
 
-          markers.push(marker);
-          overlays.push(overlay);
+          markers.push(marker); overlays.push(overlay);
         })(i);
       }
-      idx = end;
-      if (idx < positions.length) setTimeout(createBatch, 0);
-      else { window.markers = markers; }
+      idx=end;
+      if (idx<positions.length) setTimeout(createBatch, 0);
+      else window.markers=markers; // 다른 모듈(drawGroupLinesMST 등)에서 접근
     }
     createBatch();
 
     // === idle: 전면/선택은 항상 표시, 나머지는 level<=3에서만 ===
     kakao.maps.event.addListener(map, "idle", function(){
       const level = map.getLevel();
-      overlays.forEach(o=>{
-        const m = o.__marker;
-        if (!m) return;
+      // overlays는 createBatch 클로저에서 캡처됨
+      // 이 함수에서 접근하려면 window.markers 기반으로 다시 얻거나,
+      // 상단 스코프에 overlays를 두고 사용.
+      // 여기서는 간단히 window.markers 통해 처리:
+      const list = window.markers || [];
+      for (const m of list){
+        const o = m.__overlay; if (!o) continue;
         if ((frontOverlay && o===frontOverlay) || (selectedOverlayObj && o===selectedOverlayObj)) {
           o.setMap(map);
         } else {
-          if (level<=3) o.setMap(map); else o.setMap(null);
+          level<=3 ? o.setMap(map) : o.setMap(null);
         }
-        // z정리: 전면쌍은 전면, 그 외는 기본
-        if (frontOverlay && o===frontOverlay) setFrontZ(m,o);
-        else setDefaultZ(m,o);
-      });
+        if (frontOverlay && o===frontOverlay) setFrontZ(m,o); else setDefaultZ(m,o);
+      }
       if (frontMarker && frontOverlay) setFrontZ(frontMarker, frontOverlay);
-    });
-
-    // === 지도 클릭: 선택/전면 모두 초기화 (이 기준 버전 유지) ===
-    kakao.maps.event.addListener(map, "click", function(){
-      clearSelection(map);
-      clearFront(map);
     });
   };
 })();
