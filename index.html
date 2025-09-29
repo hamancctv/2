@@ -322,10 +322,26 @@ function showAlert(message) {
 }
 
 // 복사 버튼
+// 복사 버튼
 document.getElementById("btn_input_copy").onclick = function(){
     const gpsyx = document.getElementById("gpsyx");
-    gpsyx.select();
-    document.execCommand('copy');
+    
+    // ⭐ 최신 API 및 showAlert 사용
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(gpsyx.value)
+            .then(() => {
+                showAlert("좌표가 복사되었습니다.");
+            })
+            .catch(err => {
+                console.error('복사 실패:', err);
+                showAlert("복사에 실패했습니다."); // 실패 시에도 알림
+            });
+    } else {
+        // 폴백(Fallback) - 구형 브라우저 처리 (기존 로직 유지)
+        gpsyx.select();
+        document.execCommand('copy');
+        showAlert("좌표가 복사되었습니다.");
+    }
 };
 </script>
 
