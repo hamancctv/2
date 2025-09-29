@@ -85,9 +85,7 @@
     if (!marker || !overlay) return;
     // 이전 전면 쌍 강등
     if (frontMarker && frontOverlay && (frontMarker !== marker || frontOverlay !== overlay)) {
-      // 선택 쌍이라도 '전면'은 해제, 기본 z로
       setDefaultZ(frontMarker, frontOverlay);
-      // 선택 쌍이 아니고 줌이 높으면 오버레이 숨김
       if (map.getLevel() > 3 && frontMarker !== selectedMarker) frontOverlay.setMap(null);
     }
     // 새 전면 쌍 고정
@@ -107,7 +105,7 @@
   function clearSelection(map){
     if (selectedMarker) {
       selectedMarker.setImage(normalImage);
-      // 선택 자체는 해제되면 기본 z로
+      // 선택 해제 시 기본 z로
       setDefaultZ(selectedMarker, selectedOverlayObj);
       selectedMarker = null;
     }
@@ -186,35 +184,51 @@
           t.innerHTML = pos.content;
           marker.__prefix = ((t.textContent||t.innerText||"").trim().substring(0,5)||"").toUpperCase();
 
-          // Hover in (전면 고정: hover)
+          // === Hover in (전면 고정: hover) ===
           function onOver(){
             marker.setImage(hoverImage);
-            // 호버 시 전면 고정
+            // 호버는 일시 전면
             bringToFront(map, marker, overlay, 'hover');
-            // 호버 비주얼(점프 높이로 줄 수도 있음): 선택 마커면 gap=4
             el.style.transform = (marker === selectedMarker)
-              ? `translateY(${hoverY - 2}px)`
+              ? `translateY(${hoverY - 2}px)`   // 선택 마커 호버: gap=4
               : `translateY(${hoverY}px)`;
           }
-          // Hover out (전면 고정 유지, 비주얼만 원복)
+
+          // === Hover out (⭐ 선택 쌍이 있다면 전면을 선택 쌍으로 즉시 복귀) ===
           function onOut(){
             marker.setImage(normalImage);
-            if (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover') {
-              // 전면은 유지하되 비주얼만 기본 위치로
+
+            const isCurrentFrontHover =
+              (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover');
+
+            if (isCurrentFrontHover) {
+              // 호버 비주얼만 원복
               el.style.transform = `translateY(${baseY}px)`;
-            } else if (marker === selectedMarker) {
-              // 선택 비주얼 유지
+
+              // 🔑 파란 테두리(선택)가 존재하면 전면을 즉시 선택 쌍으로 되돌림
+              if (selectedMarker && selectedOverlayObj) {
+                bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
+                if (selectedOverlayEl) {
+                  selectedOverlayEl.style.border = "2px solid blue";
+                  selectedOverlayEl.style.transform = `translateY(${baseY - 2}px)`; // gap=4 유지
+                }
+              }
+              // 선택이 없으면(파란 테두리 없음) 이전 규칙대로: 마지막 호버 전면 유지
+              return;
+            }
+
+            if (marker === selectedMarker) {
+              // 선택 마커의 mouseout: 선택 비주얼 유지 + 전면 보증
               el.style.transform = `translateY(${baseY - 2}px)`;
               el.style.border = "2px solid blue";
-              setFrontZ(selectedMarker, selectedOverlayObj||overlay); // 선택이 전면이 아닐 수 있어도 z는 선택 유지 X → 기본 규칙에선 front만 최상위
+              bringToFront(map, selectedMarker, selectedOverlayObj||overlay, 'clickMarker');
             } else {
+              // 비선택 일반 복귀
               el.style.transform = `translateY(${baseY}px)`;
               if (map.getLevel()>3 && overlay !== frontOverlay && overlay !== selectedOverlayObj) {
                 overlay.setMap(null);
               }
-              // 기본 z로 복귀(전면 아니면)
               if (!(frontMarker===marker && frontOverlay===overlay)) setDefaultZ(marker, overlay);
-              // 선택 전면 복구
               if (frontMarker && frontOverlay) setFrontZ(frontMarker, frontOverlay);
             }
           }
@@ -224,7 +238,7 @@
           el.addEventListener("mouseover", onOver);
           el.addEventListener("mouseout",  onOut);
 
-          // 마커 클릭 (mousedown → 전면+점프, mouseup → 테두리/필터)
+          // === 마커 클릭 (mousedown → 전면+점프, mouseup → 테두리/필터) ===
           kakao.maps.event.addListener(marker, "mousedown", function(){
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
@@ -263,20 +277,18 @@
               el.style.transition = "transform .2s ease, border .2s ease";
               el.style.transform = `translateY(${baseY - 2}px)`;
 
-              // 전면 유지
+              // 전면 유지(선택)
               bringToFront(map, marker, overlay, 'clickMarker');
 
               setTimeout(()=>{ el.style.transition = "transform .15s ease, border .15s ease"; },200);
             }, delay);
           });
 
-          // 오버레이 클릭: 전면만, 테두리/입력/필터 X (sticky)
+          // === 오버레이 클릭: 전면만, 테두리/입력/필터 X (sticky) ===
           el.addEventListener("click", function(){
-            // 선택 상태는 건드리지 않음(테두리 없음)
             bringToFront(map, marker, overlay, 'clickOverlay');
-            // 호버 비주얼 유지 안 함: 기본 위치
-            el.style.border = "1px solid #ccc";
-            el.style.transform = `translateY(${baseY}px)`;
+            el.style.border = "1px solid #ccc";              // 테두리 금지
+            el.style.transform = `translateY(${baseY}px)`;    // 호버 아님 → 기본 위치
           });
 
           markers.push(marker);
@@ -289,7 +301,7 @@
     }
     createBatch();
 
-    // idle: 전면/선택은 항상 표시, 나머지는 level<=3에서만
+    // === idle: 전면/선택은 항상 표시, 나머지는 level<=3에서만 ===
     kakao.maps.event.addListener(map, "idle", function(){
       const level = map.getLevel();
       overlays.forEach(o=>{
@@ -304,11 +316,10 @@
         if (frontOverlay && o===frontOverlay) setFrontZ(m,o);
         else setDefaultZ(m,o);
       });
-      // 전면 쌍이 있으면 다시 한 번 보증
       if (frontMarker && frontOverlay) setFrontZ(frontMarker, frontOverlay);
     });
 
-    // 지도 클릭: 선택/전면 모두 초기화 (요구와 상충되면 이 부분만 조정)
+    // === 지도 클릭: 선택/전면 모두 초기화 (이 기준 버전 유지) ===
     kakao.maps.event.addListener(map, "click", function(){
       clearSelection(map);
       clearFront(map);
