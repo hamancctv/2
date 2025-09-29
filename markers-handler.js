@@ -1,5 +1,5 @@
 (function () {
-    console.log("[markers-handler] loaded v2025-09-30-FINAL-NAME (Fixed for full name & search bug)");
+    console.log("[markers-handler] loaded v2025-09-30-FINAL-SEARCH-FIX");
 
     // === Z 레이어 및 상태 변수 ===
     const Z = { BASE:100, FRONT:100000 };
@@ -7,13 +7,33 @@
     let frontMarker = null; let frontOverlay = null; 
     let normalImage, hoverImage, jumpImage; let clickStartTime = 0;
     const normalH = 42, hoverH = 50.4, gap = 2;
-    const baseY  = -(normalH + gap); const hoverY = -(hoverH  + gap); const jumpY  = -(70  + gap);
+    const baseY = -(normalH + gap); const hoverY = -(hoverH + gap); const jumpY = -(70 + gap);
+
+    // 🌟 새로운 검색어 추출 함수: 7번째 글자부터 마지막 한글까지 추출
+    function extractSearchQuery(searchName) {
+        if (!searchName || typeof searchName !== 'string') return "";
+        let query = searchName.trim();
+
+        // 1. 앞 6자리 자르기 (7번째 글자부터 시작)
+        if (query.length >= 7) {
+            query = query.substring(6);
+        } else {
+            // 6자리 미만이면 자르지 않고 전체 사용
+        }
+
+        // 2. 7번째 글자부터 마지막 한글까지 추출 (숫자/특수문자 제거)
+        // 한글, 영문, 숫자, 공백 모두 포함된 문자열에서 '한글'만 추출 후 공백 정리
+        const m = query.match(/[가-힣\s]+/g);
+        let pureHangul = m ? m.join(" ").replace(/\s+/g, " ").trim() : "";
+
+        // 만약 순수 한글이 없으면, 자른 원본(코드 포함)을 반환 (백업)
+        return pureHangul || query;
+    }
 
     // === 오버레이 이름 간소화 (name1 사용) ===
     function extractOverlayName(fullContent) {
         if (!fullContent) return "";
         let name = String(fullContent).trim();
-        // 괄호/대괄호 안의 내용과 하이픈/언더바 뒤의 숫자 제거
         const regex = /(\s*[\(\[].*?[\)\]])?(\s*[-_]?\s*\d+)?$/;
         name = name.replace(regex, '');
         return name.trim();
@@ -38,6 +58,7 @@
         if (overlay) overlay.setZIndex(Z.FRONT);
     }
     function bringToFront(map, marker, overlay, reason){
+        // ... (전면/선택 상태 관리 로직은 기존과 동일) ...
         if (frontMarker && frontMarker !== marker) {
             setDefaultZ(frontMarker, frontOverlay);
             if (frontMarker !== selectedMarker) frontOverlay.setMap(null);
@@ -57,18 +78,18 @@
         frontMarker = marker; frontOverlay = overlay; frontReason = reason;
     }
 
-// markers-handler.js 내부, pushToSearchUI 함수 수정
-function pushToSearchUI(query) {
-    const kw = document.querySelector('.gx-suggest-search .gx-input');
-    if (kw) {
-        kw.value = query;
-        // 🌟 이 라인이 추가되어 검색 제안을 활성화합니다.
-        kw.dispatchEvent(new Event('input', { bubbles: true }));
+    // markers-handler.js 내부, pushToSearchUI 함수 (유지)
+    function pushToSearchUI(query) {
+        const kw = document.querySelector('.gx-suggest-search .gx-input');
+        if (kw) {
+            kw.value = query;
+            kw.dispatchEvent(new Event('input', { bubbles: true }));
+        }
     }
-}
 
     function bindMapClickToClearSelection(map){
-        kakao.maps.event.addListener(map, 'click', function(mouseEvent) {      
+        // ... (지도 클릭 시 선택 해제 로직은 기존과 동일) ...
+        kakao.maps.event.addListener(map, 'click', function(mouseEvent) {   
             if (selectedMarker) {
                 setDefaultZ(selectedMarker, selectedOverlayObj);
                 selectedOverlayObj.setMap(null);
@@ -84,9 +105,11 @@ function pushToSearchUI(query) {
     // === 마커 초기화 ===
     window.initMarkers = function (map, positions) {
         bindMapClickToClearSelection(map);
+        // ... (Image 생성 로직 생략) ...
         normalImage = new kakao.maps.MarkerImage("https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png", new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,42) });
         hoverImage = new kakao.maps.MarkerImage("https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png", new kakao.maps.Size(36,50.4), { offset:new kakao.maps.Point(18,50.4) });
         jumpImage = new kakao.maps.MarkerImage("https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png", new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,70) });
+
 
         const markers = [];
         const batchSize = 50; let idx = 0;
@@ -97,31 +120,25 @@ function pushToSearchUI(query) {
                 (function(i){
                     const pos = positions[i];
 
-                    // --- Marker ---
+                    // --- Marker & Overlay 생성 로직 생략 (기존과 동일) ---
                     const marker = new kakao.maps.Marker({
                         map, position: pos.latlng, image: normalImage, clickable:true, zIndex: Z.BASE+1
                     });
                     marker.group = pos.group;
-                    
-                    // --- Overlay ---
                     const el = document.createElement("div");
                     el.className = "overlay-hover";
                     el.style.transform = `translateY(${baseY}px)`;
-                    // 🌟 오버레이는 간소화된 이름(name1)을 사용합니다.
                     el.textContent = extractOverlayName(pos.content); 
-
                     const overlay = new kakao.maps.CustomOverlay({
                         position: pos.latlng, content: el, yAnchor:1, map:null
                     });
                     overlay.setZIndex(Z.BASE);
 
-                    // 마커에 데이터 저장
                     marker.__overlay = overlay; overlay.__marker = marker;
                     marker.__lat = pos.latlng.getLat(); marker.__lng = pos.latlng.getLng();
-                    // 🌟 검색용 name2를 마커에 저장해둡니다.
                     marker.__searchName = pos.searchName; 
                     
-                    // === 이벤트 리스너 ===
+                    // --- 이벤트 리스너 (mouseover, mouseout, mousedown) 생략 (기존과 동일) ---
                     function onOver(){
                         if (selectedMarker === marker) return;
                         marker.setImage(hoverImage);
@@ -146,6 +163,8 @@ function pushToSearchUI(query) {
                         marker.setImage(jumpImage);
                         clickStartTime = Date.now();
                     });
+
+                    // 🌟 마우스 업 이벤트 리스너 수정
                     kakao.maps.event.addListener(marker, "mouseup", function(){
                         const elapsed=Date.now()-clickStartTime; const delay=Math.max(0,100-elapsed);
                         setTimeout(function(){
@@ -160,20 +179,16 @@ function pushToSearchUI(query) {
                             const g = document.getElementById("gpsyx");
                             if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-                            // 🌟 ② 마커에 저장된 searchName (name2)을 7번째 글자부터 끝까지 잘라서 검색창에 주입하고, input 이벤트를 트리거합니다.
-                            let searchName = marker.__searchName || "";
-                            let newQuery = searchName;
-
-                            // 7글자부터 (인덱스 6부터) 자르기
-                            if (searchName.length >= 7) {
-                                newQuery = searchName.substring(6);
-                            }
+                            // 🌟 ② 새로운 로직 적용: 앞 6자리 자르고 한글만 추출하여 검색창에 주입
+                            const searchName = marker.__searchName || "";
+                            const newQuery = extractSearchQuery(searchName); // 새로 정의된 함수 호출
 
                             pushToSearchUI(newQuery); 
 
                             setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
                         }, delay);
                     });
+                    
                     el.addEventListener("click", function(){
                         // 오버레이 클릭 시 마커 클릭 이벤트와 동일하게 처리
                         kakao.maps.event.trigger(marker,"mousedown");
