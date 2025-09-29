@@ -1,46 +1,5 @@
 // markers-handler.js
 (function () {
-  // === 기본 스타일 정의 ===
-  const style = document.createElement("style");
-  style.textContent = `
-    .overlay-hover {
-      padding:2px 6px;
-      background:rgba(255,255,255,0.70);
-      border:1px solid #ccc;
-      border-radius:5px;
-      font-size:14px;
-      white-space: nowrap;
-      user-select: none;
-      transition: transform 0.15s ease, border 0.15s ease;
-    }
-    .overlay-click {
-      padding:5px 8px;
-      background:rgba(255,255,255,0.70);
-      border:1px solid #666;
-      border-radius:5px;
-      font-size:14px;
-      white-space: nowrap;
-      user-select: none;
-      transition: transform 0.15s ease, border 0.15s ease;
-    }
-  `;
-  document.head.appendChild(style);
-
-  // === 전역 상태 ===
-  let zCounter = 100;
-  let selectedMarker = null;
-  let selectedOverlay = null;
-  let clickStartTime = 0;
-  let currentPolyline = null; 
-  let groupPositions = {};    
-
-  // === 유틸리티 함수 (MST 구현을 위해 유지) ===
-
-  /**
-   * 두 좌표(LatLng) 사이의 거리를 km 단위로 계산합니다. (Haversine 공식)
-   */
-// markers-handler.js
-(function () {
   let zCounter = 100;
   let currentPolyline = null; 
   let groupPositions = {};    
@@ -129,14 +88,21 @@
       // 마커 생성
       for (let i = 0; i < positions.length; i++) {
           const marker = new kakao.maps.Marker({
-              map,
+              map: map,
               position: positions[i].latlng,
+              // ✅ 기본 마커 아이콘 강제
+              image: new kakao.maps.MarkerImage(
+                  "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png",
+                  new kakao.maps.Size(24, 35),
+                  { offset: new kakao.maps.Point(12, 35) }
+              ),
               clickable: true,
-              zIndex: zCounter + 1,
+              zIndex: zCounter++
           });
           marker.group = positions[i].group ? String(positions[i].group) : 'NO_GROUP';
 
           kakao.maps.event.addListener(marker, "click", function () {
+              console.log("Marker clicked:", marker.getPosition().toString());
               drawPolylineForGroup(map, marker.group);
           });
 
@@ -144,6 +110,6 @@
       }
 
       window.markers = markers;
+      console.log("Markers initialized:", markers);
   };
 })();
-
