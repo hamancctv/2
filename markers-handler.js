@@ -248,3 +248,33 @@
     };
 })();
 </script>
+    <script>
+    // markers-handler.js 인라인 스크립트 끝
+    
+// --------------------------------------------------------------------------
+// 🌟 여기에 1번 코드(extractKorean 함수)를 추가하세요 🌟
+// markers-handler.js에서 호출하는 순수 시설명 추출 함수 정의
+// --------------------------------------------------------------------------
+window.extractKorean = function(markerContent) {
+    if (!markerContent) return "";
+
+    // 1. HTML 엔티티 제거 및 순수 텍스트 추출
+    const tmp = document.createElement("div");
+    tmp.innerHTML = String(markerContent ?? "");
+    let facilityNameCandidate = tmp.textContent || tmp.innerText || "";
+    
+    // 2. '도-숫자-' 패턴 제거 (핵심 로직)
+    const parts = facilityNameCandidate.split('-'); 
+    facilityNameCandidate = parts.length > 2 ? parts.slice(2).join('-') : facilityNameCandidate;
+
+    // 3. 카카오맵이 추가한 불필요한 문자열 제거
+    let pureName = facilityNameCandidate.replace(/\s*\(.*\)\s*/g, ''); // 괄호와 내용 제거
+    pureName = pureName.replace(/\s*\d+$/, ''); // 뒤에 붙은 순번 숫자 제거
+    
+    return pureName.trim();
+};
+    </script>
+    
+    <script>
+    // search-suggest.js (분리본을 여기 인라인으로 넣었어)
+    // ... (기존 search-suggest.js 코드) ...
