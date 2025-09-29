@@ -1,6 +1,6 @@
 // markers-handler.js
 (function () {
-  // === 오버레이 스타일(기본/클릭) ===
+  // === 오버레이 스타일 ===
   const style = document.createElement("style");
   style.textContent = `
     .overlay-hover{
@@ -29,42 +29,40 @@
   `;
   document.head.appendChild(style);
 
-  // === Z 레이어 ===
-  const Z = { BASE:100, FRONT:100000 }; // 기본: 마커>Z.BASE+1, 오버레이>Z.BASE / 전면: 오버레이가 마커보다 위
+  // === Z 레이어(기본: 마커>오버레이, 전면: 오버레이>마커) ===
+  const Z = { BASE:100, FRONT:100000 };
 
   // === 전역 상태 ===
-  let selectedMarker = null;      // 파란테두리 선택쌍(마커 클릭 시)
+  let selectedMarker = null;      // 파란 테두리 선택 쌍
   let selectedOverlayEl = null;
   let selectedOverlayObj = null;
 
-  let frontMarker = null;         // 마지막 상호작용(호버/클릭)으로 전면 고정된 쌍
+  let frontMarker = null;         // 마지막 상호작용으로 전면 고정된 쌍
   let frontOverlay = null;
-  let frontReason = null;         // 'hover'|'clickMarker'|'clickOverlay'
+  let frontReason = null;         // 'hover' | 'clickMarker' | 'clickOverlay'
 
   let clickStartTime = 0;
 
-  // === 이미지/치수 ===
+  // === 마커 이미지/치수 ===
   let normalImage, hoverImage, jumpImage;
   const normalH=42, hoverH=50.4, gap=2;
   const baseY  = -(normalH + gap);   // -44
   const hoverY = -(hoverH  + gap);   // -52.4
   const jumpY  = -(70      + gap);   // -72
 
-  // ============== 검색어 추출 & UI 반영 유틸 ==============
-
-  // 규칙: "마지막 하이픈(-) 이후"에서 "처음 나오는 연속 한글([가-힣]+)"만 추출
-  // 예) "도-001-가야한전주변02(회전)" -> "가야한전주변"
+  // ============== 검색어 추출 & UI 반영 ==============
+  // 규칙: "마지막 하이픈(-) 뒤"에서 "처음 나오는 연속 한글"만 추출
+  // 예) "쓰-001-가야영광사우나01(회전)" -> "가야영광사우나"
   function extractSearchName(str){
     const tmp = document.createElement('div');
     tmp.innerHTML = String(str ?? '');
     const txt = (tmp.textContent || tmp.innerText || '').trim();
 
-    // 마지막 하이픈 위치 찾기
     const lastHyphen = txt.lastIndexOf('-');
     const tail = lastHyphen >= 0 ? txt.slice(lastHyphen + 1) : txt;
 
-    // 한글이 시작되기 전의 모든 문자 제거 → 첫 한글부터 시작
-    const afterFirstHangul = tail.replace(/^[^가-힣]+/, "");
+    // 첫 한글이 나오기 전 모든 문자 제거 → 첫 한글부터 시작
+    const afterFirstHangul = tail.replace(/^[^가-힣]+/u, '');
     const m = afterFirstHangul.match(/^[가-힣]+/u);
     return m ? m[0] : "";
   }
@@ -75,15 +73,15 @@
     const kw = document.getElementById("keyword");
     if (kw) kw.value = q;
 
-    // 제안/필터가 분리되어 있으면 우선 호출
+    // 별도 서치 UI가 있으면 우선 사용
     if (typeof window.pushToSearchUI === "function") { window.pushToSearchUI(q); return; }
     if (typeof window.filterSelTxt === "function")   { window.filterSelTxt(q);   return; }
 
-    // 폴백: 기존 filter()가 있다면 사용
+    // 폴백: 기존 filter() 지원
     if (typeof window.filter === "function") window.filter();
   }
 
-  // sel_txt 캐시 없으면 만들어 둠(성능)
+  // sel_txt 캐시(필요시 생성)
   if (!window.__selTxtItems) window.__selTxtItems = [];
   if (typeof window.cacheSelTxt !== "function") {
     window.cacheSelTxt = function () {
@@ -91,10 +89,7 @@
       window.__selTxtItems = Array.from(nodes).map(el => {
         const nameEl = el.querySelector(".name");
         const raw = (nameEl ? nameEl.innerText : el.innerText) || "";
-        return {
-          root: el,
-          text: raw.toUpperCase().replace(/\s+/g,"")
-        };
+        return { root: el, text: raw.toUpperCase().replace(/\s+/g,"") };
       });
     };
   }
@@ -108,14 +103,6 @@
     };
   }
 
-  // 스로틀된 필터(부하 방지)
-  let _rafId=null, _pendingQ="";
-  function scheduleFilterSelTxt(q){
-    _pendingQ = q||"";
-    if (_rafId) return;
-    _rafId = requestAnimationFrame(()=>{ _rafId=null; window.filterSelTxt(_pendingQ); });
-  }
-
   // ============== zIndex 유틸 ==============
   const setDefaultZ=(m,o)=>{ if(m) m.setZIndex(Z.BASE+1); if(o) o.setZIndex(Z.BASE); };
   const setFrontZ  =(m,o)=>{ if(m) m.setZIndex(Z.FRONT);   if(o) o.setZIndex(Z.FRONT+1); };
@@ -126,19 +113,18 @@
       setDefaultZ(frontMarker, frontOverlay);
       if (map.getLevel()>3 && frontMarker !== selectedMarker) frontOverlay.setMap(null);
     }
-    overlay.setMap(map); // 전면은 항상 표시
+    overlay.setMap(map);             // 전면은 항상 표시
     setFrontZ(marker, overlay);
     frontMarker=marker; frontOverlay=overlay; frontReason=reason;
   }
 
-  // 지도 클릭 시: 파란 테두리만 해제, 전면(front)은 유지
+  // 지도 클릭 시: 파란 테두리만 해제(전면은 유지)
   function clearSelectionKeepFront(map){
     if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
     selectedMarker=null; selectedOverlayEl=null; selectedOverlayObj=null;
-    // frontMarker/frontOverlay는 그대로 둠
   }
 
-  // ============== 메인 초기화 ==============
+  // ============== 초기화 ==============
   window.initMarkers = function (map, positions) {
     const markers=[]; const overlays=[];
 
@@ -156,6 +142,7 @@
     );
 
     const batchSize=50; let idx=0;
+
     function createBatch(){
       const end=Math.min(positions.length, idx+batchSize);
       for (let i=idx;i<end;i++){
@@ -176,27 +163,25 @@
           const overlay=new kakao.maps.CustomOverlay({ position:pos.latlng, content:el, yAnchor:1, map:null });
           overlay.setZIndex(Z.BASE);
 
-          // 상호참조
+          // 상호참조/좌표 저장
           marker.__overlay=overlay; overlay.__marker=marker;
-
-          // 좌표/이름 미리 저장(성능)
           marker.__lat = pos.latlng.getLat();
           marker.__lng = pos.latlng.getLng();
 
-          // === Hover in ===
+          // Hover in
           function onOver(){
             marker.setImage(hoverImage);
             bringToFront(map, marker, overlay, 'hover');
             el.style.transform = (marker===selectedMarker)? `translateY(${hoverY-2}px)` : `translateY(${hoverY}px)`;
           }
-          // === Hover out ===
+          // Hover out
           function onOut(){
             marker.setImage(normalImage);
             const wasHoverFront = (frontMarker===marker && frontOverlay===overlay && frontReason==='hover');
 
             if (wasHoverFront){
               el.style.transform=`translateY(${baseY}px)`;
-              // 파란테두리 선택쌍이 있으면 다시 전면 복귀
+              // 파란 테두리 쌍 전면 복귀
               if (selectedMarker && selectedOverlayObj){
                 bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
                 if (selectedOverlayEl){
@@ -223,7 +208,7 @@
           el.addEventListener("mouseover", onOver);
           el.addEventListener("mouseout",  onOut);
 
-          // === Marker mousedown: 점프 + 전면 + 선택 테두리 ===
+          // Marker mousedown: 점프 + 전면 + 선택 테두리
           kakao.maps.event.addListener(marker, "mousedown", function(){
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
@@ -237,7 +222,7 @@
             el.style.transform=`translateY(${jumpY-2}px)`;
           });
 
-          // === Marker mouseup: 비주얼 복귀 + 검색창 주입 ===
+          // Marker mouseup: 복귀 + 검색어 주입
           kakao.maps.event.addListener(marker, "mouseup", function(){
             const elapsed=Date.now()-clickStartTime; const delay=Math.max(0,100-elapsed);
             setTimeout(function(){
@@ -259,7 +244,7 @@
             }, delay);
           });
 
-          // === Marker click (모바일 탭 대응): mouseup과 동일 효과 ===
+          // Marker click(모바일 탭 대응): mouseup과 동일 효과
           kakao.maps.event.addListener(marker, "click", function(){
             if (selectedOverlayEl) selectedOverlayEl.style.border="1px solid #ccc";
             selectedMarker=marker; selectedOverlayEl=el; selectedOverlayObj=overlay;
@@ -277,7 +262,7 @@
             if (q) pushToSearchUI(q);
           });
 
-          // === Overlay click: 전면만(테두리/입력X), 호버 상태 유지하지는 않고 기본 위치로
+          // Overlay click: 전면만(테두리/입력X)
           el.addEventListener("click", function(){
             bringToFront(map, marker, overlay, 'clickOverlay');
             el.style.border="1px solid #ccc";
@@ -292,7 +277,7 @@
     }
     createBatch();
 
-    // 지도 idle: 전면/선택은 항상 표시, 그 외는 level<=3에서만 표시
+    // idle: 전면/선택은 항상 표시, 비선택은 level<=3에서만
     kakao.maps.event.addListener(map, "idle", function(){
       const level=map.getLevel();
       overlays.forEach(o=>{
@@ -302,7 +287,6 @@
         } else {
           level<=3 ? o.setMap(map) : o.setMap(null);
         }
-        // z 정리
         if (frontOverlay && o===frontOverlay) setFrontZ(m,o); else setDefaultZ(m,o);
       });
       if (frontMarker && frontOverlay) setFrontZ(frontMarker, frontOverlay);
