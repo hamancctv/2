@@ -5,13 +5,21 @@
   style.textContent = `
     .overlay-hover {
       padding:2px 6px;
-      background:rgba(255,255,255,0.70);
+      background:rgba(255,255,255,0.85); /* 기본 조금 더 불투명 */
       border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
       white-space: nowrap;
       user-select: none;
-      transition: transform 0.15s ease, border 0.15s ease;
+      transition: transform 0.15s ease, border 0.15s ease, background 0.15s ease;
+    }
+    /* 호버 상태 */
+    .overlay-hover.hover-active {
+      background: rgba(255,255,255,0.95);
+    }
+    /* 클릭 상태 */
+    .overlay-hover.click-active {
+      background: rgba(255,255,255,1.0);
     }
   `;
   document.head.appendChild(style);
@@ -49,6 +57,25 @@
     if (!marker || !overlay) return;
     marker.setZIndex(Z.SELECT + 2);  // 마커 항상 오버레이보다 위
     overlay.setZIndex(Z.SELECT);
+  }
+
+  // === 선택 해제 ===
+  function clearSelection(map) {
+    if (selectedMarker) {
+      selectedMarker.setImage(normalImage);
+      selectedMarker.setZIndex(Z.BASE + 1);
+      selectedMarker = null;
+    }
+    if (selectedOverlayEl) {
+      selectedOverlayEl.classList.remove("click-active", "hover-active");
+      selectedOverlayEl.style.border = "1px solid #ccc";
+      selectedOverlayEl = null;
+    }
+    if (selectedOverlayObj) {
+      if (map && map.getLevel() > 3) selectedOverlayObj.setMap(null);
+      selectedOverlayObj.setZIndex(Z.BASE);
+      selectedOverlayObj = null;
+    }
   }
 
   // === 마커 초기화 ===
@@ -117,7 +144,6 @@
           });
           overlay.setZIndex(Z.BASE);
 
-          // 복원용
           marker.__prevZ  = Z.BASE + 1;
           overlay.__prevZ = Z.BASE;
 
@@ -125,6 +151,8 @@
           function activateHover() {
             marker.setImage(hoverImage);
             overlay.setMap(map);
+
+            overlayContent.classList.add("hover-active");
 
             if (marker === selectedMarker) {
               overlayContent.style.transform = `translateY(${hoverY - 2}px)`; // gap=4
@@ -141,6 +169,8 @@
           // === Hover out ===
           function deactivateHover() {
             marker.setImage(normalImage);
+            overlayContent.classList.remove("hover-active");
+
             if (marker === selectedMarker) {
               overlayContent.style.transform = `translateY(${baseY - 2}px)`;
               overlayContent.style.border = "2px solid blue";
@@ -150,7 +180,6 @@
               if (map.getLevel() > 3) overlay.setMap(null);
               marker.setZIndex(marker.__prevZ ?? Z.BASE + 1);
               overlay.setZIndex(overlay.__prevZ ?? Z.BASE);
-              // hover 끝나면 선택 마커 다시 최상위 복귀
               if (selectedMarker && selectedOverlayObj) {
                 setSelectZ(selectedMarker, selectedOverlayObj);
               }
@@ -162,12 +191,15 @@
           overlayContent.addEventListener("mouseover", () => kakao.maps.event.trigger(marker, "mouseover"));
           overlayContent.addEventListener("mouseout",  () => kakao.maps.event.trigger(marker, "mouseout"));
 
-          // === Click (mousedown) ===
+          // === 마커 클릭 ===
           kakao.maps.event.addListener(marker, "mousedown", function () {
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
 
-            if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
+            if (selectedOverlayEl) {
+              selectedOverlayEl.classList.remove("click-active", "hover-active");
+              selectedOverlayEl.style.border = "1px solid #ccc";
+            }
             if (selectedMarker && selectedMarker !== marker) {
               selectedMarker.setZIndex(Z.BASE + 1);
               if (selectedOverlayObj) selectedOverlayObj.setZIndex(Z.BASE);
@@ -177,6 +209,7 @@
             selectedOverlayEl  = overlayContent;
             selectedOverlayObj = overlay;
 
+            overlayContent.classList.add("click-active");
             overlayContent.style.border = "2px solid blue";
             overlayContent.style.transform = `translateY(${baseY - 2}px)`;
             overlay.setMap(map);
@@ -185,7 +218,7 @@
             overlayContent.style.transform = `translateY(${jumpY - 2}px)`;
           });
 
-          // === Click (mouseup) ===
+          // === 마커 클릭 해제 (mouseup) ===
           kakao.maps.event.addListener(marker, "mouseup", function () {
             const elapsed = Date.now() - clickStartTime;
             const delay = Math.max(0, 100 - elapsed);
@@ -208,20 +241,30 @@
               filterSelTxt(prefix);
 
               marker.setImage(normalImage);
+              overlayContent.classList.add("click-active");
               overlayContent.style.border = "2px solid blue";
-              overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
+              overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease, background 0.2s ease";
               overlayContent.style.transform = `translateY(${baseY - 2}px)`;
 
               setSelectZ(marker, overlay);
 
               setTimeout(() => {
-                overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease";
+                overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease, background 0.15s ease";
               }, 200);
             }, delay);
           });
 
-          // === 오버레이 클릭 (테두리 없음, 전면만) ===
+          // === 오버레이 클릭 (전면만, 테두리 없음) ===
           overlayContent.addEventListener("click", function () {
+            if (selectedOverlayEl) {
+              selectedOverlayEl.classList.remove("click-active", "hover-active");
+              selectedOverlayEl.style.border = "1px solid #ccc";
+            }
+            selectedMarker     = marker;
+            selectedOverlayEl  = null; // 테두리 없음
+            selectedOverlayObj = overlay;
+
+            overlayContent.classList.remove("click-active", "hover-active");
             marker.setZIndex(Z.SELECT + 2);
             overlay.setZIndex(Z.SELECT);
             overlay.setMap(map);
@@ -255,6 +298,9 @@
       });
     });
 
-    // 지도 클릭 시 해제 없음
+    // === 지도 클릭: 선택 해제 ===
+    kakao.maps.event.addListener(map, "click", function () {
+      clearSelection(map);
+    });
   };
 })();
