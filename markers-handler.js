@@ -1,6 +1,6 @@
-// markers-handler.js (v2025-09-30-FINAL)
+// markers-handler.js (v2025-09-30-FINAL-6CUT)
 (function () {
-  console.log("[markers-handler] loaded v2025-09-30-FINAL");
+  console.log("[markers-handler] loaded v2025-09-30-FINAL-6CUT");
 
   // === 오버레이 기본 스타일 ===
   const style = document.createElement("style");
@@ -31,7 +31,7 @@
 
   let frontMarker = null;          // 전면에 있는 마커
   let frontOverlay = null;         // 전면에 있는 오버레이
-  let frontReason = null;          // 전면 이유 ('hover' | 'clickMarker' | 'clickOverlay')
+  let frontReason = null;          // 전면 이유
 
   let normalImage, hoverImage, jumpImage;
   let clickStartTime = 0;
@@ -62,12 +62,13 @@
     frontMarker = marker; frontOverlay = overlay; frontReason = reason;
   }
 
-  // === 순수 한글 첫 단어만 추출 ===
-  function extractPureHangul(str){
+  // === 순수 한글 추출 (앞 6자리 제거 후) ===
+  function extractPureHangulFrom6(str){
     const tmp = document.createElement("div");
     tmp.innerHTML = String(str ?? "");
     const plain = tmp.textContent || tmp.innerText || "";
-    const m = plain.match(/[가-힣]+/);
+    const sliced = plain.slice(6); // 앞 6자리 제거
+    const m = sliced.match(/[가-힣]+/);
     return m ? m[0] : "";
   }
 
@@ -205,16 +206,16 @@
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-              // ② content에서 순수 한글 첫 단어만 추출
-              let pure = extractPureHangul(pos.content);
-              if (!pure) pure = extractPureHangul(el.textContent || "");
+              // ② pos.content 앞에서 6자리 제외 후 순수 한글 추출
+              let pure = extractPureHangulFrom6(pos.content);
+              if (!pure) pure = extractPureHangulFrom6(el.textContent || "");
               pushToSearchUI(pure);
 
               setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
             }, delay);
           });
 
-          // === Overlay click (단순 전면만) ===
+          // === Overlay click ===
           el.addEventListener("click", function(){
             bringToFront(map, marker, overlay, 'clickOverlay');
             el.style.border="1px solid #ccc";
