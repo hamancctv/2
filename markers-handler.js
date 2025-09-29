@@ -1,51 +1,39 @@
 // markers-handler.js
 (function () {
-  // === 기본 스타일 정의 ===
+  // === 기본 스타일 ===
   const style = document.createElement("style");
   style.textContent = `
-    .overlay-hover {
+    .overlay-hover{
       padding:2px 6px;
       background:rgba(255,255,255,0.80);
       border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
-      white-space: nowrap;
-      user-select: none;
-      transition: transform 0.15s ease, border 0.15s ease;
-      will-change: transform, border;
-      transform: translateZ(0);
-      backface-visibility: hidden;
-    }
-    .overlay-click {
-      padding:5px 8px;
-      background:rgba(255,255,255,0.90);
-      border:1px solid #666;
-      border-radius:5px;
-      font-size:14px;
-      white-space: nowrap;
-      user-select: none;
-      transition: transform 0.15s ease, border 0.15s ease;
-      will-change: transform, border;
-      transform: translateZ(0);
-      backface-visibility: hidden;
+      white-space:nowrap;
+      user-select:none;
+      transition:transform .15s ease, border .15s ease, background .15s ease;
+      will-change:transform, border;
+      transform:translateZ(0);
+      backface-visibility:hidden;
     }
   `;
   document.head.appendChild(style);
 
-  // === Z-Index 레이어 정의 ===
-  const Z = {
-    BASE: 100,        // 일반 마커/오버레이
-    SELECT: 100000,   // 선택(클릭)된 마커/오버레이
-    HOVER: 100010     // 호버 중(선택보다 위)
-  };
+  // === Z 레이어 ===
+  const Z = { BASE:100, FRONT:100000 }; // FRONT를 전면 고정에 사용
 
   // === 전역 상태 ===
-  let selectedMarker = null;
-  let selectedOverlayEl = null;   // DOM element (content)
-  let selectedOverlayObj = null;  // kakao.maps.CustomOverlay
+  let selectedMarker = null;       // 마커 클릭 선택(파란 테두리) 쌍
+  let selectedOverlayEl = null;
+  let selectedOverlayObj = null;
+
+  let frontMarker = null;          // 마지막 상호작용(호버/클릭)으로 전면 고정된 쌍
+  let frontOverlay = null;
+  let frontReason = null;          // 'hover' | 'clickMarker' | 'clickOverlay'
+
   let clickStartTime = 0;
 
-  // === sel_txt 캐시 전역 제공(없으면 생성) ===
+  // === sel_txt 캐시 기반 필터(있으면 사용, 없으면 폴백) ===
   if (!window.__selTxtItems) window.__selTxtItems = [];
   if (typeof window.cacheSelTxt !== "function") {
     window.cacheSelTxt = function () {
@@ -53,300 +41,277 @@
       window.__selTxtItems = Array.from(nodes).map(el => {
         const nameEl = el.querySelector(".name");
         const text = ((nameEl ? nameEl.innerText : el.innerText) || "")
-          .toUpperCase()
-          .replace(/\s+/g, "");
+          .toUpperCase().replace(/\s+/g,"");
         return { root: el, text };
       });
     };
   }
   if (typeof window.filterSelTxt !== "function") {
     window.filterSelTxt = function (val) {
-      const q = (val || "").toUpperCase().replace(/\s+/g, "");
-      // 캐시 없으면 즉시 구축
-      if (!window.__selTxtItems || window.__selTxtItems.length === 0) window.cacheSelTxt();
-      for (const item of window.__selTxtItems) {
-        item.root.style.display = item.text.indexOf(q) > -1 ? "flex" : "none";
+      const q = (val||"").toUpperCase().replace(/\s+/g,"");
+      if (!window.__selTxtItems.length) window.cacheSelTxt();
+      for (const it of window.__selTxtItems) {
+        it.root.style.display = it.text.indexOf(q) > -1 ? "flex" : "none";
       }
     };
   }
+  let _pendingFilterVal = "", _idleFlag = false, _rafId = null;
+  function scheduleFilterSelTxt(val){
+    _pendingFilterVal = val||"";
+    if (typeof window.filterSelTxt !== "function") {
+      if (typeof window.filter === "function") window.filter(); // 폴백
+      return;
+    }
+    if ("requestIdleCallback" in window) {
+      if (_idleFlag) return;
+      _idleFlag = true;
+      requestIdleCallback(()=>{ _idleFlag=false; window.filterSelTxt(_pendingFilterVal); }, {timeout:200});
+    } else {
+      if (_rafId) return;
+      _rafId = requestAnimationFrame(()=>{ _rafId=null; window.filterSelTxt(_pendingFilterVal); });
+    }
+  }
 
-  // === 마커 초기화 함수 ===
+  // === Z 유틸 ===
+  function setDefaultZ(marker, overlay){ // 기본: 마커 > 오버레이
+    if (marker) marker.setZIndex(Z.BASE + 1);
+    if (overlay) overlay.setZIndex(Z.BASE);
+  }
+  function setFrontZ(marker, overlay){   // 전면: 오버레이 > 마커
+    if (marker) marker.setZIndex(Z.FRONT);
+    if (overlay) overlay.setZIndex(Z.FRONT + 1);
+  }
+  function bringToFront(map, marker, overlay, reason){
+    if (!marker || !overlay) return;
+    // 이전 전면 쌍 강등
+    if (frontMarker && frontOverlay && (frontMarker !== marker || frontOverlay !== overlay)) {
+      // 선택 쌍이라도 '전면'은 해제, 기본 z로
+      setDefaultZ(frontMarker, frontOverlay);
+      // 선택 쌍이 아니고 줌이 높으면 오버레이 숨김
+      if (map.getLevel() > 3 && frontMarker !== selectedMarker) frontOverlay.setMap(null);
+    }
+    // 새 전면 쌍 고정
+    overlay.setMap(map);       // 전면은 항상 표시
+    setFrontZ(marker, overlay);
+    frontMarker = marker;
+    frontOverlay = overlay;
+    frontReason = reason;      // 'hover' | 'clickMarker' | 'clickOverlay'
+  }
+  function clearFront(map){
+    if (frontMarker && frontOverlay) {
+      setDefaultZ(frontMarker, frontOverlay);
+      if (map.getLevel()>3 && frontMarker !== selectedMarker) frontOverlay.setMap(null);
+    }
+    frontMarker = frontOverlay = frontReason = null;
+  }
+  function clearSelection(map){
+    if (selectedMarker) {
+      selectedMarker.setImage(normalImage);
+      // 선택 자체는 해제되면 기본 z로
+      setDefaultZ(selectedMarker, selectedOverlayObj);
+      selectedMarker = null;
+    }
+    if (selectedOverlayEl){
+      selectedOverlayEl.style.border = "1px solid #ccc";
+      selectedOverlayEl = null;
+    }
+    if (selectedOverlayObj){
+      if (map.getLevel()>3 && (!frontOverlay || selectedOverlayObj !== frontOverlay)) {
+        selectedOverlayObj.setMap(null);
+      }
+      selectedOverlayObj = null;
+    }
+  }
+
+  // === 이미지/치수 ===
+  let normalImage, hoverImage, jumpImage;
+  const normalHeight = 42;
+  const hoverHeight  = 50.4;
+  const baseGap = 2;
+  const baseY  = -(normalHeight + baseGap); // -44
+  const hoverY = -(hoverHeight  + baseGap); // -52.4
+  const jumpY  = -(70           + baseGap); // -72
+
+  // === 마커 초기화 ===
   window.initMarkers = function (map, positions) {
     const markers = [];
     const overlays = [];
 
-    const normalHeight = 42;
-    const hoverHeight  = 50.4;
-    const baseGap = 2;
-
-    // Y 위치 계산
-    const baseY  = -(normalHeight + baseGap); // -44px
-    const hoverY = -(hoverHeight  + baseGap); // -52.4px
-    const jumpY  = -(70           + baseGap); // -72px
-
-    // 마커 이미지
-    const normalImage = new kakao.maps.MarkerImage(
+    normalImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(30, 42),
-      { offset: new kakao.maps.Point(15, 42) }
+      new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,42) }
     );
-    const hoverImage = new kakao.maps.MarkerImage(
+    hoverImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(36, 50.4),
-      { offset: new kakao.maps.Point(18, 50.4) }
+      new kakao.maps.Size(36,50.4), { offset:new kakao.maps.Point(18,50.4) }
     );
-    const jumpImage = new kakao.maps.MarkerImage(
+    jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(30, 42),
-      { offset: new kakao.maps.Point(15, 70) }
+      new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,70) }
     );
 
-    // ✅ 캐시 필터 지연 실행 (첫 클릭 프레임 보호)
-    let _pendingFilterVal = "", _idleFlag = false, _rafId = null;
-    function scheduleFilterSelTxt(val) {
-      _pendingFilterVal = val || "";
-      if (typeof window.filterSelTxt !== "function") {
-        // 캐시 준비 전엔 기존 filter()로 폴백
-        if (typeof window.filter === "function") window.filter();
-        return;
-      }
-      if ("requestIdleCallback" in window) {
-        if (_idleFlag) return;
-        _idleFlag = true;
-        requestIdleCallback(() => {
-          _idleFlag = false;
-          window.filterSelTxt(_pendingFilterVal);
-        }, { timeout: 200 });
-      } else {
-        if (_rafId) return;
-        _rafId = requestAnimationFrame(() => {
-          _rafId = null;
-          window.filterSelTxt(_pendingFilterVal);
-        });
-      }
-    }
-
-    // === 마커 생성 배치 ===
     const batchSize = 50;
-    let markerIndex = 0;
+    let idx = 0;
 
-    function createMarkerBatch() {
-      const start = markerIndex;
-      const end = Math.min(positions.length, start + batchSize);
+    function createBatch(){
+      const end = Math.min(positions.length, idx + batchSize);
+      for (let i=idx;i<end;i++){
+        (function(i){
+          const pos = positions[i];
 
-      for (let i = start; i < end; i++) {
-        (function (i) {
-
-          // --- 마커 생성 ---
+          // 마커
           const marker = new kakao.maps.Marker({
-            map,
-            position: positions[i].latlng,
-            image: normalImage,
-            clickable: true,
-            zIndex: Z.BASE
+            map, position: pos.latlng, image: normalImage, clickable:true, zIndex: Z.BASE + 1
           });
-          marker.group = positions[i].group ? String(positions[i].group) : null;
 
-          // ✅ 클릭 시 DOM 파싱 방지: 미리 계산 저장
-          marker.__lat = positions[i].latlng.getLat();
-          marker.__lng = positions[i].latlng.getLng();
-          (function cachePrefix() {
-            const t = document.createElement('div');
-            t.innerHTML = positions[i].content;
-            const nameText = (t.textContent || t.innerText || '').trim();
-            marker.__prefix = nameText.substring(0, 5).toUpperCase();
-          })();
-
-          // --- 오버레이 생성 ---
-          const overlayContent = document.createElement("div");
-          overlayContent.className = "overlay-hover";
-          overlayContent.style.transform = `translateY(${baseY}px)`;
-          overlayContent.textContent = positions[i].content;
+          // 오버레이
+          const el = document.createElement("div");
+          el.className = "overlay-hover";
+          el.style.transform = `translateY(${baseY}px)`;
+          el.textContent = pos.content;
 
           const overlay = new kakao.maps.CustomOverlay({
-            position: positions[i].latlng,
-            content: overlayContent,
-            yAnchor: 1,
-            map: null
+            position: pos.latlng, content: el, yAnchor:1, map:null
           });
           overlay.setZIndex(Z.BASE);
 
-          // 저장(복구용) z-index 슬롯
-          marker.__prevZ = Z.BASE;
-          overlay.__prevZ = Z.BASE;
+          // 서로 참조
+          marker.__overlay = overlay;
+          overlay.__marker = marker;
 
-          // === Hover 핸들러 ===
-          function activateHover() {
+          // 사전 계산
+          marker.__lat = pos.latlng.getLat();
+          marker.__lng = pos.latlng.getLng();
+          const t = document.createElement('div');
+          t.innerHTML = pos.content;
+          marker.__prefix = ((t.textContent||t.innerText||"").trim().substring(0,5)||"").toUpperCase();
+
+          // Hover in (전면 고정: hover)
+          function onOver(){
             marker.setImage(hoverImage);
-            overlay.setMap(map);
-
-            if (marker === selectedMarker) {
-              // 선택 마커 호버: gap=4 유지
-              overlayContent.style.transform = `translateY(${hoverY - 2}px)`;
-              // z는 선택 레이어 유지
-              setSelectZ(marker, overlay);
-            } else {
-              // 비선택 마커 호버: 선택보다 위(HOVER 레이어)
-              overlayContent.style.transform = `translateY(${hoverY}px)`;
-
-              marker.__prevZ = marker.getZIndex();
-              overlay.__prevZ = overlay.getZIndex();
-
-              marker.setZIndex(Z.HOVER + 1);
-              overlay.setZIndex(Z.HOVER);
-            }
+            // 호버 시 전면 고정
+            bringToFront(map, marker, overlay, 'hover');
+            // 호버 비주얼(점프 높이로 줄 수도 있음): 선택 마커면 gap=4
+            el.style.transform = (marker === selectedMarker)
+              ? `translateY(${hoverY - 2}px)`
+              : `translateY(${hoverY}px)`;
           }
-
-          function deactivateHover() {
+          // Hover out (전면 고정 유지, 비주얼만 원복)
+          function onOut(){
             marker.setImage(normalImage);
-
-            if (marker === selectedMarker) {
-              // 선택 마커: gap=4 유지 + 선택 레이어로 복귀 확보
-              overlayContent.style.transform = `translateY(${baseY - 2}px)`;
-              overlayContent.style.border = "2px solid blue";
-              setSelectZ(marker, overlay);
+            if (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover') {
+              // 전면은 유지하되 비주얼만 기본 위치로
+              el.style.transform = `translateY(${baseY}px)`;
+            } else if (marker === selectedMarker) {
+              // 선택 비주얼 유지
+              el.style.transform = `translateY(${baseY - 2}px)`;
+              el.style.border = "2px solid blue";
+              setFrontZ(selectedMarker, selectedOverlayObj||overlay); // 선택이 전면이 아닐 수 있어도 z는 선택 유지 X → 기본 규칙에선 front만 최상위
             } else {
-              // 비선택 마커: 원래 위치/표시로 복구
-              overlayContent.style.transform = `translateY(${baseY}px)`;
-
-              // 줌 조건에 따라 숨김
-              if (map.getLevel() > 3) overlay.setMap(null);
-
-              // zIndex 복원
-              marker.setZIndex(marker.__prevZ ?? Z.BASE);
-              overlay.setZIndex(overlay.__prevZ ?? Z.BASE);
-
-              // 선택된 마커가 있으면 다시 최상위 보장
-              if (selectedMarker && selectedOverlayObj) {
-                setSelectZ(selectedMarker, selectedOverlayObj);
+              el.style.transform = `translateY(${baseY}px)`;
+              if (map.getLevel()>3 && overlay !== frontOverlay && overlay !== selectedOverlayObj) {
+                overlay.setMap(null);
               }
+              // 기본 z로 복귀(전면 아니면)
+              if (!(frontMarker===marker && frontOverlay===overlay)) setDefaultZ(marker, overlay);
+              // 선택 전면 복구
+              if (frontMarker && frontOverlay) setFrontZ(frontMarker, frontOverlay);
             }
           }
 
-          kakao.maps.event.addListener(marker, "mouseover", activateHover);
-          kakao.maps.event.addListener(marker, "mouseout",  deactivateHover);
-          overlayContent.addEventListener("mouseover", activateHover);
-          overlayContent.addEventListener("mouseout",  deactivateHover);
+          kakao.maps.event.addListener(marker, "mouseover", onOver);
+          kakao.maps.event.addListener(marker, "mouseout",  onOut);
+          el.addEventListener("mouseover", onOver);
+          el.addEventListener("mouseout",  onOut);
 
-          // === Click (mousedown) ===
-          kakao.maps.event.addListener(marker, "mousedown", function () {
+          // 마커 클릭 (mousedown → 전면+점프, mouseup → 테두리/필터)
+          kakao.maps.event.addListener(marker, "mousedown", function(){
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
 
-            // 이전 선택 해제(외형만)
-            if (selectedOverlayEl) {
-              selectedOverlayEl.style.border = "1px solid #ccc";
-            }
-            if (selectedMarker && selectedMarker !== marker) {
-              // 이전 선택 z를 BASE로 내려놓기
-              selectedMarker.setZIndex(Z.BASE);
-              if (selectedOverlayObj) selectedOverlayObj.setZIndex(Z.BASE);
-            }
+            // 이전 선택 외형 정리
+            if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
 
-            // 현재 선택 지정
-            selectedMarker     = marker;
-            selectedOverlayEl  = overlayContent;
+            // 선택 교체
+            selectedMarker = marker;
+            selectedOverlayEl = el;
             selectedOverlayObj = overlay;
 
-            // 선택 스타일 + gap=4 + 전면
-            overlayContent.style.border = "2px solid blue";
-            overlay.setMap(map);
-            setSelectZ(marker, overlay);
+            // 전면 고정(클릭)
+            bringToFront(map, marker, overlay, 'clickMarker');
 
-            // 점프 시에도 gap=4 유지
-            overlayContent.style.transform = `translateY(${jumpY - 2}px)`;
+            // 점프 (gap=4)
+            el.style.border = "2px solid blue";
+            el.style.transform = `translateY(${jumpY - 2}px)`;
           });
 
-          // === Click (mouseup) ===
-          kakao.maps.event.addListener(marker, "mouseup", function () {
+          kakao.maps.event.addListener(marker, "mouseup", function(){
             const elapsed = Date.now() - clickStartTime;
             const delay = Math.max(0, 100 - elapsed);
-
-            setTimeout(function () {
-              // ✅ 사전 계산값 사용(버벅임 감소)
-              const lat = marker.__lat;
-              const lng = marker.__lng;
-              const prefix = marker.__prefix;
-
-              const gpsyx  = document.getElementById("gpsyx");
-              const keyword= document.getElementById("keyword");
-              if (gpsyx)   gpsyx.value   = `${lat}, ${lng}`;
-              if (keyword) keyword.value = prefix;
-
-              // ✅ 캐시 필터 지연 실행(첫 클릭 프레임 보호)
+            setTimeout(function(){
+              // 좌표/필터
+              const lat = marker.__lat, lng = marker.__lng, prefix = marker.__prefix;
+              const g = document.getElementById("gpsyx");
+              const k = document.getElementById("keyword");
+              if (g) g.value = `${lat}, ${lng}`;
+              if (k) k.value = prefix;
               scheduleFilterSelTxt(prefix);
 
-              // 선택 상태 유지: normal 이미지 + gap=4 + 최상위 보장
+              // 비주얼 복귀(선택 유지)
               marker.setImage(normalImage);
-              overlayContent.style.border = "2px solid blue";
-              overlayContent.style.transition = "transform 0.2s ease, border 0.2s ease";
-              overlayContent.style.transform = `translateY(${baseY - 2}px)`;
+              el.style.border = "2px solid blue";
+              el.style.transition = "transform .2s ease, border .2s ease";
+              el.style.transform = `translateY(${baseY - 2}px)`;
 
-              setSelectZ(marker, overlay);
-              setTimeout(() => {
-                overlayContent.style.transition = "transform 0.15s ease, border 0.15s ease";
-              }, 200);
+              // 전면 유지
+              bringToFront(map, marker, overlay, 'clickMarker');
+
+              setTimeout(()=>{ el.style.transition = "transform .15s ease, border .15s ease"; },200);
             }, delay);
+          });
+
+          // 오버레이 클릭: 전면만, 테두리/입력/필터 X (sticky)
+          el.addEventListener("click", function(){
+            // 선택 상태는 건드리지 않음(테두리 없음)
+            bringToFront(map, marker, overlay, 'clickOverlay');
+            // 호버 비주얼 유지 안 함: 기본 위치
+            el.style.border = "1px solid #ccc";
+            el.style.transform = `translateY(${baseY}px)`;
           });
 
           markers.push(marker);
           overlays.push(overlay);
         })(i);
       }
-
-      markerIndex = end;
-      if (markerIndex < positions.length) {
-        setTimeout(createMarkerBatch, 0);
-      } else {
-        window.markers = markers;
-        console.log("All markers created.");
-      }
+      idx = end;
+      if (idx < positions.length) setTimeout(createBatch, 0);
+      else { window.markers = markers; }
     }
+    createBatch();
 
-    createMarkerBatch();
-
-    // 지도 레벨 이벤트: 비선택 오버레이는 level<=3에서만 표시
-    kakao.maps.event.addListener(map, "idle", function () {
+    // idle: 전면/선택은 항상 표시, 나머지는 level<=3에서만
+    kakao.maps.event.addListener(map, "idle", function(){
       const level = map.getLevel();
-      overlays.forEach((o) => {
-        if (o.getContent && o.getContent() === selectedOverlayEl) {
-          o.setMap(map); // 선택은 항상 표시
-          setSelectZ(selectedMarker, o);
+      overlays.forEach(o=>{
+        const m = o.__marker;
+        if (!m) return;
+        if ((frontOverlay && o===frontOverlay) || (selectedOverlayObj && o===selectedOverlayObj)) {
+          o.setMap(map);
         } else {
-          level <= 3 ? o.setMap(map) : o.setMap(null);
+          if (level<=3) o.setMap(map); else o.setMap(null);
         }
+        // z정리: 전면쌍은 전면, 그 외는 기본
+        if (frontOverlay && o===frontOverlay) setFrontZ(m,o);
+        else setDefaultZ(m,o);
       });
+      // 전면 쌍이 있으면 다시 한 번 보증
+      if (frontMarker && frontOverlay) setFrontZ(frontMarker, frontOverlay);
     });
 
-    // 지도 클릭 → 선택 해제
-    kakao.maps.event.addListener(map, "click", function () {
-      clearSelection();
+    // 지도 클릭: 선택/전면 모두 초기화 (요구와 상충되면 이 부분만 조정)
+    kakao.maps.event.addListener(map, "click", function(){
+      clearSelection(map);
+      clearFront(map);
     });
-
-    // === 유틸: 선택 레이어 고정 ===
-    function setSelectZ(marker, overlay) {
-      if (!marker || !overlay) return;
-      marker.setZIndex(Z.SELECT + 1);
-      overlay.setZIndex(Z.SELECT);
-    }
-
-    // === 유틸: 선택 해제 ===
-    function clearSelection() {
-      if (selectedMarker) {
-        selectedMarker.setImage(normalImage);
-        selectedMarker.setZIndex(Z.BASE);
-        selectedMarker = null;
-      }
-      if (selectedOverlayEl) {
-        selectedOverlayEl.style.border = "1px solid #ccc";
-        selectedOverlayEl = null;
-      }
-      if (selectedOverlayObj) {
-        // 줌 레벨에 따라 표시/숨김 재적용
-        if (map.getLevel() > 3) selectedOverlayObj.setMap(null);
-        selectedOverlayObj.setZIndex(Z.BASE);
-        selectedOverlayObj = null;
-      }
-    }
   };
 })();
