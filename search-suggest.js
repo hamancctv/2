@@ -1,9 +1,9 @@
-// search-suggest.js (integrated, v2025-09-30-FINAL)
+// search-suggest.js (integrated, v2025-09-30-FINAL-KEEPALL)
 // 통합본: 원본 스타일/초성/매칭/렌더/이벤트 전부 포함, badges에 line/encloser/addr/ip 포함
-// 수정: 결과 없을 때 기존 안내창 내용 유지 → 5초 뒤 닫기
+// 수정: 결과 없을 때 기존 안내창 유지, 5초 뒤 닫기 (결과없음 메시지 없음)
 
 (function () {
-    console.log("[search-suggest] loaded v2025-09-30-FINAL");
+    console.log("[search-suggest] loaded v2025-09-30-FINAL-KEEPALL");
 
     // --- CSS ---
     const style = document.createElement("style");
@@ -157,7 +157,10 @@
 
         function render(items) {
             suggestions = items || [];
-            if (!items || items.length === 0) return; // 결과 없으면 기존 안내창 유지
+            if (!items || items.length === 0) {
+                // 결과 없으면 DOM 건드리지 않고 기존 내용 유지
+                return;
+            }
             box.innerHTML = items.map((item, idx) => {
                 let details = '';
                 if (badges && badges.length) {
@@ -233,7 +236,7 @@
                         noResultTimer = setTimeout(() => {
                             closeBox();
                             noResultTimer = null;
-                        }, 5000); // 5초 뒤 닫기
+                        }, 5000); // 결과 없으면 5초 뒤 닫기
                     }
                 }
             }, 100);
