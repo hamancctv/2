@@ -24,7 +24,7 @@
 </head>
 <body>
   <div id="alert-overlay"><div id="alert-message"></div></div>
-  <button id="btnDistance">거리</button>
+  
 
   <div id="container">
     <div id="rvWrapper">
@@ -49,12 +49,15 @@
     <button id="btn_input_copy" class="btn-common">복사</button>
   </div>
 
-  <div class="custom_typecontrol2_m radius_border">
-    <span id="toggle_group" class="btn btn-common">회선</span>
-    <span id="btnCurrentMe" class="btn btn-common" onclick="toggleMyLocation()">위치</span>
-    <span id="btnTrackMe" class="btn btn-common" onclick="toggleTracking()">추적</span>
-  </div>
+<!-- <button id="btnDistance">거리</button>
 
+<div class="custom_typecontrol2_m radius_border">
+  <span id="toggle_group" class="btn" onclick="toggleGroup()">회선</span>
+  <span id="btnCurrentMe" class="btn" onclick="toggleMyLocation()">위치</span>
+  <span id="btnTrackMe" class="btn" onclick="toggleTracking()">추적</span>
+</div> -->
+
+  
   <!-- SDK & 외부 스크립트 -->
   <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services,clusterer,drawing&autoload=false"></script>
   <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
