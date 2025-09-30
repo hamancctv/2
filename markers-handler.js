@@ -215,9 +215,7 @@
             }, delay);
           });
 
-// === Overlay click ===
 el.addEventListener("click", function(){
-  // 선택 처리
   if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
   selectedMarker = marker;
   selectedOverlayEl = el;
@@ -226,10 +224,15 @@ el.addEventListener("click", function(){
   bringToFront(map, marker, overlay, 'clickOverlay');
 
   el.style.border = "2px solid blue";
-  el.style.transform = `translateY(${hoverY-2}px)`;   // ✅ hover 상태와 동일하게 적용
 
-  // 마커 이미지도 hover로 강제
-  marker.setImage(hoverImage);  // ✅ hover 이미지 유지
+  // ✅ 마커 상태에 따라 오버레이 위치 결정
+  if (marker.getImage() === hoverImage) {
+    // 마커가 hover 상태라면 오버레이도 hover 위치 유지
+    el.style.transform = `translateY(${hoverY-2}px)`;
+  } else {
+    // 마커가 normal 상태라면 클릭된 오버레이처럼 base 위치
+    el.style.transform = `translateY(${baseY-2}px)`;
+  }
 
   // 좌표 input 업데이트
   const g = document.getElementById("gpsyx");
