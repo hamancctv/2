@@ -73,34 +73,74 @@
     const map=new kakao.maps.Map(document.getElementById('map'),{center:mapCenter,level:4});
     map.setMaxLevel(9); window.map=map;
 
-    // ===== 로드뷰 =====
-    const rv=new kakao.maps.Roadview(document.getElementById('roadview'));
-    const rvClient=new kakao.maps.RoadviewClient();
-    let overlayOn=false;
-    const rvMarker=new kakao.maps.Marker({
-      image:new kakao.maps.MarkerImage(
-        'https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png',
-        new kakao.maps.Size(26,46),
-        {spriteSize:new kakao.maps.Size(1666,168),spriteOrigin:new kakao.maps.Point(705,114),offset:new kakao.maps.Point(13,46)}
-      ),
-      position:mapCenter,draggable:true
-    });
-    kakao.maps.event.addListener(rv,'position_changed',function(){const pos=rv.getPosition();map.setCenter(pos);if(overlayOn)rvMarker.setPosition(pos);});
-    function toggleRoadview(position){rvClient.getNearestPanoId(position,50,function(id){if(!id)toggleMapWrapper(true,position);else{toggleMapWrapper(false,position);rv.setPanoId(id,position);}});}
-    function toggleMapWrapper(active,pos){const c=document.getElementById('container');if(active){c.className='';map.relayout();map.setCenter(pos);}else{if(c.className.indexOf('view_roadview')===-1){map.relayout();map.setCenter(pos);}}}
-    function toggleOverlay(active){if(active){overlayOn=true;map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);rvMarker.setMap(map);rvMarker.setPosition(map.getCenter());toggleRoadview(map.getCenter());}else{overlayOn=false;map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);rvMarker.setMap(null);}}
-    window.setRoadviewRoad=function(){const c=document.getElementById('roadviewControl');if(c.className.indexOf('active')===-1){c.className='active';toggleOverlay(true);}else{c.className='';toggleOverlay(false);}};
-    window.closeRoadview=function(){toggleMapWrapper(true,rvMarker.getPosition());};
+  // ===== 로드뷰 =====
+const rv = new kakao.maps.Roadview(document.getElementById('roadview'));
+const rvClient = new kakao.maps.RoadviewClient();
+let overlayOn = false;
 
-    // ===== 내 위치 / 추적 =====
-    let myLocationOn=false,trackOn=false,myMarker=null,trackMarker=null,trackInterval=null,watchId=null;
-    const myImg=new kakao.maps.MarkerImage('https://hamancctv.github.io/2/icon-target.png',new kakao.maps.Size(32,32),{offset:new kakao.maps.Point(16,16)});
-    window.toggleMyLocation=function(){if(trackOn)stopTracking();if(!myLocationOn){myLocationOn=true;document.getElementById('btnCurrentMe').classList.add('selected_btn');navigator.geolocation.getCurrentPosition(p=>showMyLocation(p.coords.latitude,p.coords.longitude),geoError,{enableHighAccuracy:true});}else{myLocationOn=false;document.getElementById('btnCurrentMe').classList.remove('selected_btn');if(myMarker){myMarker.setMap(null);myMarker=null;}}};
-    function showMyLocation(lat,lng){const ll=new kakao.maps.LatLng(lat,lng);if(!myMarker){myMarker=new kakao.maps.Marker({position:ll,map:map,image:myImg});}else{myMarker.setPosition(ll);myMarker.setMap(map);}map.panTo(ll);map.setLevel(5);}
-    window.toggleTracking=function(){if(myLocationOn)toggleMyLocation();if(!trackOn)startTracking();else stopTracking();};
-    function startTracking(){trackOn=true;document.getElementById('btnTrackMe').classList.add('selected_btn');watchId=navigator.geolocation.watchPosition(p=>{const ll=new kakao.maps.LatLng(p.coords.latitude,p.coords.longitude);if(!trackMarker){trackMarker=new kakao.maps.Marker({position:ll,map:map,image:myImg});}else trackMarker.setPosition(ll);map.panTo(ll);},geoError,{enableHighAccuracy:true});trackInterval=setInterval(()=>{if(trackMarker)trackMarker.setVisible(!trackMarker.getVisible());},500);}
-    function stopTracking(){trackOn=false;document.getElementById('btnTrackMe').classList.remove('selected_btn');if(watchId){navigator.geolocation.clearWatch(watchId);watchId=null;}if(trackInterval){clearInterval(trackInterval);trackInterval=null;}if(trackMarker){trackMarker.setVisible(true);trackMarker.setMap(null);trackMarker=null;}}
-    function geoError(err){console.error("GPS error:",err);}
+const rvMarker = new kakao.maps.Marker({
+  image: new kakao.maps.MarkerImage(
+    'https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png',
+    new kakao.maps.Size(26, 46),
+    {
+      spriteSize: new kakao.maps.Size(1666, 168),
+      spriteOrigin: new kakao.maps.Point(705, 114),
+      offset: new kakao.maps.Point(13, 46)
+    }
+  ),
+  position: mapCenter,
+  draggable: true
+});
+
+// 로드뷰 위치 바뀔 때 → 동동이 이동
+kakao.maps.event.addListener(rv, 'position_changed', function () {
+  const pos = rv.getPosition();
+  if (overlayOn) rvMarker.setPosition(pos);
+});
+
+// 지도 클릭 시 → 동동이 + 로드뷰 전환
+kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
+  if (!overlayOn) return;
+  const latlng = mouseEvent.latLng;
+  rvMarker.setPosition(latlng);
+  rvClient.getNearestPanoId(latlng, 50, function (panoId) {
+    if (panoId) rv.setPanoId(panoId, latlng);
+  });
+});
+
+// 로드뷰 토글
+function toggleOverlay(active) {
+  if (active) {
+    overlayOn = true;
+    document.getElementById('container').classList.add('view_roadview');
+    rvMarker.setMap(map);
+    rvMarker.setPosition(map.getCenter());
+    // 초기 로드뷰 위치 세팅
+    rvClient.getNearestPanoId(map.getCenter(), 50, function (panoId) {
+      if (panoId) rv.setPanoId(panoId, map.getCenter());
+    });
+  } else {
+    overlayOn = false;
+    document.getElementById('container').classList.remove('view_roadview');
+    rvMarker.setMap(null);
+  }
+}
+
+window.setRoadviewRoad = function () {
+  const c = document.getElementById('roadviewControl');
+  if (c.classList.contains('active')) {
+    c.classList.remove('active');
+    toggleOverlay(false);
+  } else {
+    c.classList.add('active');
+    toggleOverlay(true);
+  }
+};
+
+window.closeRoadview = function () {
+  toggleOverlay(false);
+};
+
 
     // ===== 좌표 input 갱신/복사 =====
     kakao.maps.event.addListener(map,'center_changed',()=>{const ll=map.getCenter();$('#gpsyx').val(ll.getLat()+', '+ll.getLng());});
