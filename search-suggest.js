@@ -1,9 +1,9 @@
-// search-suggest.js (integrated, v2025-09-30-FINAL-KEEPALL)
-// 통합본: 원본 스타일/초성/매칭/렌더/이벤트 전부 포함, badges에 line/encloser/addr/ip 포함
-// 수정: 결과 없을 때 기존 안내창 유지, 5초 뒤 닫기 (결과없음 메시지 없음)
+// search-suggest.js (integrated, v2025-09-30-FINAL-KEEPALL-LASTHTML)
+// 기존 기능 100% 유지
+// 수정: 결과 없을 때 기존 안내창 내용 유지 → 5초 뒤 닫기 (결과없음 메시지 없음)
 
 (function () {
-    console.log("[search-suggest] loaded v2025-09-30-FINAL-KEEPALL");
+    console.log("[search-suggest] loaded v2025-09-30-FINAL-KEEPALL-LASTHTML");
 
     // --- CSS ---
     const style = document.createElement("style");
@@ -129,6 +129,7 @@
         let active = -1;
         let updateTimer = null;
         let noResultTimer = null;
+        let lastRenderedHTML = "";  // 마지막으로 렌더된 안내창 HTML 저장
 
         function match(query) {
             if (!query || String(query).trim().length === 0) return [];
@@ -153,12 +154,17 @@
             box.innerHTML = '';
             suggestions = [];
             active = -1;
+            lastRenderedHTML = "";
         }
 
         function render(items) {
             suggestions = items || [];
             if (!items || items.length === 0) {
-                // 결과 없으면 DOM 건드리지 않고 기존 내용 유지
+                // 결과 없으면 기존 HTML 유지
+                if (lastRenderedHTML) {
+                    box.innerHTML = lastRenderedHTML;
+                    box.classList.add('open');
+                }
                 return;
             }
             box.innerHTML = items.map((item, idx) => {
@@ -184,6 +190,7 @@
             }).join('');
             box.classList.add('open');
             active = -1;
+            lastRenderedHTML = box.innerHTML; // 현재 결과 저장
         }
 
         function setActive(index) {
