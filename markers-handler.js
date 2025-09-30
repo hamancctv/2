@@ -207,9 +207,9 @@
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
               // ② pos.content 앞에서 6자리 제외 후 순수 한글 추출
-              let pure = extractPureHangulFrom6(pos.content);
-              if (!pure) pure = extractPureHangulFrom6(el.textContent || "");
-              pushToSearchUI(pure);
+    //          let pure = extractPureHangulFrom6(pos.content);
+    //          if (!pure) pure = extractPureHangulFrom6(el.textContent || "");
+   //           pushToSearchUI(pure);
 
               setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
             }, delay);
@@ -238,10 +238,10 @@ el.addEventListener("click", function(){
   const g = document.getElementById("gpsyx");
   if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-  // 검색창 키워드 추출 및 입력
-  let pure = extractPureHangulFrom6(pos.content);
-  if (!pure) pure = extractPureHangulFrom6(el.textContent || "");
-  pushToSearchUI(pure);
+// 검색창 키워드 추출 및 입력
+//  let pure = extractPureHangulFrom6(pos.content);
+//  if (!pure) pure = extractPureHangulFrom6(el.textContent || "");
+//  pushToSearchUI(pure);
 });
 
 
