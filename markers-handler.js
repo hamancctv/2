@@ -226,7 +226,10 @@ el.addEventListener("click", function(){
   bringToFront(map, marker, overlay, 'clickOverlay');
 
   el.style.border = "2px solid blue";
-  el.style.transform = `translateY(${baseY - 2}px)`;
+  el.style.transform = `translateY(${hoverY-2}px)`;   // ✅ hover 상태와 동일하게 적용
+
+  // 마커 이미지도 hover로 강제
+  marker.setImage(hoverImage);  // ✅ hover 이미지 유지
 
   // 좌표 input 업데이트
   const g = document.getElementById("gpsyx");
