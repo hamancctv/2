@@ -215,12 +215,29 @@
             }, delay);
           });
 
-          // === Overlay click ===
-          el.addEventListener("click", function(){
-            bringToFront(map, marker, overlay, 'clickOverlay');
-            el.style.border="1px solid #ccc";
-            el.style.transform=`translateY(${baseY}px)`;
-          });
+// === Overlay click ===
+el.addEventListener("click", function(){
+  // 선택 처리
+  if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
+  selectedMarker = marker;
+  selectedOverlayEl = el;
+  selectedOverlayObj = overlay;
+
+  bringToFront(map, marker, overlay, 'clickOverlay');
+
+  el.style.border = "2px solid blue";
+  el.style.transform = `translateY(${baseY - 2}px)`;
+
+  // 좌표 input 업데이트
+  const g = document.getElementById("gpsyx");
+  if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
+
+  // 검색창 키워드 추출 및 입력
+  let pure = extractPureHangulFrom6(pos.content);
+  if (!pure) pure = extractPureHangulFrom6(el.textContent || "");
+  pushToSearchUI(pure);
+});
+
 
           markers.push(marker); overlays.push(overlay);
         })(i);
