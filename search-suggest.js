@@ -1,8 +1,8 @@
-// search-suggest.js (integrated, v2025-09-30-FINAL-NOBLINK2)
-// 기존 기능 100% 유지 + 결과 없을 때 안내창 유지, 5초 후 닫기 (깜빡임 제거)
+// search-suggest.js (integrated, v2025-09-30-FINAL-NOBLINK3)
+// "결과 없음" 문구 완전 제거, 기존 기능 100% 유지, 깜빡임 방지 적용
 
 (function () {
-    console.log("[search-suggest] loaded v2025-09-30-FINAL-NOBLINK2");
+    console.log("[search-suggest] loaded v2025-09-30-FINAL-NOBLINK3");
 
     // --- CSS ---
     const style = document.createElement("style");
@@ -157,7 +157,7 @@
         function render(items) {
             suggestions = items || [];
             if (!items || items.length === 0) {
-                // 결과 없을 때는 DOM 변경하지 않음 (기존 유지)
+                // 결과 없을 때 DOM 변경하지 않음 (기존 유지)
                 return;
             }
             box.innerHTML = items.map((item, idx) => {
@@ -220,7 +220,6 @@
             updateTimer = setTimeout(() => {
                 const q = kw.value || "";
                 if (!q || !String(q).trim()) {
-                    // 입력이 완전히 비었을 때만 닫기
                     closeBox();
                     return;
                 }
@@ -232,7 +231,7 @@
                         noResultTimer = null;
                     }
                 } else {
-                    // 결과 없으면 render() 호출 안 함 → 깜빡임 없음
+                    // 결과 없으면 render() 호출 안 함 → 기존 유지
                     if (!noResultTimer) {
                         noResultTimer = setTimeout(() => {
                             closeBox();
