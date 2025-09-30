@@ -1,6 +1,6 @@
-// markers-handler.js (v2025-09-30-FINAL-6CUT)
+// markers-handler.js (v2025-09-30-FINAL-6CUT-NO-SEARCH)
 (function () {
-  console.log("[markers-handler] loaded v2025-09-30-FINAL-6CUT");
+  console.log("[markers-handler] loaded v2025-09-30-FINAL-6CUT-NO-SEARCH");
 
   // === 오버레이 기본 스타일 ===
   const style = document.createElement("style");
@@ -25,13 +25,13 @@
   const Z = { BASE:100, FRONT:100000 };
 
   // === 전역 상태 ===
-  let selectedMarker = null;       // 선택된 마커
-  let selectedOverlayEl = null;    // 선택된 오버레이 엘리먼트
-  let selectedOverlayObj = null;   // 선택된 오버레이 객체
+  let selectedMarker = null;
+  let selectedOverlayEl = null;
+  let selectedOverlayObj = null;
 
-  let frontMarker = null;          // 전면에 있는 마커
-  let frontOverlay = null;         // 전면에 있는 오버레이
-  let frontReason = null;          // 전면 이유
+  let frontMarker = null;
+  let frontOverlay = null;
+  let frontReason = null;
 
   let normalImage, hoverImage, jumpImage;
   let clickStartTime = 0;
@@ -70,26 +70,6 @@
     const sliced = plain.slice(6); // 앞 6자리 제거
     const m = sliced.match(/[가-힣]+/);
     return m ? m[0] : "";
-  }
-
-  // === 검색창/제안 UI 주입 ===
-  function pushToSearchUI(query) {
-    if (!query) { console.warn("[markers-handler] empty query; skip"); return; }
-    const kw = document.querySelector('.gx-suggest-search .gx-input');
-    if (!kw) { 
-      console.warn("[markers-handler] .gx-suggest-search .gx-input not found"); 
-      return; 
-    }
-    setTimeout(() => {
-      try {
-        kw.value = query;
-        console.log("[markers-handler] injected query:", query);
-        kw.dispatchEvent(new Event('input',  { bubbles: true }));
-        kw.dispatchEvent(new Event('change', { bubbles: true }));
-      } catch(e){
-        console.error("[markers-handler] pushToSearchUI error:", e);
-      }
-    }, 0);
   }
 
   // === 지도 클릭 시 선택 해제 ===
@@ -202,48 +182,39 @@
               el.style.transform=`translateY(${baseY-2}px)`;
               bringToFront(map, marker, overlay, 'clickMarker');
 
-              // ① 좌표 input 업데이트
+              // 좌표 input 업데이트
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-              // ② pos.content 앞에서 6자리 제외 후 순수 한글 추출
-    //          let pure = extractPureHangulFrom6(pos.content);
-    //          if (!pure) pure = extractPureHangulFrom6(el.textContent || "");
-   //           pushToSearchUI(pure);
+              // ✅ 검색창 자동입력 제거됨
 
               setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
             }, delay);
           });
 
-el.addEventListener("click", function(){
-  if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
-  selectedMarker = marker;
-  selectedOverlayEl = el;
-  selectedOverlayObj = overlay;
+          // === Overlay click ===
+          el.addEventListener("click", function(){
+            if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
+            selectedMarker = marker;
+            selectedOverlayEl = el;
+            selectedOverlayObj = overlay;
 
-  bringToFront(map, marker, overlay, 'clickOverlay');
+            bringToFront(map, marker, overlay, 'clickOverlay');
 
-  el.style.border = "2px solid blue";
+            el.style.border = "2px solid blue";
+            // hover 상태인지 체크
+            if (marker.getImage() === hoverImage) {
+              el.style.transform = `translateY(${hoverY-2}px)`;
+            } else {
+              el.style.transform = `translateY(${baseY-2}px)`;
+            }
 
-  // ✅ 마커 상태에 따라 오버레이 위치 결정
-  if (marker.getImage() === hoverImage) {
-    // 마커가 hover 상태라면 오버레이도 hover 위치 유지
-    el.style.transform = `translateY(${hoverY-2}px)`;
-  } else {
-    // 마커가 normal 상태라면 클릭된 오버레이처럼 base 위치
-    el.style.transform = `translateY(${baseY-2}px)`;
-  }
+            // 좌표 input 업데이트
+            const g = document.getElementById("gpsyx");
+            if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
 
-  // 좌표 input 업데이트
-  const g = document.getElementById("gpsyx");
-  if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
-
-// 검색창 키워드 추출 및 입력
-//  let pure = extractPureHangulFrom6(pos.content);
-//  if (!pure) pure = extractPureHangulFrom6(el.textContent || "");
-//  pushToSearchUI(pure);
-});
-
+            // ✅ 검색창 자동입력 제거됨
+          });
 
           markers.push(marker); overlays.push(overlay);
         })(i);
