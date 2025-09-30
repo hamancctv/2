@@ -1,8 +1,9 @@
-// search-suggest.js (integrated, v2025-09-30-FINAL-COMPLETE)
-// ✅ 모든 기능 유지 + 결과 없을 때 기존 안내창을 5초간 유지 후 닫기
+// search-suggest.js (integrated, v2025-09-30-FINAL)
+// 통합본: 원본 스타일/초성/매칭/렌더/이벤트 전부 포함, badges에 line/encloser/addr/ip 포함
+// 수정: 결과 없을 때 기존 안내창 내용 유지 → 5초 뒤 닫기
 
 (function () {
-    console.log("[search-suggest] loaded v2 (Integrated FINAL COMPLETE)");
+    console.log("[search-suggest] loaded v2025-09-30-FINAL");
 
     // --- CSS ---
     const style = document.createElement("style");
@@ -29,10 +30,6 @@
           display:block;
         }
         .gx-suggest-box.open{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
-        .gx-item:hover, .gx-item.active { background:#eef3ff; }
-        .gx-suggest-title{ display:inline-block; max-width:60%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
-        .gx-badge{ font-size:12px; color:#555; background:#f2f4f8; padding:2px 6px; border-radius:6px; }
-        .gx-suggest-empty{ color:#777; padding:12px; }
         .gx-item{padding:8px 10px;cursor:pointer;line-height:1.4;transition:background .1s;}
         .gx-item .name{font-weight:bold;color:#333;}
         .gx-item .detail{color:#666;font-size:12px;margin-top:2px;display:flex;flex-wrap:wrap;}
@@ -41,6 +38,7 @@
         .gx-item .badge.encloser{background:#28a745;}
         .gx-item .badge.ip{background:#dc3545;}
         .gx-item .coord{color:#999;font-size:11px;margin-left:auto;}
+        .gx-item:hover, .gx-item.active{ background:#eef3ff; }
     `;
     document.head.appendChild(style);
 
@@ -70,9 +68,9 @@
     }
 
     function esc(str) {
-        return String(str == null ? "" : str).replace(/[&<>"']/g, function(s) {
-            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[s];
-        });
+        return String(str == null ? "" : str).replace(/[&<>"']/g, s => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]
+        ));
     }
 
     // === initSuggestUI ===
@@ -93,6 +91,7 @@
             return;
         }
 
+        // wrap + input + box 생성
         let wrap = parent.querySelector('.gx-suggest-search');
         let box = parent.querySelector('.gx-suggest-box');
         if (!wrap) {
@@ -129,7 +128,7 @@
         let suggestions = [];
         let active = -1;
         let updateTimer = null;
-        let noResultTimer = null; // 결과 없을 때 5초 유지 타이머
+        let noResultTimer = null;
 
         function match(query) {
             if (!query || String(query).trim().length === 0) return [];
@@ -158,7 +157,7 @@
 
         function render(items) {
             suggestions = items || [];
-            if (!items || items.length === 0) return; // 결과 없으면 기존 내용 유지
+            if (!items || items.length === 0) return; // 결과 없으면 기존 안내창 유지
             box.innerHTML = items.map((item, idx) => {
                 let details = '';
                 if (badges && badges.length) {
@@ -234,7 +233,7 @@
                         noResultTimer = setTimeout(() => {
                             closeBox();
                             noResultTimer = null;
-                        }, 5000); // 5초 유지 후 닫기
+                        }, 5000); // 5초 뒤 닫기
                     }
                 }
             }, 100);
@@ -248,9 +247,8 @@
                 else scheduleUpdate();
             }
         });
-        kw.addEventListener('blur', function () {
-            setTimeout(closeBox, 150);
-        });
+        kw.addEventListener('blur', () => setTimeout(closeBox, 150));
+
         kw.addEventListener('keydown', function (e) {
             if (!box.classList.contains('open')) return;
             if (e.key === 'ArrowDown') {
@@ -304,6 +302,7 @@
             }
         });
 
+        // API
         function setData(newData) {
             RAW.length = 0;
             (newData || []).forEach((it, idx) => {
@@ -326,5 +325,4 @@
     }
 
     window.initSuggestUI = initSuggestUI;
-
 })();
