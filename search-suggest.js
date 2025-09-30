@@ -1,9 +1,8 @@
-// search-suggest.js (integrated, v2025-09-30-FINAL-FIXED)
-// 통합본: 스타일/초성/매칭/렌더/이벤트 전부 포함, badges에 line/encloser/addr/ip 포함
-// ✅ 마우스 hover / 키보드 active 시 배경색 적용 문제 수정 (.gx-item 적용)
+// search-suggest.js (integrated, v2025-09-30-FINAL-KEEP)
+// ✅ 기존 기능은 그대로, "검색 결과 없을 때 기존 안내창 유지 후 5초 뒤 닫기" 기능 추가
 
 (function () {
-    console.log("[search-suggest] loaded v2 (Integrated FINAL FIXED)");
+    console.log("[search-suggest] loaded v2 (Integrated FINAL KEEP)");
 
     // --- CSS ---
     const style = document.createElement("style");
@@ -30,7 +29,7 @@
           display:block;
         }
         .gx-suggest-box.open{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
-        /* ✅ hover/active 스타일 .gx-item 기준으로 수정 */
+        /* ✅ hover/active 스타일 */
         .gx-item:hover, .gx-item.active { background:#eef3ff; }
         .gx-suggest-title{ display:inline-block; max-width:60%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
         .gx-badge{ font-size:12px; color:#555; background:#f2f4f8; padding:2px 6px; border-radius:6px; }
@@ -131,6 +130,7 @@
         let suggestions = [];
         let active = -1;
         let updateTimer = null;
+        let noResultTimer = null; // ✅ 추가: 결과 없을 때 5초 유지용 타이머
 
         function match(query) {
             if (!query || String(query).trim().length === 0) return [];
@@ -159,8 +159,7 @@
 
         function render(items) {
             suggestions = items || [];
-            if (!items || items.length === 0) return closeBox();
-
+            if (!items || items.length === 0) return; // ✅ 결과 없을 때는 유지
             box.innerHTML = items.map((item, idx) => {
                 let details = '';
                 if (badges && badges.length) {
@@ -225,24 +224,35 @@
                     return;
                 }
                 const results = match(q);
-                render(results);
+                if (results.length > 0) {
+                    render(results);
+                    if (noResultTimer) {
+                        clearTimeout(noResultTimer);
+                        noResultTimer = null;
+                    }
+                } else {
+                    // ✅ 결과 없을 때 기존 안내창 5초간 유지 후 닫기
+                    if (!noResultTimer) {
+                        noResultTimer = setTimeout(() => {
+                            closeBox();
+                            noResultTimer = null;
+                        }, 5000);
+                    }
+                }
             }, 100);
         }
 
-        // --- Events
+        // --- Events (기존 그대로) ---
         kw.addEventListener('input', scheduleUpdate);
-
         kw.addEventListener('focus', function () {
             if (openOnFocus) {
                 if (suggestions.length > 0) box.classList.add('open');
                 else scheduleUpdate();
             }
         });
-
         kw.addEventListener('blur', function () {
             setTimeout(closeBox, 150);
         });
-
         kw.addEventListener('keydown', function (e) {
             if (!box.classList.contains('open')) return;
             if (e.key === 'ArrowDown') {
