@@ -1,8 +1,9 @@
-// search-suggest.js (integrated, v2025-09-30-FINAL)
+// search-suggest.js (integrated, v2025-09-30-FINAL-FIXED)
 // 통합본: 스타일/초성/매칭/렌더/이벤트 전부 포함, badges에 line/encloser/addr/ip 포함
+// ✅ 마우스 hover / 키보드 active 시 배경색 적용 문제 수정 (.gx-item 적용)
 
 (function () {
-    console.log("[search-suggest] loaded v2 (Integrated FINAL)");
+    console.log("[search-suggest] loaded v2 (Integrated FINAL FIXED)");
 
     // --- CSS ---
     const style = document.createElement("style");
@@ -29,8 +30,8 @@
           display:block;
         }
         .gx-suggest-box.open{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
-        .gx-suggest-item{ padding:10px 12px; cursor:pointer; display:flex; align-items:center; gap:8px; }
-        .gx-suggest-item:hover, .gx-suggest-item.active{ background:#eef3ff; }
+        /* ✅ hover/active 스타일 .gx-item 기준으로 수정 */
+        .gx-item:hover, .gx-item.active { background:#eef3ff; }
         .gx-suggest-title{ display:inline-block; max-width:60%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
         .gx-badge{ font-size:12px; color:#555; background:#f2f4f8; padding:2px 6px; border-radius:6px; }
         .gx-suggest-empty{ color:#777; padding:12px; }
