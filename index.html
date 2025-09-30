@@ -162,18 +162,18 @@
     if(window.initMarkers) initMarkers(map,finalPositions);
 
     // ===== 검색창 초기화 (search-suggest.js 활용) =====
-    if (window.initSuggestUI) {
-      initSuggestUI({
-        map,
-        data: window.SEL_SUGGEST,
-        parent: document.getElementById('mapWrapper'),
-        getMarkers: () => window.markers,
-        badges: ['line','encloser','addr','ip'],
-        maxItems: 30,
-        chooseOnEnter: true,
-        openOnFocus: true
-      });
-    }
+if (window.initSuggestUI) {
+  initSuggestUI({
+    map,
+    data: window.SEL_SUGGEST,
+    parent: document.getElementById('mapWrapper'),
+    getMarkers: () => window.markers,
+    badges: ['line','encloser','addr','ip'],
+    maxItems: 30,
+    chooseOnEnter: true,
+    openOnFocus: true
+  });
+}
 
     // ===== 회선 토글 =====
     const btn=document.getElementById("toggle_group");
