@@ -1,14 +1,26 @@
 /* 숨김 토글 전용 클래스 (reflow 최소화) */
 .sel-hidden { display: none !important; }
 
-/* 지도 전체에서 텍스트 선택 완전 차단 (input 포함) */
-#map,
-#map * {
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  -khtml-user-select: none !important;
+/* 🔒 사이트 전체 차단 */
+html, body, * {
+  -webkit-user-select: none;  /* 크롬/사파리 */
+  -moz-user-select: none;     /* 파이어폭스 */
+  -ms-user-select: none;      /* 구형 IE */
+  user-select: none;
+  -webkit-touch-callout: none; /* iOS 길게누르기 메뉴 차단 */
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* 🔓 검색창만 예외 */
+.gx-input {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+  -webkit-user-drag: auto !important;
+  user-drag: auto !important;
 }
 
     #container {overflow:hidden;height:100%;position:relative;}
