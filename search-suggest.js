@@ -1,9 +1,9 @@
-// search-suggest.js (integrated, v2025-09-30-FINAL-KEEPALL-LASTHTML)
+// search-suggest.js (integrated, v2025-09-30-FINAL-NOBLINK)
 // 기존 기능 100% 유지
-// 수정: 결과 없을 때 기존 안내창 내용 유지 → 5초 뒤 닫기 (결과없음 메시지 없음)
+// 수정: 결과 없을 때 render() 호출하지 않음 → 기존 안내창 그대로 유지, 5초 뒤 닫힘
 
 (function () {
-    console.log("[search-suggest] loaded v2025-09-30-FINAL-KEEPALL-LASTHTML");
+    console.log("[search-suggest] loaded v2025-09-30-FINAL-NOBLINK");
 
     // --- CSS ---
     const style = document.createElement("style");
@@ -129,7 +129,6 @@
         let active = -1;
         let updateTimer = null;
         let noResultTimer = null;
-        let lastRenderedHTML = "";  // 마지막으로 렌더된 안내창 HTML 저장
 
         function match(query) {
             if (!query || String(query).trim().length === 0) return [];
@@ -154,17 +153,12 @@
             box.innerHTML = '';
             suggestions = [];
             active = -1;
-            lastRenderedHTML = "";
         }
 
         function render(items) {
             suggestions = items || [];
             if (!items || items.length === 0) {
-                // 결과 없으면 기존 HTML 유지
-                if (lastRenderedHTML) {
-                    box.innerHTML = lastRenderedHTML;
-                    box.classList.add('open');
-                }
+                // 결과 없을 때는 DOM을 건드리지 않음 → 기존 내용 유지
                 return;
             }
             box.innerHTML = items.map((item, idx) => {
@@ -190,7 +184,6 @@
             }).join('');
             box.classList.add('open');
             active = -1;
-            lastRenderedHTML = box.innerHTML; // 현재 결과 저장
         }
 
         function setActive(index) {
@@ -239,11 +232,12 @@
                         noResultTimer = null;
                     }
                 } else {
+                    // 결과 없으면 render 호출하지 않음 → 깜빡임 방지
                     if (!noResultTimer) {
                         noResultTimer = setTimeout(() => {
                             closeBox();
                             noResultTimer = null;
-                        }, 5000); // 결과 없으면 5초 뒤 닫기
+                        }, 5000); // 5초 후 닫기
                     }
                 }
             }, 100);
