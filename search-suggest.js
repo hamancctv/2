@@ -162,7 +162,7 @@
         }
 
         function closeBox() {
-            box.classList.remove('active');
+            box.classList.remove('open');
             box.innerHTML = '';
             suggestions = [];
             active = -1;
@@ -195,7 +195,7 @@
                             ${details}
                         </div>`;
             }).join('');
-            box.classList.add('active');
+            box.classList.add('open');
             active = -1;
         }
 
@@ -260,7 +260,7 @@
         });
 
         kw.addEventListener('keydown', function (e) {
-            if (!box.classList.contains('active')) return;
+            if (!box.classList.contains('open')) return;
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 setActive(active + 1);
