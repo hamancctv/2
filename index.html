@@ -87,7 +87,7 @@
     });
     kakao.maps.event.addListener(rv,'position_changed',function(){const pos=rv.getPosition();map.setCenter(pos);if(overlayOn)rvMarker.setPosition(pos);});
     function toggleRoadview(position){rvClient.getNearestPanoId(position,50,function(id){if(!id)toggleMapWrapper(true,position);else{toggleMapWrapper(false,position);rv.setPanoId(id,position);}});}
-    function toggleMapWrapper(active,pos){const c=document.getElementById('container');if(active){c.className='';map.relayout();map.setCenter(pos);}else{if(c.className.indexOf('view_roadview')===-1){c.className='view_roadview';map.relayout();map.setCenter(pos);}}}
+    function toggleMapWrapper(active,pos){const c=document.getElementById('container');if(active){c.className='';map.relayout();map.setCenter(pos);}else{if(c.className.indexOf('view_roadview')===-1){map.relayout();map.setCenter(pos);}}}
     function toggleOverlay(active){if(active){overlayOn=true;map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);rvMarker.setMap(map);rvMarker.setPosition(map.getCenter());toggleRoadview(map.getCenter());}else{overlayOn=false;map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);rvMarker.setMap(null);}}
     window.setRoadviewRoad=function(){const c=document.getElementById('roadviewControl');if(c.className.indexOf('active')===-1){c.className='active';toggleOverlay(true);}else{c.className='';toggleOverlay(false);}};
     window.closeRoadview=function(){toggleMapWrapper(true,rvMarker.getPosition());};
