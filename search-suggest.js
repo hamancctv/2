@@ -1,8 +1,8 @@
-// search-suggest.js (integrated, v2025-09-30-FINAL-KEEP)
-// ✅ 기존 기능은 그대로, "검색 결과 없을 때 기존 안내창 유지 후 5초 뒤 닫기" 기능 추가
+// search-suggest.js (integrated, v2025-09-30-FINAL-COMPLETE)
+// ✅ 모든 기능 유지 + 결과 없을 때 기존 안내창을 5초간 유지 후 닫기
 
 (function () {
-    console.log("[search-suggest] loaded v2 (Integrated FINAL KEEP)");
+    console.log("[search-suggest] loaded v2 (Integrated FINAL COMPLETE)");
 
     // --- CSS ---
     const style = document.createElement("style");
@@ -29,7 +29,6 @@
           display:block;
         }
         .gx-suggest-box.open{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
-        /* ✅ hover/active 스타일 */
         .gx-item:hover, .gx-item.active { background:#eef3ff; }
         .gx-suggest-title{ display:inline-block; max-width:60%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
         .gx-badge{ font-size:12px; color:#555; background:#f2f4f8; padding:2px 6px; border-radius:6px; }
@@ -130,7 +129,7 @@
         let suggestions = [];
         let active = -1;
         let updateTimer = null;
-        let noResultTimer = null; // ✅ 추가: 결과 없을 때 5초 유지용 타이머
+        let noResultTimer = null; // 결과 없을 때 5초 유지 타이머
 
         function match(query) {
             if (!query || String(query).trim().length === 0) return [];
@@ -159,7 +158,7 @@
 
         function render(items) {
             suggestions = items || [];
-            if (!items || items.length === 0) return; // ✅ 결과 없을 때는 유지
+            if (!items || items.length === 0) return; // 결과 없으면 기존 내용 유지
             box.innerHTML = items.map((item, idx) => {
                 let details = '';
                 if (badges && badges.length) {
@@ -231,18 +230,17 @@
                         noResultTimer = null;
                     }
                 } else {
-                    // ✅ 결과 없을 때 기존 안내창 5초간 유지 후 닫기
                     if (!noResultTimer) {
                         noResultTimer = setTimeout(() => {
                             closeBox();
                             noResultTimer = null;
-                        }, 5000);
+                        }, 5000); // 5초 유지 후 닫기
                     }
                 }
             }, 100);
         }
 
-        // --- Events (기존 그대로) ---
+        // --- Events ---
         kw.addEventListener('input', scheduleUpdate);
         kw.addEventListener('focus', function () {
             if (openOnFocus) {
