@@ -73,6 +73,29 @@
     const mapCenter=new kakao.maps.LatLng(35.2725308711779,128.406307024695);
     const map=new kakao.maps.Map(document.getElementById('map'),{center:mapCenter,level:4});
     map.setMaxLevel(9); window.map=map;
+    
+  // ✅ 마커 생성 (positions.js 기반)
+  const raw = (window.SEL_SUGGEST || []).map(it => {
+    const lat = parseFloat(it.lat), lng = parseFloat(it.lng);
+    if (!isFinite(lat) || !isFinite(lng)) return null;
+    return {
+      latlng: new kakao.maps.LatLng(lat, lng),
+      content: it.name1 || it.name,
+      searchName: it.name2 || it.name,
+      group: it.line || null
+    };
+  }).filter(Boolean);
+
+  const unique = new Map();
+  for (const p of raw) {
+    const key = p.latlng.getLat() + "," + p.latlng.getLng();
+    if (!unique.has(key)) unique.set(key, p);
+  }
+  const finalPositions = [...unique.values()];
+
+  if (window.initMarkers) {
+    initMarkers(map, finalPositions);
+  }
 
 // 로드뷰 시작
   // 로드뷰 초기화
@@ -93,19 +116,7 @@
       document.execCommand('copy');
     };
 
-    // ===== 마커 데이터 생성 =====
-    const raw=(window.SEL_SUGGEST||[]).map(it=>{
-      const lat=parseFloat(it.lat),lng=parseFloat(it.lng);
-      if(!isFinite(lat)||!isFinite(lng))return null;
-      return{latlng:new kakao.maps.LatLng(lat,lng),content:it.name1||it.name,searchName:it.name2||it.name,group:it.line||null};
-    }).filter(Boolean);
-    const unique=new Map();
-    for(const p of raw){
-      const key=p.latlng.getLat()+","+p.latlng.getLng();
-      if(!unique.has(key))unique.set(key,p);
-    }
-    const finalPositions=[...unique.values()];
-    if(window.initMarkers) initMarkers(map,finalPositions);
+
 
     // ===== 검색창 초기화 (search-suggest.js 활용) =====
 if (window.initSuggestUI) {
