@@ -67,7 +67,6 @@
       transform:translateX(-50%) translateY(0);
       pointer-events:auto;
     }
-
     .gx-suggest-item {
       padding:12px 16px;
       cursor:pointer;
@@ -83,7 +82,6 @@
     .gx-suggest-item.active {
       background:#e6f0ff;
     }
-
     .gx-suggest-title {
       font-weight:600;
       font-size:15px;
@@ -102,15 +100,27 @@
       gap:6px;
       min-height:18px;
     }
-    .gx-suggest-sub span {
-      white-space:nowrap;
+    .gx-suggest-sub span { white-space:nowrap; }
+
+    /* 펄스 효과 */
+    .pulse-marker {
+      width:20px; height:20px;
+      margin-left:-10px; margin-top:-10px;
+      border:4px solid red; border-radius:50%;
+      background:rgba(255,0,0,0.3);
+      animation:pulse 1.2s ease-out forwards;
+    }
+    @keyframes pulse {
+      0%{transform:scale(0.5);opacity:0.8;}
+      70%{transform:scale(2.0);opacity:0;}
+      100%{transform:scale(2.0);opacity:0;}
     }
 
-    /* 위성뷰 토글 버튼 */
+    /* 토글 버튼 */
     .toolbar {
       position:absolute;
       top:60px;
-      left:10px;   /* ✅ 왼쪽 위 */
+      left:10px;
       display:flex;
       flex-direction:column;
       gap:8px;
@@ -132,9 +142,7 @@
       background:#eef5ff;
       color:#007aff;
     }
-    .btn svg {
-      width:20px; height:20px;
-    }
+    .btn svg { width:20px; height:20px; }
   </style>
 </head>
 <body>
@@ -153,29 +161,36 @@
       </div>
       <div class="gx-suggest-box"></div>
 
-      <!-- ✅ 위성뷰 토글 버튼 -->
+      <!-- 토글 버튼 모음 -->
       <div class="toolbar">
+        <!-- 위성뷰 -->
         <button id="btnSatellite" class="btn" title="위성뷰">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
             <path d="M3 3h18v18H3z"/>
+          </svg>
+        </button>
+        <!-- 로드뷰 -->
+        <button id="btnRoadview" class="btn" title="로드뷰">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="10"/>
           </svg>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- SDK & 외부 스크립트 -->
+  <!-- SDK -->
   <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services,clusterer,drawing&autoload=false"></script>
   <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
 
-  <!-- 외부 유틸 -->
+  <!-- 외부 핸들러 -->
   <script src="https://hamancctv.github.io/2/sel_suggest.js"></script>
   <script src="https://hamancctv.github.io/2/drawGroupLinesMST.js"></script>
   <script src="https://hamancctv.github.io/2/btnDistance.js"></script>
   <script src="https://hamancctv.github.io/2/markers-handler.js"></script>
   <script src="https://hamancctv.github.io/2/search-suggest.js"></script>
 
-  <!-- ✅ 메인 -->
+  <!-- 메인 -->
   <script>
   kakao.maps.load(function () {
     const mapCenter=new kakao.maps.LatLng(35.2725308711779,128.406307024695);
@@ -183,7 +198,7 @@
     map.setMaxLevel(9); 
     window.map=map;
 
-    // 마커
+    // 마커 데이터
     const raw = (window.SEL_SUGGEST || []).map(it => {
       const lat = parseFloat(it.lat), lng = parseFloat(it.lng);
       if (!isFinite(lat) || !isFinite(lng)) return null;
@@ -213,11 +228,11 @@
         badges: ['line','encloser','addr','ip'],
         maxItems: 30,
         chooseOnEnter: true,
-        openOnFocus: false
+        openOnFocus: true  // 포커스 시 입력값 있으면 다시 열림
       });
     }
 
-    // ✅ 위성뷰 토글만 추가
+    // 위성뷰 토글
     const btnSatellite=document.getElementById("btnSatellite");
     btnSatellite.addEventListener("click",()=>{
       if(map.getMapTypeId() === kakao.maps.MapTypeId.ROADMAP){
@@ -227,6 +242,13 @@
         map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
         btnSatellite.classList.remove("selected_btn");
       }
+    });
+
+    // 로드뷰 토글 (오빠 기존 함수 사용)
+    const btnRoadview=document.getElementById("btnRoadview");
+    btnRoadview.addEventListener("click",()=>{
+      toggleRoadview(); // 오빠가 만든 로드뷰 함수 호출
+      btnRoadview.classList.toggle("selected_btn");
     });
   });
   </script>
