@@ -7,24 +7,40 @@
   <link rel="icon" href="https://hamancctv.github.io/2/favicon.ico" sizes="32x32"/>
   <link rel="stylesheet" href="https://hamancctv.github.io/2/style.css">
   <style>
-    /* iOS vh 버그 대응 */
-#mapWrapper, #container, #map, #rvWrapper, #roadview {
-  height: 100dvh; /* 최신 iOS16+에서는 실제 화면 높이 기준 */
-  height: calc(var(--vh, 1vh) * 100); /* 구버전 fallback */
-}
-
+    html, body, #container, #mapWrapper, #map, #rvWrapper, #roadview {
+      height:100vh; /* 단순 고정 */
+      margin:0; padding:0;
+    }
     #mapWrapper { position: relative; }
 
     /* 검색창 + 제안창 */
     .gx-suggest-search{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;width:min(520px,90vw);z-index:600;}
     .gx-suggest-search input{flex:1;height:40px;padding:0 12px;border:1px solid #ccc;border-radius:10px;background:#fff;font-size:14px;outline:none;}
     .gx-suggest-search button{display:none;}
-    .gx-suggest-box{position:absolute;top:48px;left:50%;transform:translateX(-50%) translateY(-6px);width:min(520px,90vw);max-height:40vh;overflow-y:auto;border:1px solid #ccc;border-radius:10px;background:rgba(255,255,255,0.96);box-shadow:0 8px 20px rgba(0,0,0,.15);z-index:610;opacity:0;pointer-events:none;transition:opacity .18s ease, transform .18s ease;display:block;}
+    .gx-suggest-box{
+      position:absolute;top:48px;left:50%;transform:translateX(-50%) translateY(-6px);
+      width:min(520px,90vw);max-height:40vh;
+      overflow-y:auto;
+      -webkit-overflow-scrolling: touch; /* iOS 부드러운 스크롤 */
+      border:1px solid #ccc;border-radius:10px;
+      background:rgba(255,255,255,0.96);
+      box-shadow:0 8px 20px rgba(0,0,0,.15);
+      z-index:610;
+      opacity:0;pointer-events:none;
+      transition:opacity .18s ease, transform .18s ease;
+      display:block;
+    }
     .gx-suggest-box.open{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
-    .gx-suggest-item{padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;}
+    .gx-suggest-item{padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f2f2f2;}
     .gx-suggest-item:hover,.gx-suggest-item.active{background:#eef3ff;}
     .gx-suggest-title{display:inline-block;max-width:60%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-weight:600;}
     .gx-badge{font-size:12px;color:#555;background:#f2f4f8;padding:2px 6px;border-radius:6px;}
+    .pulse-marker {width:20px;height:20px;margin-left:-10px;margin-top:-10px;border:4px solid red;border-radius:50%;background:rgba(255,0,0,0.3);animation:pulse 1.2s ease-out forwards;}
+    @keyframes pulse {
+      0%{transform:scale(0.5);opacity:0.8;}
+      70%{transform:scale(2.0);opacity:0;}
+      100%{transform:scale(2.0);opacity:0;}
+    }
   </style>
 </head>
 <body>
@@ -48,11 +64,11 @@
     </div>
   </div>
 
-<div class="toolbar-right" style="display:none;">
-  <input type="text" id="gpsyx" class="input-common" inputmode="none"
-         value="35.2725308711779, 128.406307024695"/>
-  <button id="btn_input_copy" class="btn-common">복사</button>
-</div>
+  <div class="toolbar-right" style="display:none;">
+    <input type="text" id="gpsyx" class="input-common" inputmode="none"
+           value="35.2725308711779, 128.406307024695"/>
+    <button id="btn_input_copy" class="btn-common">복사</button>
+  </div>
 
   <!-- SDK & 외부 스크립트 -->
   <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services,clusterer,drawing&autoload=false"></script>
@@ -65,16 +81,6 @@
   <script src="https://hamancctv.github.io/2/markers-handler.js"></script>
   <script src="https://hamancctv.github.io/2/search-suggest.js"></script>
 
-  <!-- ✅ iOS vh 버그 패치 -->
-  <script>
-    function setVh() {
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
-    }
-    setVh();
-    window.addEventListener('resize', setVh);
-  </script>
-  
   <!-- ✅ 로드뷰 초기화 함수 -->
   <script>
   function initRoadview(map, position) {
@@ -154,24 +160,6 @@
       });
     }
   });
-
-    // 아이폰 사파리 버그 대응 safari bug
-  function setVh() {
-    // 아이폰 Safari 대응: visualViewport가 있으면 그걸 사용
-    const vh = window.visualViewport 
-                 ? window.visualViewport.height * 0.01 
-                 : window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-  }
-
-  // 최초 실행
-  setVh();
-
-  // 뷰포트 변할 때마다 실행 (키보드 올라올 때도 호출됨)
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', setVh);
-  }
-  window.addEventListener('resize', setVh);
   </script>
 </body>
 </html>
