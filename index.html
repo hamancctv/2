@@ -8,141 +8,73 @@
   <link rel="stylesheet" href="https://hamancctv.github.io/2/style.css">
   <style>
     html, body, #container, #mapWrapper, #map, #rvWrapper, #roadview {
-      height:100vh;
-      margin:0; padding:0;
+      height:100vh; margin:0; padding:0;
     }
     #mapWrapper { position: relative; }
 
     /* 검색창 */
     .gx-suggest-search {
-      position:absolute;
-      top:8px;
-      left:0; right:0;
-      margin:0 auto;
-      display:flex;
-      gap:8px;
-      align-items:center;
-      width:min(520px,90vw);
-      z-index:600;
-      justify-content:center;
+      position:absolute; top:8px; left:0; right:0; margin:0 auto;
+      display:flex; gap:8px; align-items:center; width:min(520px,90vw);
+      z-index:600; justify-content:center;
     }
     .gx-suggest-search input.gx-input {
-      flex:1;
-      height:42px;
-      padding:0 14px;
-      border:1px solid #ccc;
-      border-radius:12px;
-      background:#fff;
-      font-size:15px;
-      outline:none;
-      box-sizing:border-box;
+      flex:1; height:42px; padding:0 14px; border:1px solid #ccc; border-radius:12px;
+      background:#fff; font-size:15px; outline:none; box-sizing:border-box;
       transition:border .2s ease, box-shadow .2s ease;
     }
     .gx-suggest-search input.gx-input:focus {
-      border-color:#4a90e2;
-      box-shadow:0 0 0 2px rgba(74,144,226,0.2);
+      border-color:#4a90e2; box-shadow:0 0 0 2px rgba(74,144,226,0.2);
     }
     .gx-suggest-search button.gx-btn { display:none; }
 
     /* 제안창 */
     .gx-suggest-box {
-      position:absolute;
-      top:52px; left:50%;
-      transform:translateX(-50%) translateY(-8px);
-      width:min(520px,90vw);
-      max-height:45vh;
-      overflow-y:auto;
-      -webkit-overflow-scrolling: touch;
-      background:#fff;
-      border-radius:12px;
-      box-shadow:0 8px 24px rgba(0,0,0,0.15);
-      z-index:610;
-      opacity:0;
-      pointer-events:none;
-      transition: opacity .25s ease, transform .25s ease;
-      display:block;
+      position:absolute; top:52px; left:50%; transform:translateX(-50%) translateY(-8px);
+      width:min(520px,90vw); max-height:45vh; overflow-y:auto; -webkit-overflow-scrolling: touch;
+      background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15);
+      z-index:610; opacity:0; pointer-events:none; transition: opacity .25s ease, transform .25s ease; display:block;
     }
-    .gx-suggest-box.open {
-      opacity:1;
-      transform:translateX(-50%) translateY(0);
-      pointer-events:auto;
-    }
-    .gx-suggest-item {
-      padding:12px 16px;
-      cursor:pointer;
-      display:flex;
-      flex-direction:column;
-      align-items:flex-start;
-      gap:4px;
-      border-bottom:1px solid #f0f0f0;
-      transition: background .2s ease;
-    }
+    .gx-suggest-box.open { opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+    .gx-suggest-item { padding:12px 16px; cursor:pointer; display:flex; flex-direction:column; align-items:flex-start; gap:4px; border-bottom:1px solid #f0f0f0; transition: background .2s ease; }
     .gx-suggest-item:last-child { border-bottom:none; }
-    .gx-suggest-item:hover,
-    .gx-suggest-item.active {
-      background:#d9e9ff;
-    }
-    .gx-suggest-title {
-      font-weight:600;
-      font-size:15px;
-      color:#222;
-      line-height:1.3;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    }
-    .gx-suggest-sub {
-      font-size:13px;
-      color:#666;
-      line-height:1.4;
-      display:flex;
-      flex-wrap:wrap;
-      gap:6px;
-      min-height:18px;
-    }
+    .gx-suggest-item:hover, .gx-suggest-item.active { background:#d9e9ff; }
+    .gx-suggest-title { font-weight:600; font-size:15px; color:#222; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gx-suggest-sub { font-size:13px; color:#666; line-height:1.4; display:flex; flex-wrap:wrap; gap:6px; min-height:18px; }
     .gx-suggest-sub span { white-space:nowrap; }
 
     /* 펄스 효과 */
     .pulse-marker {
-      width:20px; height:20px;
-      margin-left:-10px; margin-top:-10px;
-      border:4px solid red; border-radius:50%;
-      background:rgba(255,0,0,0.3);
-      animation:pulse 1.2s ease-out forwards;
+      width:20px; height:20px; margin-left:-10px; margin-top:-10px;
+      border:4px solid red; border-radius:50%; background:rgba(255,0,0,0.3); animation:pulse 1.2s ease-out forwards;
     }
-    @keyframes pulse {
-      0%{transform:scale(0.5);opacity:0.8;}
-      70%{transform:scale(2.0);opacity:0;}
-      100%{transform:scale(2.0);opacity:0;}
-    }
+    @keyframes pulse { 0%{transform:scale(0.5);opacity:0.8;} 70%{transform:scale(2.0);opacity:0;} 100%{transform:scale(2.0);opacity:0;} }
 
-    /* 토글 버튼 */
+    /* 토글 버튼 모음 */
     .toolbar {
-      position:absolute;
-      top:60px;
-      left:10px;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-      z-index:620;
+      position:absolute; top:60px; left:10px; display:flex; flex-direction:column; gap:8px; z-index:620;
     }
     .btn {
-      width:40px; height:40px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border:1px solid #ccc;
-      border-radius:8px;
-      background:#fff;
-      cursor:pointer;
-      color:#555;
-      transition:all .2s ease;
+      width:40px; height:40px; display:flex; align-items:center; justify-content:center;
+      border:1px solid #ccc; border-radius:8px; background:#fff; cursor:pointer; color:#555;
+      transition:all .2s ease; position:relative; overflow:hidden;
     }
-    .btn svg { width:22px; height:22px; }
-    .btn svg path { fill:currentColor; }
-    .btn.selected_btn {
-      background:#eef5ff;
-      color:#007aff; /* 선택 시 아이콘도 파란색 */
+    .btn:hover { box-shadow:0 3px 12px rgba(0,0,0,.12); }
+    .btn.selected_btn { border-color:#007aff; box-shadow:0 0 0 2px rgba(0,122,255,.15) inset; color:#007aff; }
+
+    /* ===== 위성뷰: 심플 SVG 원 ===== */
+    .btn-satellite svg { width:18px; height:18px; display:block; }
+    .btn-satellite svg circle { fill: currentColor; }
+
+    /* ===== 로드뷰: 카카오맵 로드뷰 스프라이트에서 아이콘 추출 ===== */
+    .btn-roadview::before{
+      content:""; position:absolute; left:50%; top:50%; width:20px; height:34px; transform:translate(-50%,-50%);
+      background-image:url("https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png");
+      /* 원본 스프라이트 크기와 같은 비율 유지 */
+      background-size:1666px 168px;
+      /* 로드뷰 마커(사람) 영역 좌표 */
+      background-position:-705px -114px;
+      background-repeat:no-repeat;
     }
   </style>
 </head>
@@ -164,22 +96,13 @@
 
       <!-- 토글 버튼 모음 -->
       <div class="toolbar">
-        <!-- 위성뷰 버튼 (지구본 SVG 적용) -->
-        <button id="btnSatellite" class="btn" title="위성뷰">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg"
-               xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024">
-            <path fill="currentColor" d="M135.891418,556.725464 ... z"/>
-            <path fill="currentColor" d="M309.938354,518.271240 ... z"/>
-            <path fill="currentColor" d="M561.589600,228.755981 ... z"/>
-          </svg>
+        <!-- 위성뷰: 심플 원 아이콘 -->
+        <button id="btnSatellite" class="btn btn-satellite" title="위성뷰">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8"/></svg>
         </button>
 
-        <!-- 로드뷰 버튼 -->
-        <button id="btnRoadview" class="btn" title="로드뷰">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="12" r="10"/>
-          </svg>
-        </button>
+        <!-- 로드뷰: 카카오 스프라이트 아이콘 -->
+        <button id="btnRoadview" class="btn btn-roadview" title="로드뷰"></button>
       </div>
     </div>
   </div>
@@ -200,7 +123,7 @@
   kakao.maps.load(function () {
     const mapCenter=new kakao.maps.LatLng(35.2725308711779,128.406307024695);
     const map=new kakao.maps.Map(document.getElementById('map'),{center:mapCenter,level:4});
-    map.setMaxLevel(9); 
+    map.setMaxLevel(9);
     window.map=map;
 
     // 마커 데이터
@@ -237,8 +160,8 @@
       });
     }
 
-    // 위성뷰 토글
-    const btnSatellite=document.getElementById("btnSatellite");
+    /* ===== 위성뷰 토글 ===== */
+    const btnSatellite = document.getElementById("btnSatellite");
     btnSatellite.addEventListener("click",()=>{
       if(map.getMapTypeId() === kakao.maps.MapTypeId.ROADMAP){
         map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
@@ -249,10 +172,10 @@
       }
     });
 
-    // 로드뷰 토글 (오빠 기존 함수 사용)
+    /* ===== 로드뷰 토글: 너의 기존 함수 호출 유지 ===== */
     const btnRoadview=document.getElementById("btnRoadview");
     btnRoadview.addEventListener("click",()=>{
-      toggleRoadview();
+      if (typeof toggleRoadview === "function") toggleRoadview();
       btnRoadview.classList.toggle("selected_btn");
     });
   });
