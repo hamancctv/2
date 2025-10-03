@@ -23,6 +23,40 @@
     const box   = parent.querySelector('.gx-suggest-box');
     if (!input || !box) return;
 
+    /* === 로드뷰 상태에 따라 검색 UI(검색창+제안창) 숨김/표시 === */
+    const searchWrap =
+      input.closest('.search-wrap') ||
+      parent.querySelector('.search-wrap') ||
+      null;
+
+    function setSearchVisible(on) {
+      if (!searchWrap) return;
+      searchWrap.style.display = on ? '' : 'none';
+      if (!on) { // 숨길 때 제안창도 정리
+        box.classList.remove('open');
+        box.innerHTML = '';
+        input.blur();
+      }
+    }
+
+    // #container의 class에 view_roadview가 붙고/빠지는 걸 감지
+    (function bindRoadviewVisibility(){
+      const container = document.getElementById('container');
+      if (!container) return;
+
+      // 초기 상태 반영
+      setSearchVisible(!container.classList.contains('view_roadview'));
+
+      // class 변화 감지
+      if (typeof MutationObserver !== 'undefined') {
+        const mo = new MutationObserver(() => {
+          setSearchVisible(!container.classList.contains('view_roadview'));
+        });
+        mo.observe(container, { attributes: true, attributeFilter: ['class'] });
+      }
+    })();
+    /* ===================================================== */
+
     // 접근성 속성
     input.setAttribute('role', 'combobox');
     input.setAttribute('aria-autocomplete', 'list');
@@ -59,7 +93,6 @@
         const el = list[i];
         el.classList.add('active');
         el.setAttribute('aria-selected', 'true');
-        // 스크롤 가시화
         try { el.scrollIntoView({ block: 'nearest' }); } catch(_) {}
       }
     }
@@ -77,7 +110,6 @@
         if (!obj) continue;
         const raw = obj[key];
         if (!raw) continue;
-        // ip: 같은 prefix 제거 + 공백만 구분(점 X)
         const t = normalizeText(String(raw).replace(/^ip\s*:\s*/i, ''));
         if (t) spans.push(`<span>${t}</span>`);
       }
@@ -107,14 +139,10 @@
 
     function render(list) {
       box.innerHTML = list.map(makeItemHTML).join('');
-      // 이벤트 위임
       box.querySelectorAll('.gx-suggest-item').forEach((el, idx) => {
         el.addEventListener('mouseenter', () => setActive(idx));
         el.addEventListener('mouseleave', () => setActive(-1));
-        el.addEventListener('mousedown', (e) => {
-          // focusout 되기 전에 pick 실행되도록
-          e.preventDefault();
-        });
+        el.addEventListener('mousedown', (e) => { e.preventDefault(); });
         el.addEventListener('click', () => pick(idx));
       });
       setActive(-1);
@@ -139,22 +167,16 @@
       if (idx < 0 || idx >= current.length) return;
       const o = current[idx];
 
-      // 입력창에 제목 반영
       const t = titleOf(o);
       if (t) input.value = t;
 
-      // 지도 이동(좌표 있으면)
       const lat = parseFloat(o.lat || (o.latlng && o.latlng.getLat && o.latlng.getLat()));
       const lng = parseFloat(o.lng || (o.latlng && o.latlng.getLng && o.latlng.getLng()));
       if (isFinite(lat) && isFinite(lng) && map) {
         const ll = new kakao.maps.LatLng(lat, lng);
         try { map.setLevel(3); } catch(_) {}
         try { map.panTo(ll); } catch(_) {}
-        // 기존 마커 제어 훅(있으면)
         if (typeof getMarkers === 'function') {
-          // 선택된 포지션에 펄스 오버레이/점프 등은 기존 handlers에서 처리
-          // 여기서는 선택만 트리거
-          // 필요하면 커스텀 이벤트 발행
           try {
             const ev = new CustomEvent('suggest:pick', { detail: o });
             document.dispatchEvent(ev);
@@ -163,7 +185,7 @@
       }
 
       closeBox();
-      input.blur(); // 모바일에서 키보드 내리는 용도
+      input.blur();
     }
 
     // 입력 이벤트
@@ -183,7 +205,7 @@
     input.addEventListener('focus', () => {
       if (!openOnFocus) return;
       const q = input.value || '';
-      if (q.trim() === '') return; // “처음엔 아무것도 안 나오게”
+      if (q.trim() === '') return;
       current = filterData(q);
       if (current.length > 0) {
         render(current);
@@ -195,9 +217,7 @@
     input.addEventListener('keydown', (e) => {
       const list = items();
       const open = box.classList.contains('open') && list.length > 0;
-      // ↓/↑/Enter/Esc/Home/End
       if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-        // 닫혀있는데 ↓를 누르면 열어주기
         const q = input.value || '';
         if (q.trim() !== '') {
           current = filterData(q);
@@ -236,7 +256,7 @@
       closeBox();
     });
 
-    // 스크롤/리사이즈 등 상황에서 안전하게 닫기(선택)
+    // 스크롤/리사이즈 등 상황에서 안전하게 닫기
     window.addEventListener('resize', closeBox);
   };
 })();
