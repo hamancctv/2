@@ -1,201 +1,138 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8" />
-  <title>GIS 모바일</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="icon" href="https://hamancctv.github.io/2/favicon.ico" sizes="32x32"/>
-  <link rel="stylesheet" href="https://hamancctv.github.io/2/style.css">
-  <style>
-    html, body, #container, #mapWrapper, #map, #rvWrapper, #roadview {
-      height:100vh; /* 단순 고정 */
-      margin:0; padding:0;
-    }
-    #mapWrapper { position: relative; }
+// search-suggest.js (최종 안정 버전)
+(function () {
+  console.log("[search-suggest] loaded FINAL-SIMPLE");
 
-    /* 검색창 + 제안창 */
-    .gx-suggest-search{
-      position:absolute;top:8px;left:50%;transform:translateX(-50%);
-      display:flex;gap:8px;align-items:center;
-      width:min(520px,90vw);z-index:600;
-    }
-    .gx-suggest-search input{
-      flex:1;height:40px;padding:0 12px;
-      border:1px solid #ccc;border-radius:10px;
-      background:#fff;font-size:14px;outline:none;
-    }
-    .gx-suggest-search button{display:none;}
+  window.initSuggestUI = function(opts) {
+    const {
+      map,
+      data = window.SEL_SUGGEST || [],
+      parent = document.getElementById('mapWrapper') || document.body,
+      badges = [],
+      maxItems = 30,
+      openOnFocus = false,
+      chooseOnEnter = false
+    } = opts || {};
 
-    .gx-suggest-box{
-      position:absolute;
-      top:48px;left:50%;
-      transform:translateX(-50%) translateY(-6px);
-      width:min(520px,90vw);
-      max-height:40vh;
-      overflow-y:auto;
-      -webkit-overflow-scrolling:auto; /* ✅ 첫 스크롤 딜레이 제거 */
-      border:1px solid #ccc;
-      border-radius:10px;
-      background:rgba(255,255,255,0.96);
-      box-shadow:0 8px 20px rgba(0,0,0,.15);
-      z-index:610;
-      opacity:0;
-      pointer-events:none;
-      transition:opacity .18s ease, transform .18s ease;
-      display:block;
-    }
-    .gx-suggest-box.open{
-      opacity:1;
-      transform:translateX(-50%) translateY(0);
-      pointer-events:auto;
+    const wrap = parent.querySelector('.gx-suggest-search');
+    const box  = parent.querySelector('.gx-suggest-box');
+    const kw   = wrap ? wrap.querySelector('.gx-input') : null;
+
+    if (!wrap || !box || !kw) {
+      console.warn("search-suggest: 필요한 DOM을 찾지 못함");
+      return;
     }
 
-    .gx-suggest-item{
-      padding:10px 12px;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      gap:8px;
-      border-bottom:1px solid #f2f2f2;
-    }
-    .gx-suggest-item:hover,.gx-suggest-item.active{background:#eef3ff;}
-    .gx-suggest-title{
-      display:inline-block;
-      max-width:60%;
-      overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
-      font-weight:600;
-    }
-    .gx-badge{font-size:12px;color:#555;background:#f2f4f8;padding:2px 6px;border-radius:6px;}
-    .pulse-marker {
-      width:20px;height:20px;margin-left:-10px;margin-top:-10px;
-      border:4px solid red;border-radius:50%;
-      background:rgba(255,0,0,0.3);
-      animation:pulse 1.2s ease-out forwards;
-    }
-    @keyframes pulse {
-      0%{transform:scale(0.5);opacity:0.8;}
-      70%{transform:scale(2.0);opacity:0;}
-      100%{transform:scale(2.0);opacity:0;}
-    }
-  </style>
-</head>
-<body>
-  <div id="alert-overlay"><div id="alert-message"></div></div>
-
-  <div id="container">
-    <div id="rvWrapper">
-      <div id="roadview"></div>
-      <div id="close" title="로드뷰닫기" onclick="closeRoadview()"><span class="img"></span></div>
-    </div>
-    <div id="mapWrapper">
-      <div id="map"></div>
-      <div id="roadviewControl"></div>
-
-      <!-- 검색창 + 제안창 -->
-      <div class="gx-suggest-search">
-        <input type="search" class="gx-input" placeholder="예) ㅎㅇㄱㅂㄱㅅ, ㄷ032, 시설명…" autocomplete="off" />
-        <button type="button" class="gx-btn">검색</button>
-      </div>
-      <div class="gx-suggest-box"></div>
-    </div>
-  </div>
-
-  <div class="toolbar-right" style="display:none;">
-    <input type="text" id="gpsyx" class="input-common" inputmode="none"
-           value="35.2725308711779, 128.406307024695"/>
-    <button id="btn_input_copy" class="btn-common">복사</button>
-  </div>
-
-  <!-- SDK & 외부 스크립트 -->
-  <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services,clusterer,drawing&autoload=false"></script>
-  <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
-
-  <!-- 외부 유틸 -->
-  <script src="https://hamancctv.github.io/2/sel_suggest.js"></script>
-  <script src="https://hamancctv.github.io/2/drawGroupLinesMST.js"></script>
-  <script src="https://hamancctv.github.io/2/btnDistance.js"></script>
-  <script src="https://hamancctv.github.io/2/markers-handler.js"></script>
-  <script src="https://hamancctv.github.io/2/search-suggest.js"></script>
-
-  <!-- ✅ 로드뷰 초기화 함수 -->
-  <script>
-  function initRoadview(map, position) {
-    const rv = new kakao.maps.Roadview(document.getElementById('roadview'));
-    const rvClient = new kakao.maps.RoadviewClient();
-    rvClient.getNearestPanoId(position, 50, function(panoId) {
-      if (panoId) rv.setPanoId(panoId, position);
-    });
-  }
-  </script>
-
-  <!-- ✅ 메인 스크립트 -->
-  <script>
-  kakao.maps.load(function () {
-    const mapCenter=new kakao.maps.LatLng(35.2725308711779,128.406307024695);
-    const map=new kakao.maps.Map(document.getElementById('map'),{center:mapCenter,level:4});
-    map.setMaxLevel(9); 
-    window.map=map;
-    
-    // ✅ 마커 생성
-    const raw = (window.SEL_SUGGEST || []).map(it => {
-      const lat = parseFloat(it.lat), lng = parseFloat(it.lng);
-      if (!isFinite(lat) || !isFinite(lng)) return null;
-      return {
-        latlng: new kakao.maps.LatLng(lat, lng),
-        content: it.name1 || it.name,
-        searchName: it.name2 || it.name,
-        group: it.line || null
-      };
+    const RAW = (data || []).map((it, idx) => {
+      const enclosure = it.enclosure ?? it.encloser ?? "";
+      const address   = it.address   ?? it.addr     ?? "";
+      const name      = it.name      ?? "";
+      const line      = it.line      ?? "";
+      const ip        = it.ip        ?? "";
+      const lat = Number(it.lat), lng = Number(it.lng);
+      return isFinite(lat) && isFinite(lng) ? {
+        id: it.id || `s_${idx}`,
+        name, enclosure, address, ip, line,
+        lat, lng,
+        key: (name + enclosure + address + ip + line).toLowerCase()
+      } : null;
     }).filter(Boolean);
 
-    const unique = new Map();
-    for (const p of raw) {
-      const key = p.latlng.getLat() + "," + p.latlng.getLng();
-      if (!unique.has(key)) unique.set(key, p);
-    }
-    const finalPositions = [...unique.values()];
+    let suggestions = [];
+    let active = -1;
 
-    if (window.initMarkers) {
-      initMarkers(map, finalPositions);
+    function match(q){
+      if(!q) return openOnFocus ? RAW.slice(0, maxItems) : [];
+      const s = q.toLowerCase();
+      return RAW.filter(it => it.key.includes(s)).slice(0, maxItems);
     }
 
-    // ✅ 로드뷰 실행
-    initRoadview(map, mapCenter);
+    function buildSub(it){
+      const out = [];
+      if ((badges.includes('enclosure') || badges.includes('encloser')) && it.enclosure) out.push(`[${it.enclosure}]`);
+      if (badges.includes('line') && it.line) out.push(it.line);
+      if ((badges.includes('address') || badges.includes('addr')) && it.address) out.push(it.address);
+      if (badges.includes('ip') && it.ip) out.push('IP:'+it.ip);
+      return out.join(' / ');
+    }
 
-    // ✅ 좌표 input 갱신/복사
-    kakao.maps.event.addListener(map,'center_changed',()=>{
-      const ll=map.getCenter();
-      $('#gpsyx').val(ll.getLat()+', '+ll.getLng());
+    function render(items){
+      suggestions = items || [];
+      active = -1;
+      if(!items || !items.length){
+        box.innerHTML = "";
+        box.classList.remove('open');
+        return;
+      }
+      box.innerHTML = items.map((it,idx)=>(
+        `<div class="gx-suggest-item" data-index="${idx}">
+           <div class="gx-suggest-title">${it.name}</div>
+           ${buildSub(it) ? `<div class="gx-suggest-sub">${buildSub(it)}</div>` : ""}
+         </div>`
+      )).join('');
+      box.classList.add('open');
+    }
+
+    function moveActive(delta){
+      if(!box.classList.contains('open') || suggestions.length===0) return;
+      active = (active + delta + suggestions.length) % suggestions.length;
+      [...box.querySelectorAll('.gx-suggest-item')].forEach((el,i)=>{
+        el.classList.toggle('active', i===active);
+        if(i===active) el.scrollIntoView({block:'nearest'});
+      });
+    }
+
+    function choose(index){
+      const item = suggestions[index];
+      if(!item) return;
+      const pos = new kakao.maps.LatLng(item.lat, item.lng);
+      map.panTo(pos);
+      // 펄스 효과
+      const node = document.createElement('div');
+      node.className = 'pulse-marker';
+      const overlay = new kakao.maps.CustomOverlay({position:pos, content:node, map, zIndex:9999});
+      setTimeout(()=>overlay.setMap(null), 1500);
+      box.classList.remove('open');
+      kw.blur();   // 검색 후 인풋 비활성화
+    }
+
+    // 이벤트
+    kw.addEventListener('input', ()=>render(match(kw.value.trim())));
+    if(openOnFocus){
+      kw.addEventListener('focus', ()=>render(match(kw.value.trim())));
+    }
+
+    kw.addEventListener('keydown', (e)=>{
+      if(e.key==='ArrowDown'){ e.preventDefault(); moveActive(1); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); moveActive(-1); }
+      else if(e.key==='Enter' && chooseOnEnter){
+        e.preventDefault();
+        if(active>=0) choose(active);
+        else if(suggestions.length) choose(0);
+      } else if(e.key==='Escape'){
+        box.classList.remove('open');
+        kw.blur();
+      }
     });
-    document.getElementById("btn_input_copy").onclick=function(){
-      const g=document.getElementById("gpsyx");
-      g.select();
-      document.execCommand('copy');
-    };
 
-    // ✅ 검색창 초기화
-    if (window.initSuggestUI) {
-      initSuggestUI({
-        map: map,
-        data: window.SEL_SUGGEST,
-        parent: document.getElementById('mapWrapper'),
-        getMarkers: () => window.markers,
-        badges: ['line','encloser','addr','ip'],
-        maxItems: 30,
-        chooseOnEnter: true,
-        openOnFocus: true
-      });
-    }
+    box.addEventListener('click', (e)=>{
+      const el = e.target.closest('.gx-suggest-item');
+      if(!el) return;
+      choose(parseInt(el.dataset.index,10));
+    });
 
-    // ✅ 회선 토글
-    const btn=document.getElementById("toggle_group");
-    if(window.drawGroupLinesMST && btn){
-      btn.addEventListener("click",()=>{
-        drawGroupLinesMST(map);
-        btn.classList.toggle("selected_btn");
-      });
+    // 바깥 클릭 시 닫기
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target) && !box.contains(e.target)) {
+        box.classList.remove('open');
+        kw.blur();
+      }
+    });
+
+    // 지도 클릭/드래그 시 닫기
+    if(map){
+      kakao.maps.event.addListener(map, 'click', ()=>{ kw.blur(); box.classList.remove('open'); });
+      kakao.maps.event.addListener(map, 'dragstart', ()=>{ kw.blur(); box.classList.remove('open'); });
+      kakao.maps.event.addListener(map, 'zoom_start', ()=>{ kw.blur(); box.classList.remove('open'); });
     }
-  });
-  </script>
-</body>
-</html>
+  };
+})();
