@@ -169,19 +169,28 @@ html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
   z-index: 200;
 }
 
-/* 상단 툴바 */
+/* 기존 */
 .toolbar {
-  position: absolute;
-  top: 12px; left: 10px;
-  display: flex; gap: 6px; align-items: center;
-  z-index: 500;
+  position:absolute;  /* ← 이걸 */
+  top:60px; 
+  left:10px; 
+  display:flex; 
+  flex-direction:column; 
+  gap:8px; 
+  z-index:620;
 }
-.toolbar-right {
-  position: absolute;
-  top: 12px; right: 10px;
-  display: flex; gap: 6px; align-items: center;
-  z-index: 500;
+
+/* 교체 */
+.toolbar {
+  position:fixed;     /* ← 이렇게 바꾸면 화면 좌표 고정 */
+  top:60px;
+  left:10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  z-index:1000;       /* 로드뷰 위로 확실히 띄우기 */
 }
+
 
 /* 메뉴 */
 #menu_wrap {
