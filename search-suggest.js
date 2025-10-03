@@ -1,11 +1,11 @@
-// search-suggest.js (오빠 HTML 전용 FINAL++)
+// search-suggest.js (오빠 HTML 전용 FINAL+++ : 모바일 최적화 + 드래그 방지)
 (function () {
-  console.log("[search-suggest] loaded FINAL++ (mobile optimized)");
+  console.log("[search-suggest] loaded FINAL+++");
 
   // 최소 스타일
   const style = document.createElement("style");
   style.textContent = `
-    .gx-suggest-box{font-family:sans-serif;}
+    .gx-suggest-box{font-family:sans-serif;overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .gx-suggest-item{padding:8px 12px;cursor:pointer;display:flex;flex-direction:column;border-bottom:1px solid #f2f2f2;}
     .gx-suggest-item:hover,.gx-suggest-item.active{background:#f5f9ff;}
     .gx-suggest-title{font-weight:600;}
@@ -114,7 +114,7 @@
       const overlay = new kakao.maps.CustomOverlay({position:pos, content:node, map, zIndex:9999});
       setTimeout(()=>overlay.setMap(null), 1500);
       box.classList.remove('open');
-      kw.blur();   // ✅ 검색 완료 후 input 비활성화 (모바일 키보드 닫힘)
+      kw.blur();   // 검색 완료 후 input 비활성화
     }
 
     // 이벤트
@@ -156,5 +156,19 @@
       kakao.maps.event.addListener(map, 'dragstart', ()=>{ kw.blur(); box.classList.remove('open'); });
       kakao.maps.event.addListener(map, 'zoom_start', ()=>{ kw.blur(); box.classList.remove('open'); });
     }
+
+    // ✅ 제안창 드래그 시 페이지/지도까지 같이 끌리는 현상 방지
+    box.addEventListener('touchmove', (e) => {
+      const atTop = box.scrollTop === 0;
+      const atBottom = box.scrollHeight - box.scrollTop === box.clientHeight;
+      const movingDown = e.touches[0].clientY > (box._lastY || 0);
+      const movingUp   = e.touches[0].clientY < (box._lastY || 0);
+      box._lastY = e.touches[0].clientY;
+
+      if ((atTop && movingDown) || (atBottom && movingUp)) {
+        e.preventDefault(); // 바운스 방지
+      }
+      e.stopPropagation(); // 지도 이벤트로 전달 방지
+    }, { passive:false });
   };
 })();
