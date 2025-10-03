@@ -154,6 +154,24 @@
       });
     }
   });
+
+    // 아이폰 사파리 버그 대응 safari bug
+  function setVh() {
+    // 아이폰 Safari 대응: visualViewport가 있으면 그걸 사용
+    const vh = window.visualViewport 
+                 ? window.visualViewport.height * 0.01 
+                 : window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  }
+
+  // 최초 실행
+  setVh();
+
+  // 뷰포트 변할 때마다 실행 (키보드 올라올 때도 호출됨)
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setVh);
+  }
+  window.addEventListener('resize', setVh);
   </script>
 </body>
 </html>
