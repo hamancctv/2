@@ -46,14 +46,15 @@
       return RAW.filter(it => it.key.includes(s)).slice(0, maxItems);
     }
 
-    function buildSub(it){
-      const out = [];
-      if ((badges.includes('enclosure') || badges.includes('encloser')) && it.enclosure) out.push(`[${it.enclosure}]`);
-      if (badges.includes('line') && it.line) out.push(it.line);
-      if ((badges.includes('address') || badges.includes('addr')) && it.address) out.push(it.address);
-      if (badges.includes('ip') && it.ip) out.push('IP:'+it.ip);
-      return out.join(' / ');
-    }
+function buildSub(it){
+  const out = [];
+  if (it.enclosure) out.push(`<span>${it.enclosure}</span>`);
+  if (it.address)   out.push(`<span>${it.address}</span>`);
+  if (it.ip)        out.push(`<span>${it.ip}</span>`);  // 그냥 값
+  if (it.line)      out.push(`<span>${it.line}</span>`); // 마지막
+  return out.join(' '); // 공백 구분
+}
+
 
     function render(items){
       suggestions = items || [];
