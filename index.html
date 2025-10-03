@@ -80,7 +80,7 @@
     .gx-suggest-item:last-child { border-bottom:none; }
     .gx-suggest-item:hover,
     .gx-suggest-item.active {
-      background:#e6f0ff;
+      background:#d9e9ff;
     }
     .gx-suggest-title {
       font-weight:600;
@@ -138,17 +138,11 @@
       color:#555;
       transition:all .2s ease;
     }
-    .btn .icon svg {
-      width:20px; height:20px;
-      fill:#555;  /* 기본 회색 */
-      transition:fill .2s ease;
-    }
+    .btn svg { width:22px; height:22px; }
+    .btn svg path { fill:currentColor; }
     .btn.selected_btn {
       background:#eef5ff;
-      color:#007aff;
-    }
-    .btn.selected_btn .icon svg {
-      fill:#007aff;  /* 토글 켜졌을 때 파란색 */
+      color:#007aff; /* 선택 시 아이콘도 파란색 */
     }
   </style>
 </head>
@@ -170,23 +164,19 @@
 
       <!-- 토글 버튼 모음 -->
       <div class="toolbar">
-        <!-- 위성뷰 버튼 -->
-<!-- 위성뷰 버튼 -->
-<button id="btnSatellite" class="btn" title="위성뷰">
-  <span class="icon">
-    <!-- 오빠가 올려준 file.svg 내용 -->
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-      <!-- 아래 path들은 오빠 파일 속 내용이야 -->
-      <path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zM256 482C132.3 482 30 379.7 30 256S132.3 30 256 30s226 102.3 226 226-102.3 226-226 226z"/>
-      <path d="M256 100c-85.9 0-156 70.1-156 156s70.1 156 156 156 156-70.1 156-156S341.9 100 256 100zm0 282c-69.6 0-126-56.4-126-126s56.4-126 126-126 126 56.4 126 126-56.4 126-126 126z"/>
-    </svg>
-  </span>
-</button>
-
+        <!-- 위성뷰 버튼 (지구본 SVG 적용) -->
+        <button id="btnSatellite" class="btn" title="위성뷰">
+          <svg version="1.1" xmlns="http://www.w3.org/2000/svg"
+               xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024">
+            <path fill="currentColor" d="M135.891418,556.725464 ... z"/>
+            <path fill="currentColor" d="M309.938354,518.271240 ... z"/>
+            <path fill="currentColor" d="M561.589600,228.755981 ... z"/>
+          </svg>
+        </button>
 
         <!-- 로드뷰 버튼 -->
         <button id="btnRoadview" class="btn" title="로드뷰">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="12" cy="12" r="10"/>
           </svg>
         </button>
@@ -262,7 +252,7 @@
     // 로드뷰 토글 (오빠 기존 함수 사용)
     const btnRoadview=document.getElementById("btnRoadview");
     btnRoadview.addEventListener("click",()=>{
-      toggleRoadview(); // 오빠 기존 함수
+      toggleRoadview();
       btnRoadview.classList.toggle("selected_btn");
     });
   });
