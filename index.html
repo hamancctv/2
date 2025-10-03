@@ -48,13 +48,6 @@
   <button id="btn_input_copy" class="btn-common">복사</button>
 </div>
 
-  <!-- <button id="btnDistance">거리</button>
-  <div class="custom_typecontrol2_m radius_border">
-    <span id="toggle_group" class="btn" onclick="toggleGroup()">회선</span>
-    <span id="btnCurrentMe" class="btn" onclick="toggleMyLocation()">위치</span>
-    <span id="btnTrackMe" class="btn" onclick="toggleTracking()">추적</span>
-  </div> -->
-
   <!-- SDK & 외부 스크립트 -->
   <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services,clusterer,drawing&autoload=false"></script>
   <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
@@ -66,14 +59,29 @@
   <script src="https://hamancctv.github.io/2/markers-handler.js"></script>
   <script src="https://hamancctv.github.io/2/search-suggest.js"></script>
   
+  <!-- ✅ 로드뷰 초기화 함수 추가 -->
+  <script>
+  function initRoadview(map, position) {
+    const rv = new kakao.maps.Roadview(document.getElementById('roadview'));
+    const rvClient = new kakao.maps.RoadviewClient();
+
+    rvClient.getNearestPanoId(position, 50, function(panoId) {
+      if (panoId) {
+        rv.setPanoId(panoId, position);
+      }
+    });
+  }
+  </script>
+
   <!-- ✅ 메인 스크립트 -->
   <script>
   kakao.maps.load(function () {
     const mapCenter=new kakao.maps.LatLng(35.2725308711779,128.406307024695);
     const map=new kakao.maps.Map(document.getElementById('map'),{center:mapCenter,level:4});
-    map.setMaxLevel(9); window.map=map;
+    map.setMaxLevel(9); 
+    window.map=map;
     
-    // ✅ 마커 생성 (positions.js 기반)
+    // ✅ 마커 생성
     const raw = (window.SEL_SUGGEST || []).map(it => {
       const lat = parseFloat(it.lat), lng = parseFloat(it.lng);
       if (!isFinite(lat) || !isFinite(lng)) return null;
@@ -96,29 +104,25 @@
       initMarkers(map, finalPositions);
     }
 
-    // 로드뷰 시작
-    // 로드뷰 초기화
+    // ✅ 로드뷰 실행
     initRoadview(map, mapCenter);
-  });
-  </script>
-    //로드뷰 끝
 
-    <script>
-    // ===== 좌표 input 갱신/복사 =====
-    kakao.maps.event.addListener(window.map,'center_changed',()=>{
-      const ll=window.map.getCenter();
+    // ✅ 좌표 input 갱신/복사
+    kakao.maps.event.addListener(map,'center_changed',()=>{
+      const ll=map.getCenter();
       $('#gpsyx').val(ll.getLat()+', '+ll.getLng());
     });
+
     document.getElementById("btn_input_copy").onclick=function(){
       const g=document.getElementById("gpsyx");
       g.select();
       document.execCommand('copy');
     };
 
-    // ===== 검색창 초기화 (search-suggest.js 활용) =====
+    // ✅ 검색창 초기화
     if (window.initSuggestUI) {
       initSuggestUI({
-        map: window.map,
+        map: map,
         data: window.SEL_SUGGEST,
         parent: document.getElementById('mapWrapper'),
         getMarkers: () => window.markers,
@@ -128,15 +132,16 @@
         openOnFocus: true
       });
     }
- 
-    // ===== 회선 토글 =====
+
+    // ✅ 회선 토글
     const btn=document.getElementById("toggle_group");
-    if(window.drawGroupLinesMST){
+    if(window.drawGroupLinesMST && btn){
       btn.addEventListener("click",()=>{
-        drawGroupLinesMST(window.map);
+        drawGroupLinesMST(map);
         btn.classList.toggle("selected_btn");
       });
     }
+  });
   </script>
 </body>
 </html>
