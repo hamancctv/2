@@ -78,8 +78,8 @@
     width:40px; height:40px;
     display:inline-flex; align-items:center; justify-content:center;
     cursor:pointer;
-    border:1px solid #ccc; border-radius:8px; background:#fff !important; /* 스프라이트 덮어쓰기 */
-    background-image:none !important;       /* 혹시 외부 CSS가 배경을 넣어도 무시 */
+    border:1px solid #ccc; border-radius:8px; background:#fff !important;
+    background-image:none !important;
     color:#555; transition:all .2s ease; box-sizing:border-box;
   }
   #roadviewControl:hover{ box-shadow:0 3px 12px rgba(0,0,0,.12); }
@@ -152,22 +152,53 @@ function rvMarkerImage(){
   );
 }
 
-/* 로드뷰 위치 세팅 */
+/* 🔎 반경을 키워가며 가장 가까운 로드뷰 panoId 찾기 */
+function findNearestPanoId(position, cb, radii=[50,100,200,400,800,1600,3000]) {
+  let i = 0;
+  (function tryNext(){
+    if (i >= radii.length) return cb(null);
+    rvClient.getNearestPanoId(position, radii[i], function(panoId){
+      if (panoId) return cb(panoId);
+      i++; tryNext();
+    });
+  })();
+}
+
+/* 🔔 간단 토스트 */
+function flash(msg) {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText =
+    'position:fixed;left:50%;top:14px;transform:translateX(-50%);' +
+    'background:rgba(0,0,0,.75);color:#fff;padding:8px 12px;border-radius:8px;' +
+    'font-size:13px;z-index:9999;pointer-events:none';
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; }, 1200);
+  setTimeout(()=> el.remove(), 1600);
+}
+
+/* ✅ 로드뷰 위치 세팅: 근처 없으면 가장 가까운 곳으로 스냅 */
 function setRoadviewAt(position){
-  rvClient.getNearestPanoId(position, 50, panoId=>{
-    const container = document.getElementById('container');
-    if(!panoId){
-      container.classList.remove('view_roadview');
-      map.relayout();
-      map.setCenter(position);
-    }else{
-      if(!container.classList.contains('view_roadview')){
-        container.classList.add('view_roadview');
-        map.relayout();
-      }
-      rv.setPanoId(panoId, position);
-      map.setCenter(position);
+  const container = document.getElementById('container');
+
+  findNearestPanoId(position, function(panoId){
+    if (!panoId) {
+      // 빠져나가지 않고 유지만
+      flash('근처에 로드뷰가 없어요');
+      try { map.setCenter(position); } catch(e){}
+      try { if (rvMarker) rvMarker.setPosition(position); } catch(e){}
+      return;
     }
+
+    if (!container.classList.contains('view_roadview')) {
+      container.classList.add('view_roadview');
+      map.relayout();
+    }
+
+    try { map.setCenter(position); } catch(e){}
+    try { if (rvMarker) rvMarker.setPosition(position); } catch(e){}
+
+    rv.setPanoId(panoId, position);
   });
 }
 
@@ -251,7 +282,6 @@ kakao.maps.load(function(){
 
   // 1) 마커 생성(외부 handlers)
   if (window.SEL_SUGGEST && typeof initMarkers === 'function') {
-    // 중복 좌표 정제 → initMarkers(map, positionsLike)
     const unique = new Map();
     const positionsLike = [];
     for (const it of window.SEL_SUGGEST) {
