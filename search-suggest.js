@@ -40,11 +40,11 @@
     let suggestions = [];
     let active = -1;
 
-    function match(q){
-      if(!q) return openOnFocus ? RAW.slice(0, maxItems) : [];
-      const s = q.toLowerCase();
-      return RAW.filter(it => it.key.includes(s)).slice(0, maxItems);
-    }
+function match(q){
+  if(!q) return [];   // ✅ 무조건 빈 배열
+  const s = q.toLowerCase();
+  return RAW.filter(it => it.key.includes(s)).slice(0, maxItems);
+}
 
 function buildSub(it){
   const out = [];
