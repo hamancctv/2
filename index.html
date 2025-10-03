@@ -138,11 +138,18 @@
       color:#555;
       transition:all .2s ease;
     }
+    .btn .icon svg {
+      width:20px; height:20px;
+      fill:#555;  /* 기본 회색 */
+      transition:fill .2s ease;
+    }
     .btn.selected_btn {
       background:#eef5ff;
       color:#007aff;
     }
-    .btn svg { width:20px; height:20px; }
+    .btn.selected_btn .icon svg {
+      fill:#007aff;  /* 토글 켜졌을 때 파란색 */
+    }
   </style>
 </head>
 <body>
@@ -163,15 +170,19 @@
 
       <!-- 토글 버튼 모음 -->
       <div class="toolbar">
-        <!-- 위성뷰 -->
+        <!-- 위성뷰 버튼 -->
         <button id="btnSatellite" class="btn" title="위성뷰">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 3h18v18H3z"/>
-          </svg>
+          <span class="icon">
+            <!-- 여기 오빠가 올린 file.svg 내용 전체 붙여넣기 -->
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <path d="M3 3h18v18H3z"/>
+            </svg>
+          </span>
         </button>
-        <!-- 로드뷰 -->
+
+        <!-- 로드뷰 버튼 -->
         <button id="btnRoadview" class="btn" title="로드뷰">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10"/>
           </svg>
         </button>
@@ -228,7 +239,7 @@
         badges: ['line','encloser','addr','ip'],
         maxItems: 30,
         chooseOnEnter: true,
-        openOnFocus: true  // 포커스 시 입력값 있으면 다시 열림
+        openOnFocus: true
       });
     }
 
@@ -247,7 +258,7 @@
     // 로드뷰 토글 (오빠 기존 함수 사용)
     const btnRoadview=document.getElementById("btnRoadview");
     btnRoadview.addEventListener("click",()=>{
-      toggleRoadview(); // 오빠가 만든 로드뷰 함수 호출
+      toggleRoadview(); // 오빠 기존 함수
       btnRoadview.classList.toggle("selected_btn");
     });
   });
