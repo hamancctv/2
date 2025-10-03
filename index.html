@@ -1,184 +1,371 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <title>GIS 모바일</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="icon" href="https://hamancctv.github.io/2/favicon.ico" sizes="32x32"/>
-  <link rel="stylesheet" href="https://hamancctv.github.io/2/style.css">
-  <style>
-    html, body, #container, #mapWrapper, #map, #rvWrapper, #roadview {
-      height:100vh; margin:0; padding:0;
-    }
-    #mapWrapper { position: relative; }
+<meta charset="utf-8" />
+<title>GIS 라이트</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
 
-    /* 검색창 */
-    .gx-suggest-search {
-      position:absolute; top:8px; left:0; right:0; margin:0 auto;
-      display:flex; gap:8px; align-items:center; width:min(520px,90vw);
-      z-index:600; justify-content:center;
-    }
-    .gx-suggest-search input.gx-input {
-      flex:1; height:42px; padding:0 14px; border:1px solid #ccc; border-radius:12px;
-      background:#fff; font-size:15px; outline:none; box-sizing:border-box;
-      transition:border .2s ease, box-shadow .2s ease;
-    }
-    .gx-suggest-search input.gx-input:focus {
-      border-color:#4a90e2; box-shadow:0 0 0 2px rgba(74,144,226,0.2);
-    }
-    .gx-suggest-search button.gx-btn { display:none; }
+<!-- Kakao Maps SDK (services + 수동 로드) -->
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services&autoload=false"></script>
 
-    /* 제안창 */
-    .gx-suggest-box {
-      position:absolute; top:52px; left:50%; transform:translateX(-50%) translateY(-8px);
-      width:min(520px,90vw); max-height:45vh; overflow-y:auto; -webkit-overflow-scrolling: touch;
-      background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15);
-      z-index:610; opacity:0; pointer-events:none; transition: opacity .25s ease, transform .25s ease; display:block;
-    }
-    .gx-suggest-box.open { opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
-    .gx-suggest-item { padding:12px 16px; cursor:pointer; display:flex; flex-direction:column; align-items:flex-start; gap:4px; border-bottom:1px solid #f0f0f0; transition: background .2s ease; }
-    .gx-suggest-item:last-child { border-bottom:none; }
-    .gx-suggest-item:hover, .gx-suggest-item.active { background:#d9e9ff; }
-    .gx-suggest-title { font-weight:600; font-size:15px; color:#222; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .gx-suggest-sub { font-size:13px; color:#666; line-height:1.4; display:flex; flex-wrap:wrap; gap:6px; min-height:18px; }
-    .gx-suggest-sub span { white-space:nowrap; }
+<style>
+  html, body { height:100%; margin:0; }
+  #container { position:relative; height:100%; overflow:hidden; }
+  #mapWrapper { position:relative; width:100%; height:100%; z-index:1; }
+  #map { width:100%; height:100%; }
 
-    /* 펄스 효과 */
-    .pulse-marker {
-      width:20px; height:20px; margin-left:-10px; margin-top:-10px;
-      border:4px solid red; border-radius:50%; background:rgba(255,0,0,0.3); animation:pulse 1.2s ease-out forwards;
-    }
-    @keyframes pulse { 0%{transform:scale(0.5);opacity:0.8;} 70%{transform:scale(2.0);opacity:0;} 100%{transform:scale(2.0);opacity:0;} }
+  /* 로드뷰 전체화면 (지도는 미니맵) */
+  #rvWrapper { position:absolute; inset:0; display:none; z-index:0; }
+  #roadview { width:100%; height:100%; }
+  .view_roadview #rvWrapper { display:block; z-index:1; }
+  .view_roadview #mapWrapper {
+    position:absolute; left:8px; bottom:8px;
+    width:26%; height:26%;
+    min-width:200px; min-height:150px;
+    border:2px solid #ccc; border-radius:8px; background:#fff; z-index:2;
+    box-shadow:0 8px 24px rgba(0,0,0,.2);
+  }
 
-    /* 토글 버튼 모음 */
-    .toolbar {
-      position:absolute; top:60px; left:10px; display:flex; flex-direction:column; gap:8px; z-index:620;
-    }
-    .btn {
-      width:40px; height:40px; display:flex; align-items:center; justify-content:center;
-      border:1px solid #ccc; border-radius:8px; background:#fff; cursor:pointer; color:#555;
-      transition:all .2s ease; position:relative; overflow:hidden;
-    }
-    .btn:hover { box-shadow:0 3px 12px rgba(0,0,0,.12); }
-    .btn.selected_btn { border-color:#007aff; box-shadow:0 0 0 2px rgba(0,122,255,.15) inset; color:#007aff; }
+  /* 로드뷰 닫기 버튼 */
+  #close {
+    position:absolute; top:8px; left:8px;
+    padding:6px; background:#fff; border:1px solid #c8c8c8; border-radius:6px;
+    cursor:pointer; z-index:3; box-shadow:0 1px #888;
+  }
+  #close .img {
+    display:block; width:14px; height:14px;
+    background:url(https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/rv_close.png) no-repeat;
+  }
 
-    /* ===== 위성뷰: 심플 SVG 원 ===== */
-    .btn-satellite svg { width:18px; height:18px; display:block; }
-    .btn-satellite svg circle { fill: currentColor; }
+  /* 검색창 & 제안창 */
+  .search-wrap {
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    width:min(520px,90vw); display:flex; gap:8px; z-index:20;
+  }
+  .search-wrap input {
+    flex:1; height:42px; padding:0 14px; border:1px solid #ccc; border-radius:12px; outline:none;
+    background:#fff; font-size:15px; transition:border .2s, box-shadow .2s;
+  }
+  .search-wrap input:focus { border-color:#4a90e2; box-shadow:0 0 0 2px rgba(74,144,226,.2); }
 
-    /* ===== 로드뷰: 카카오맵 로드뷰 스프라이트에서 아이콘 추출 ===== */
-    .btn-roadview::before{
-      content:""; position:absolute; left:50%; top:50%; width:20px; height:34px; transform:translate(-50%,-50%);
-      background-image:url("https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png");
-      /* 원본 스프라이트 크기와 같은 비율 유지 */
-      background-size:1666px 168px;
-      /* 로드뷰 마커(사람) 영역 좌표 */
-      background-position:-705px -114px;
-      background-repeat:no-repeat;
-    }
-  </style>
+  .suggest-box {
+    position:absolute; top:52px; left:50%; transform:translateX(-50%) translateY(-8px);
+    width:min(520px,90vw); max-height:45vh; overflow:auto; -webkit-overflow-scrolling:touch;
+    background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.15);
+    z-index:21; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+  }
+  .suggest-box.open { opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+  .suggest-item {
+    padding:12px 14px; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; flex-direction:column; gap:4px;
+  }
+  .suggest-item:last-child { border-bottom:none; }
+  .suggest-item:hover, .suggest-item.active { background:#d9e9ff; }
+  .suggest-title { font-weight:600; font-size:15px; color:#222; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .suggest-sub { font-size:13px; color:#666; line-height:1.3; }
+
+  /* 선택 위치 펄스 */
+  .pulse {
+    width:20px; height:20px; margin-left:-10px; margin-top:-10px;
+    border:4px solid #1976d2; border-radius:50%; background:rgba(25,118,210,.25);
+    animation:pulse 1.2s ease-out forwards;
+  }
+  @keyframes pulse {
+    0%{ transform:scale(.5); opacity:.9; }
+    70%{ transform:scale(2.1); opacity:0; }
+    100%{ transform:scale(2.1); opacity:0; }
+  }
+
+  /* ===== 좌측 툴바 ===== */
+  .toolbar { position:absolute; top:60px; left:10px; display:flex; flex-direction:column; gap:8px; z-index:620; }
+
+  /* 위성뷰 버튼 (심플 원) */
+  .btn-satellite {
+    width:40px; height:40px; display:flex; align-items:center; justify-content:center;
+    border:1px solid #ccc; border-radius:8px; background:#fff; color:#555; cursor:pointer; transition:all .2s ease;
+  }
+  .btn-satellite:hover { box-shadow:0 3px 12px rgba(0,0,0,.12); }
+  .btn-satellite.selected { border-color:#007aff; box-shadow:0 0 0 2px rgba(0,122,255,.15) inset; color:#007aff; }
+  .btn-satellite svg { width:18px; height:18px; display:block; }
+  .btn-satellite svg circle { fill: currentColor; }
+
+  /* ✅ 카카오 공식 로드뷰 스프라이트 사용 */
+  #roadviewControl {
+    width:42px; height:42px; cursor:pointer;
+    background:url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/common/img_search.png) 0 -450px no-repeat;
+  }
+  #roadviewControl.active { background-position:0 -350px; }
+</style>
 </head>
 <body>
   <div id="container">
-    <div id="rvWrapper">
-      <div id="roadview"></div>
-      <div id="close" title="로드뷰닫기" onclick="closeRoadview()"><span class="img"></span></div>
-    </div>
+    <!-- 지도 -->
     <div id="mapWrapper">
       <div id="map"></div>
 
-      <!-- 검색창 -->
-      <div class="gx-suggest-search">
-        <input type="search" class="gx-input" placeholder="예) 시설명, 주소…" autocomplete="off" />
-        <button type="button" class="gx-btn">검색</button>
-      </div>
-      <div class="gx-suggest-box"></div>
-
-      <!-- 토글 버튼 모음 -->
+      <!-- 좌측 툴바: 위성뷰 + (카카오 스타일) 로드뷰 -->
       <div class="toolbar">
-        <!-- 위성뷰: 심플 원 아이콘 -->
-        <button id="btnSatellite" class="btn btn-satellite" title="위성뷰">
-          <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8"/></svg>
+        <button id="btnSatellite" class="btn-satellite" title="위성뷰">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>
         </button>
-
-        <!-- 로드뷰: 카카오 스프라이트 아이콘 -->
-        <button id="btnRoadview" class="btn btn-roadview" title="로드뷰"></button>
+        <div id="roadviewControl" title="로드뷰"></div>
       </div>
+
+      <!-- 검색 -->
+      <div class="search-wrap">
+        <input id="searchInput" type="search" placeholder="예) 시설명, 주소…" autocomplete="off" />
+        <div id="suggestBox" class="suggest-box"></div>
+      </div>
+    </div>
+
+    <!-- 로드뷰(전체화면) -->
+    <div id="rvWrapper">
+      <div id="roadview"></div>
+      <div id="close" title="로드뷰 닫기"><span class="img"></span></div>
     </div>
   </div>
 
-  <!-- SDK -->
-  <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services,clusterer,drawing&autoload=false"></script>
-  <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
+<script>
+/* ===== 유틸 ===== */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
 
-  <!-- 외부 핸들러 -->
-  <script src="https://hamancctv.github.io/2/sel_suggest.js"></script>
-  <script src="https://hamancctv.github.io/2/drawGroupLinesMST.js"></script>
-  <script src="https://hamancctv.github.io/2/btnDistance.js"></script>
-  <script src="https://hamancctv.github.io/2/markers-handler.js"></script>
-  <script src="https://hamancctv.github.io/2/search-suggest.js"></script>
+/* ===== 전역 ===== */
+let map, geocoder, places;
+let activeMarker = null;
+let suggestTimer = null;
+let kbIndex = -1;
+const MAX_SUGGEST = 15;
 
-  <!-- 메인 -->
-  <script>
-  kakao.maps.load(function () {
-    const mapCenter=new kakao.maps.LatLng(35.2725308711779,128.406307024695);
-    const map=new kakao.maps.Map(document.getElementById('map'),{center:mapCenter,level:4});
-    map.setMaxLevel(9);
-    window.map=map;
+// 로드뷰
+let overlayOn = false;
+let rv, rvClient, rvMarker;
 
-    // 마커 데이터
-    const raw = (window.SEL_SUGGEST || []).map(it => {
-      const lat = parseFloat(it.lat), lng = parseFloat(it.lng);
-      if (!isFinite(lat) || !isFinite(lng)) return null;
-      return {
-        latlng: new kakao.maps.LatLng(lat, lng),
-        content: it.name1 || it.name,
-        searchName: it.name2 || it.name,
-        group: it.line || null
-      };
-    }).filter(Boolean);
+/* ===== 공용 ===== */
+function debounceSuggest(fn, delay = 250){
+  return function(...args){
+    clearTimeout(suggestTimer);
+    suggestTimer = setTimeout(()=>fn.apply(this,args), delay);
+  }
+}
+function clearActiveMarker(){ if(activeMarker){ activeMarker.setMap(null); activeMarker = null; } }
+function dropPulse(latlng){
+  const el = document.createElement('div');
+  el.className = 'pulse';
+  const overlay = new kakao.maps.CustomOverlay({ position: latlng, content: el, yAnchor: 1 });
+  overlay.setMap(map);
+  setTimeout(()=> overlay.setMap(null), 1200);
+}
+function placeMarker(lat, lng, title){
+  clearActiveMarker();
+  const pos = new kakao.maps.LatLng(lat, lng);
+  activeMarker = new kakao.maps.Marker({ position: pos, map });
+  if(title) activeMarker.setTitle(title);
+  map.setLevel(3, { animate:true });
+  map.panTo(pos);
+  dropPulse(pos);
+}
 
-    const unique = new Map();
-    for (const p of raw) {
-      const key = p.latlng.getLat() + "," + p.latlng.getLng();
-      if (!unique.has(key)) unique.set(key, p);
+/* ===== 검색 & 제안 ===== */
+const runSuggest = debounceSuggest(query=>{
+  const box = $('#suggestBox');
+  if(!query || !query.trim()){ box.classList.remove('open'); box.innerHTML=''; return; }
+
+  const bounds = map.getBounds();
+  let results = [];
+
+  geocoder.addressSearch(query, (addrRes, addrStatus)=>{
+    if(addrStatus === kakao.maps.services.Status.OK){
+      results = results.concat(addrRes.map(r=>({
+        title: r.address_name, sub:'주소', x:+r.x, y:+r.y, key:`A:${r.address_name}:${r.x},${r.y}`
+      })));
     }
-    const finalPositions = [...unique.values()];
-    if (window.initMarkers) initMarkers(map, finalPositions);
+    places.keywordSearch(query, (poiRes, poiStatus)=>{
+      if(poiStatus === kakao.maps.services.Status.OK){
+        results = results.concat(poiRes.map(p=>({
+          title:p.place_name, sub:p.road_address_name || p.address_name || '', x:+p.x, y:+p.y, key:`P:${p.id}`
+        })));
+      }
+      const seen = new Set();
+      const list = [];
+      for(const r of results){
+        if(seen.has(r.key)) continue;
+        seen.add(r.key);
+        list.push(r);
+        if(list.length >= MAX_SUGGEST) break;
+      }
+      if(!list.length){ box.classList.remove('open'); box.innerHTML=''; return; }
 
-    // 검색창
-    if (window.initSuggestUI) {
-      initSuggestUI({
-        map: map,
-        data: window.SEL_SUGGEST,
-        parent: document.getElementById('mapWrapper'),
-        getMarkers: () => window.markers,
-        badges: ['line','encloser','addr','ip'],
-        maxItems: 30,
-        chooseOnEnter: true,
-        openOnFocus: true
+      kbIndex = -1;
+      box.innerHTML = list.map((r,i)=>
+        `<div class="suggest-item" data-x="${r.x}" data-y="${r.y}" data-idx="${i}">
+          <div class="suggest-title">${r.title}</div>
+          <div class="suggest-sub">${r.sub || ''}</div>
+        </div>`
+      ).join('');
+      box.classList.add('open');
+
+      $$('.suggest-item').forEach(el=>{
+        el.addEventListener('mousedown', e=>{
+          e.preventDefault();
+          const x = +el.getAttribute('data-x');
+          const y = +el.getAttribute('data-y');
+          const title = el.querySelector('.suggest-title')?.textContent || '';
+          chooseSuggestion(y, x, title);
+        });
+      });
+    }, { bounds });
+  }, { bounds });
+}, 300);
+
+function chooseSuggestion(lat, lng, title){
+  const input = $('#searchInput');
+  const box   = $('#suggestBox');
+  input.blur();
+  box.classList.remove('open');
+  box.innerHTML = '';
+  placeMarker(lat, lng, title);
+}
+
+// 키보드 내비
+function moveKB(dir){
+  const items = $$('.suggest-item');
+  if(!items.length) return;
+  if(kbIndex === -1 && dir > 0) kbIndex = 0;
+  else kbIndex = (kbIndex + dir + items.length) % items.length;
+  items.forEach(el=>el.classList.remove('active'));
+  items[kbIndex].classList.add('active');
+  items[kbIndex].scrollIntoView({ block:'nearest' });
+}
+function chooseKB(){
+  const items = $$('.suggest-item');
+  if(!items.length) return;
+  const el = items[Math.max(0,kbIndex)];
+  const x = +el.getAttribute('data-x');
+  const y = +el.getAttribute('data-y');
+  const title = el.querySelector('.suggest-title')?.textContent || '';
+  chooseSuggestion(y, x, title);
+}
+
+/* ===== 로드뷰 ===== */
+function rvMarkerImage(){
+  return new kakao.maps.MarkerImage(
+    'https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png',
+    new kakao.maps.Size(26, 46),
+    {
+      spriteSize: new kakao.maps.Size(1666, 168),
+      spriteOrigin: new kakao.maps.Point(705, 114),
+      offset: new kakao.maps.Point(13, 46)
+    }
+  );
+}
+function toggleOverlay(active){
+  if(active){
+    overlayOn = true;
+    map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+    if(!rvMarker){
+      rvMarker = new kakao.maps.Marker({
+        position: map.getCenter(),
+        draggable: true,
+        image: rvMarkerImage()
+      });
+      kakao.maps.event.addListener(rvMarker, 'dragend', ()=>{
+        toggleRoadview(rvMarker.getPosition());
       });
     }
-
-    /* ===== 위성뷰 토글 ===== */
-    const btnSatellite = document.getElementById("btnSatellite");
-    btnSatellite.addEventListener("click",()=>{
-      if(map.getMapTypeId() === kakao.maps.MapTypeId.ROADMAP){
-        map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-        btnSatellite.classList.add("selected_btn");
-      }else{
-        map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
-        btnSatellite.classList.remove("selected_btn");
+    rvMarker.setMap(map);
+    rvMarker.setPosition(map.getCenter());
+    toggleRoadview(map.getCenter());
+  }else{
+    overlayOn = false;
+    map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+    if(rvMarker) rvMarker.setMap(null);
+    $('#roadviewControl').classList.remove('active');
+    $('#container').classList.remove('view_roadview');
+    map.relayout();
+  }
+}
+function toggleRoadview(position){
+  rvClient.getNearestPanoId(position, 50, panoId=>{
+    if(!panoId){
+      $('#container').classList.remove('view_roadview');
+      map.relayout();
+      map.setCenter(position);
+    }else{
+      if(!$('#container').classList.contains('view_roadview')){
+        $('#container').classList.add('view_roadview');
+        map.relayout();
       }
-    });
-
-    /* ===== 로드뷰 토글: 너의 기존 함수 호출 유지 ===== */
-    const btnRoadview=document.getElementById("btnRoadview");
-    btnRoadview.addEventListener("click",()=>{
-      if (typeof toggleRoadview === "function") toggleRoadview();
-      btnRoadview.classList.toggle("selected_btn");
-    });
+      rv.setPanoId(panoId, position);
+      map.setCenter(position);
+    }
   });
-  </script>
+}
+
+/* ===== 초기화 ===== */
+kakao.maps.load(function(){
+  const center = new kakao.maps.LatLng(35.2725308711779, 128.406307024695);
+  map = new kakao.maps.Map($('#map'), { center, level:4 });
+  map.setMaxLevel(9);
+
+  geocoder = new kakao.maps.services.Geocoder();
+  places   = new kakao.maps.services.Places();
+
+  // 위성뷰 토글
+  $('#btnSatellite').addEventListener('click', ()=>{
+    if(map.getMapTypeId() === kakao.maps.MapTypeId.ROADMAP){
+      map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+      $('#btnSatellite').classList.add('selected');
+    }else{
+      map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
+      $('#btnSatellite').classList.remove('selected');
+    }
+  });
+
+  // 로드뷰 객체
+  rvClient = new kakao.maps.RoadviewClient();
+  rv = new kakao.maps.Roadview($('#roadview'));
+
+  // 로드뷰-지도 싱크
+  kakao.maps.event.addListener(rv, 'position_changed', function(){
+    const pos = rv.getPosition();
+    if(overlayOn){
+      map.setCenter(pos);
+      if(rvMarker) rvMarker.setPosition(pos);
+    }
+  });
+
+  // 지도 클릭 → 로드뷰 이동
+  kakao.maps.event.addListener(map, 'click', function(e){
+    if(!overlayOn) return;
+    const pos = e.latLng;
+    if(rvMarker) rvMarker.setPosition(pos);
+    toggleRoadview(pos);
+  });
+
+  // 카카오 스타일 로드뷰 버튼 클릭
+  $('#roadviewControl').addEventListener('click', ()=>{
+    const isOn = $('#roadviewControl').classList.contains('active');
+    if(isOn){ toggleOverlay(false); }
+    else { $('#roadviewControl').classList.add('active'); toggleOverlay(true); }
+  });
+
+  // 닫기 버튼
+  $('#close').addEventListener('click', ()=> toggleOverlay(false));
+
+  // 검색 입력 이벤트
+  const input = $('#searchInput');
+  const box   = $('#suggestBox');
+  input.addEventListener('input',  e=> runSuggest(e.target.value));
+  input.addEventListener('focus',  e=> runSuggest(e.target.value));
+  input.addEventListener('blur',   ()=> setTimeout(()=>{ box.classList.remove('open'); box.innerHTML=''; }, 150));
+  input.addEventListener('keydown', e=>{
+    if(!box.classList.contains('open')) return;
+    if(e.key === 'ArrowDown'){ e.preventDefault(); moveKB(+1); }
+    else if(e.key === 'ArrowUp'){ e.preventDefault(); moveKB(-1); }
+    else if(e.key === 'Enter'){ e.preventDefault(); chooseKB(); }
+    else if(e.key === 'Escape'){ box.classList.remove('open'); box.innerHTML=''; }
+  });
+});
+</script>
 </body>
 </html>
