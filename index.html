@@ -158,8 +158,12 @@ function dropPulse(latlng){
 function placeMarker(lat, lng, title){
   clearActiveMarker();
   const pos = new kakao.maps.LatLng(lat, lng);
-  activeMarker = new kakao.maps.Marker({ position: pos, map });
-  if(title) activeMarker.setTitle(title);
+
+  // ✅ 생성 후 setMap(map)으로 붙이기
+  activeMarker = new kakao.maps.Marker({ position: pos });
+  activeMarker.setMap(map);
+
+  if (title) activeMarker.setTitle(title);
   map.setLevel(3, { animate:true });
   map.panTo(pos);
   dropPulse(pos);
