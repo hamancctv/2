@@ -55,7 +55,9 @@
     z-index:21; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
   }
   .suggest-box.open { opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
-  .suggest-item { padding:12px 14px; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; flex-direction:column; gap:4px; }
+  .suggest-item {
+    padding:12px 14px; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; flex-direction:column; gap:4px;
+  }
   .suggest-item:last-child { border-bottom:none; }
   .suggest-item:hover, .suggest-item.active { background:#d9e9ff; }
   .suggest-title { font-weight:600; font-size:15px; color:#222; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -76,27 +78,22 @@
   /* ===== 좌측 툴바 ===== */
   .toolbar { position:absolute; top:60px; left:10px; display:flex; flex-direction:column; gap:8px; z-index:620; }
 
-  /* ===== 공통 40×40 버튼 규격 ===== */
-  .toolbtn {
-    width:40px; height:40px; border:1px solid #ccc; border-radius:8px; background:#fff; color:#555; cursor:pointer;
-    display:inline-flex; align-items:center; justify-content:center; transition:all .2s ease; position:relative; overflow:hidden;
+  /* 위성뷰 버튼 (심플 원) */
+  .btn-satellite {
+    width:40px; height:40px; display:flex; align-items:center; justify-content:center;
+    border:1px solid #ccc; border-radius:8px; background:#fff; color:#555; cursor:pointer; transition:all .2s ease;
   }
-  .toolbtn:hover { box-shadow:0 3px 12px rgba(0,0,0,.12); }
-  .toolbtn.active,
-  .toolbtn.selected { border-color:#007aff; box-shadow:0 0 0 2px rgba(0,122,255,.15) inset; color:#007aff; }
+  .btn-satellite:hover { box-shadow:0 3px 12px rgba(0,0,0,.12); }
+  .btn-satellite.selected { border-color:#007aff; box-shadow:0 0 0 2px rgba(0,122,255,.15) inset; color:#007aff; }
+  .btn-satellite svg { width:18px; height:18px; display:block; }
+  .btn-satellite svg circle { fill: currentColor; }
 
-  /* 위성뷰 아이콘(SVG 원) */
-  #btnSatellite svg { width:18px; height:18px; display:block; }
-  #btnSatellite svg circle { fill: currentColor; }
-
-  /* 로드뷰 아이콘(CSS만으로 — 큰 원 + 중앙 흰 점) */
-  #roadviewControl::before{
-    content:""; width:18px; height:18px; border-radius:50%; background:currentColor; display:block;
+  /* ✅ 카카오 공식 로드뷰 스프라이트 사용 */
+  #roadviewControl {
+    width:42px; height:42px; cursor:pointer;
+    background:url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/common/img_search.png) 0 -450px no-repeat;
   }
-  #roadviewControl::after{
-    content:""; position:absolute; width:6px; height:6px; border-radius:50%; background:#fff;
-    left:50%; top:50%; transform:translate(-50%,-50%);
-  }
+  #roadviewControl.active { background-position:0 -350px; }
 </style>
 </head>
 <body>
@@ -105,12 +102,12 @@
     <div id="mapWrapper">
       <div id="map"></div>
 
-      <!-- 좌측 툴바: 위성뷰 + 로드뷰(CSS 아이콘) -->
+      <!-- 좌측 툴바: 위성뷰 + (카카오 스타일) 로드뷰 -->
       <div class="toolbar">
-        <button id="btnSatellite" class="toolbtn" title="위성뷰">
+        <button id="btnSatellite" class="btn-satellite" title="위성뷰">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>
         </button>
-        <button id="roadviewControl" class="toolbtn" title="로드뷰"></button>
+        <div id="roadviewControl" title="로드뷰"></div>
       </div>
 
       <!-- 검색 -->
@@ -262,10 +259,8 @@ function rvMarkerImage(){
   );
 }
 function toggleOverlay(active){
-  const btn = $('#roadviewControl');
   if(active){
     overlayOn = true;
-    btn.classList.add('active');
     map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
     if(!rvMarker){
       rvMarker = new kakao.maps.Marker({
@@ -282,9 +277,9 @@ function toggleOverlay(active){
     toggleRoadview(map.getCenter());
   }else{
     overlayOn = false;
-    btn.classList.remove('active');
     map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
     if(rvMarker) rvMarker.setMap(null);
+    $('#roadviewControl').classList.remove('active');
     $('#container').classList.remove('view_roadview');
     map.relayout();
   }
@@ -319,10 +314,10 @@ kakao.maps.load(function(){
   $('#btnSatellite').addEventListener('click', ()=>{
     if(map.getMapTypeId() === kakao.maps.MapTypeId.ROADMAP){
       map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-      $('#btnSatellite').classList.add('active');
+      $('#btnSatellite').classList.add('selected');
     }else{
       map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
-      $('#btnSatellite').classList.remove('active');
+      $('#btnSatellite').classList.remove('selected');
     }
   });
 
@@ -347,9 +342,11 @@ kakao.maps.load(function(){
     toggleRoadview(pos);
   });
 
-  // 로드뷰 버튼 클릭(CSS 아이콘)
+  // 카카오 스타일 로드뷰 버튼 클릭
   $('#roadviewControl').addEventListener('click', ()=>{
-    toggleOverlay(!overlayOn);
+    const isOn = $('#roadviewControl').classList.contains('active');
+    if(isOn){ toggleOverlay(false); }
+    else { $('#roadviewControl').classList.add('active'); toggleOverlay(true); }
   });
 
   // 닫기 버튼
