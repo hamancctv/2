@@ -16,13 +16,15 @@
     /* 검색창 */
     .gx-suggest-search {
       position:absolute;
-      top:8px; left:50%;
-      transform:translateX(-50%);
+      top:8px;
+      left:0; right:0;
+      margin:0 auto;
       display:flex;
       gap:8px;
       align-items:center;
       width:min(520px,90vw);
       z-index:600;
+      justify-content:center;
     }
     .gx-suggest-search input.gx-input {
       flex:1;
@@ -103,13 +105,16 @@
       70%{transform:scale(2.0);opacity:0;}
       100%{transform:scale(2.0);opacity:0;}
     }
+
+    /* 숨김 클래스 */
+    .gx-hidden { display:none !important; }
   </style>
 </head>
 <body>
   <div id="alert-overlay"><div id="alert-message"></div></div>
 
   <div id="container">
-    <div id="rvWrapper">
+    <div id="rvWrapper" style="display:none;">
       <div id="roadview"></div>
       <div id="close" title="로드뷰닫기" onclick="closeRoadview()"><span class="img"></span></div>
     </div>
@@ -143,14 +148,36 @@
   <script src="https://hamancctv.github.io/2/markers-handler.js"></script>
   <script src="https://hamancctv.github.io/2/search-suggest.js"></script>
 
-  <!-- ✅ 로드뷰 초기화 함수 -->
+  <!-- ✅ 로드뷰 토글 함수 -->
   <script>
-  function initRoadview(map, position) {
+  function openRoadview(map, position) {
+    const rvWrapper = document.getElementById('rvWrapper');
+    const mapWrapper = document.getElementById('mapWrapper');
     const rv = new kakao.maps.Roadview(document.getElementById('roadview'));
     const rvClient = new kakao.maps.RoadviewClient();
+
+    // UI 숨기기
+    mapWrapper.querySelector('.gx-suggest-search').classList.add('gx-hidden');
+    mapWrapper.querySelector('.gx-suggest-box').classList.add('gx-hidden');
+
+    rvWrapper.style.display = 'block';
+    mapWrapper.style.display = 'none';
+
     rvClient.getNearestPanoId(position, 50, function(panoId) {
       if (panoId) rv.setPanoId(panoId, position);
     });
+  }
+
+  function closeRoadview() {
+    const rvWrapper = document.getElementById('rvWrapper');
+    const mapWrapper = document.getElementById('mapWrapper');
+
+    rvWrapper.style.display = 'none';
+    mapWrapper.style.display = 'block';
+
+    // UI 복원
+    mapWrapper.querySelector('.gx-suggest-search').classList.remove('gx-hidden');
+    mapWrapper.querySelector('.gx-suggest-box').classList.remove('gx-hidden');
   }
   </script>
 
@@ -185,9 +212,6 @@
       initMarkers(map, finalPositions);
     }
 
-    // ✅ 로드뷰 실행
-    initRoadview(map, mapCenter);
-
     // ✅ 좌표 input 갱신/복사
     kakao.maps.event.addListener(map,'center_changed',()=>{
       const ll=map.getCenter();
@@ -221,6 +245,9 @@
         btn.classList.toggle("selected_btn");
       });
     }
+
+    // ✅ 로드뷰 실행 테스트 (원래 오빠 로직에 맞춰 호출해줘)
+    // openRoadview(map, mapCenter);
   });
   </script>
 </body>
