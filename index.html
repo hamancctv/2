@@ -31,9 +31,10 @@
   <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
 
   <!-- 외부 유틸 -->
-  <script src="sel_suggest.js"></script>
-  <script src="drawGroupLinesMST.js"></script>
-  <script src="btnDistance.js"></script>
+ <!-- 제외  <script src="sel_suggest.js"></script> -->
+ <!-- 제외   <script src="drawGroupLinesMST.js"></script> -->
+  <!-- 제외  <script src="btnDistance.js"></script> -->
+  
   <script src="markers-handler.js"></script>
   <script src="search-suggest.js"></script>
 
@@ -57,6 +58,12 @@
     const finalPositions=[...unique.values()];
     if(window.initMarkers) initMarkers(map,finalPositions);
 
+
+
+<button id="btnDistance" style="display:none;"></button>
+
+
+    
     // ===== 검색창 =====
     if (window.initSuggestUI) {
       initSuggestUI({
