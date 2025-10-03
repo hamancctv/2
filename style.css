@@ -171,38 +171,79 @@ html, body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
-/* 검색창 */
-.search-container {
-  position: absolute;
-  top: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  width: 400px;
-  z-index: 500;
+/* 검색창 (gx-suggest) */
+.gx-suggest-search {
+  position:absolute;
+  top:8px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:8px;
+  align-items:center;
+  width:min(520px,90vw);
+  z-index:600;
 }
-.search-container input {
-  flex: 1;
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px 0 0 6px;
-  font-size: 14px;
-  margin-right: 6px;
+.gx-suggest-search input {
+  flex:1;
+  height:40px;
+  padding:0 12px;
+  border:1px solid #ccc;
+  border-radius:10px;
+  background:#fff;
+  font-size:14px;
+  outline:none;
 }
-.search-container button {
-  height: 36px;
-  padding: 0 15px;
-  border: 1px solid #ccc;
-  border-left: none;
-  border-radius: 0 6px 6px 0;
-  background: #4caf50;
-  color: #fff;
-  cursor: pointer;
+.gx-suggest-search button {
+  display:none; /* 기본 버튼 숨김 */
 }
-.search-container button:hover {
-  background: #43a047;
+.gx-suggest-box {
+  position:absolute;
+  top:48px;
+  left:50%;
+  transform:translateX(-50%) translateY(-6px);
+  width:min(520px,90vw);
+  max-height:40vh;
+  overflow-y:auto;
+  border:1px solid #ccc;
+  border-radius:10px;
+  background:rgba(255,255,255,0.96);
+  box-shadow:0 8px 20px rgba(0,0,0,.15);
+  z-index:610;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
+  display:block;
+}
+.gx-suggest-box.open {
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+  pointer-events:auto;
+}
+.gx-suggest-item {
+  padding:10px 12px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.gx-suggest-item:hover,
+.gx-suggest-item.active {
+  background:#eef3ff;
+}
+.gx-suggest-title {
+  display:inline-block;
+  max-width:60%;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  font-weight:600;
+}
+.gx-badge {
+  font-size:12px;
+  color:#555;
+  background:#f2f4f8;
+  padding:2px 6px;
+  border-radius:6px;
 }
 
 /* 거리재기 버튼/오버레이 */
