@@ -1,27 +1,6 @@
-// search-suggest.js (오빠 HTML 전용 FINAL+++ : 모바일 최적화 + 드래그 방지)
+// search-suggest.js (최종 안정 버전)
 (function () {
-  console.log("[search-suggest] loaded FINAL+++");
-
-  // 최소 스타일
-  const style = document.createElement("style");
-  style.textContent = `
-    .gx-suggest-box{font-family:sans-serif;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-    .gx-suggest-item{padding:8px 12px;cursor:pointer;display:flex;flex-direction:column;border-bottom:1px solid #f2f2f2;}
-    .gx-suggest-item:hover,.gx-suggest-item.active{background:#f5f9ff;}
-    .gx-suggest-title{font-weight:600;}
-    .gx-suggest-sub{font-size:12px;color:#555;margin-top:2px;}
-    .pulse-marker {
-      width:20px;height:20px;margin-left:-10px;margin-top:-10px;
-      border:4px solid red;border-radius:50%;background:rgba(255,0,0,0.3);
-      animation:pulse 1.2s ease-out forwards;
-    }
-    @keyframes pulse {
-      0%{transform:scale(0.5);opacity:0.8;}
-      70%{transform:scale(2.0);opacity:0;}
-      100%{transform:scale(2.0);opacity:0;}
-    }
-  `;
-  document.head.appendChild(style);
+  console.log("[search-suggest] loaded FINAL-SIMPLE");
 
   window.initSuggestUI = function(opts) {
     const {
@@ -43,7 +22,6 @@
       return;
     }
 
-    // 데이터 정규화
     const RAW = (data || []).map((it, idx) => {
       const enclosure = it.enclosure ?? it.encloser ?? "";
       const address   = it.address   ?? it.addr     ?? "";
@@ -108,13 +86,13 @@
       if(!item) return;
       const pos = new kakao.maps.LatLng(item.lat, item.lng);
       map.panTo(pos);
-      // 빨간 원 펄스
+      // 펄스 효과
       const node = document.createElement('div');
       node.className = 'pulse-marker';
       const overlay = new kakao.maps.CustomOverlay({position:pos, content:node, map, zIndex:9999});
       setTimeout(()=>overlay.setMap(null), 1500);
       box.classList.remove('open');
-      kw.blur();   // 검색 완료 후 input 비활성화
+      kw.blur();   // 검색 후 인풋 비활성화
     }
 
     // 이벤트
@@ -150,25 +128,11 @@
       }
     });
 
-    // ✅ 모바일 대응: 지도 조작 시 키보드 닫기
+    // 지도 클릭/드래그 시 닫기
     if(map){
       kakao.maps.event.addListener(map, 'click', ()=>{ kw.blur(); box.classList.remove('open'); });
       kakao.maps.event.addListener(map, 'dragstart', ()=>{ kw.blur(); box.classList.remove('open'); });
       kakao.maps.event.addListener(map, 'zoom_start', ()=>{ kw.blur(); box.classList.remove('open'); });
     }
-
-    // ✅ 제안창 드래그 시 페이지/지도까지 같이 끌리는 현상 방지
-    box.addEventListener('touchmove', (e) => {
-      const atTop = box.scrollTop === 0;
-      const atBottom = box.scrollHeight - box.scrollTop === box.clientHeight;
-      const movingDown = e.touches[0].clientY > (box._lastY || 0);
-      const movingUp   = e.touches[0].clientY < (box._lastY || 0);
-      box._lastY = e.touches[0].clientY;
-
-      if ((atTop && movingDown) || (atBottom && movingUp)) {
-        e.preventDefault(); // 바운스 방지
-      }
-      e.stopPropagation(); // 지도 이벤트로 전달 방지
-    }, { passive:false });
   };
 })();
