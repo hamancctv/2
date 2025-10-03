@@ -23,43 +23,27 @@ function initRoadview(map, mapCenter) {
     if (overlayOn) rvMarker.setPosition(pos);
   });
 
-  kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
-    if (!overlayOn) return;
-    const latlng = mouseEvent.latLng;
-    rvMarker.setPosition(latlng);
-    rvClient.getNearestPanoId(latlng, 50, function (panoId) {
-      if (panoId) rv.setPanoId(panoId, latlng);
-    });
-  });
-
-  function toggleOverlay(active) {
-    if (active) {
+  // 로드뷰 토글 함수
+  window.setRoadviewRoad = function () {
+    const c = document.getElementById('roadviewControl');
+    if (c.classList.contains('active')) {
+      c.classList.remove('active');
+      overlayOn = false;
+      rvMarker.setMap(null);
+    } else {
+      c.classList.add('active');
       overlayOn = true;
-      document.getElementById('container').classList.add('view_roadview');
       rvMarker.setMap(map);
       rvMarker.setPosition(map.getCenter());
       rvClient.getNearestPanoId(map.getCenter(), 50, function (panoId) {
         if (panoId) rv.setPanoId(panoId, map.getCenter());
       });
-    } else {
-      overlayOn = false;
-      document.getElementById('container').classList.remove('view_roadview');
-      rvMarker.setMap(null);
-    }
-  }
-
-  window.setRoadviewRoad = function () {
-    const c = document.getElementById('roadviewControl');
-    if (c.classList.contains('active')) {
-      c.classList.remove('active');
-      toggleOverlay(false);
-    } else {
-      c.classList.add('active');
-      toggleOverlay(true);
     }
   };
 
   window.closeRoadview = function () {
-    toggleOverlay(false);
+    overlayOn = false;
+    document.getElementById('roadviewControl').classList.remove('active');
+    rvMarker.setMap(null);
   };
 }
