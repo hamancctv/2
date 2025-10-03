@@ -1,28 +1,5 @@
 /* 숨김 토글 전용 클래스 */
 .sel-hidden { display: none !important; }
-
-/* 🔒 사이트 전체 차단 */
-html, body, * {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  -webkit-user-drag: none;
-  user-drag: none;
-}
-
-/* 🔓 검색창만 예외 */
-.gx-input {
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  user-select: text !important;
-  -webkit-touch-callout: default !important;
-  -webkit-user-drag: auto !important;
-  user-drag: auto !important;
-}
-
 /* 레이아웃 */
 html, body {
   width:100%;
@@ -47,6 +24,30 @@ html, body {
   width:100%;
   height:100%;
 }
+
+/* 🔒 사이트 전체 차단 */
+html, body, * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* 🔓 검색창만 예외 */
+.gx-input {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+  -webkit-user-drag: auto !important;
+  user-drag: auto !important;
+}
+
+
 
 /* =========================
    로드뷰 관련 스타일은 roadview.js에서 관리
