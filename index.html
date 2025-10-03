@@ -8,9 +8,10 @@
   <link rel="stylesheet" href="https://hamancctv.github.io/2/style.css">
   <style>
     /* iOS vh 버그 대응 */
-    #mapWrapper, #container, #map, #rvWrapper, #roadview {
-      height: calc(var(--vh, 1vh) * 100);
-    }
+#mapWrapper, #container, #map, #rvWrapper, #roadview {
+  height: 100dvh; /* 최신 iOS16+에서는 실제 화면 높이 기준 */
+  height: calc(var(--vh, 1vh) * 100); /* 구버전 fallback */
+}
 
     #mapWrapper { position: relative; }
 
