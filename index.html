@@ -65,7 +65,7 @@
   <script src="https://hamancctv.github.io/2/btnDistance.js"></script>
   <script src="https://hamancctv.github.io/2/markers-handler.js"></script>
   <script src="https://hamancctv.github.io/2/search-suggest.js"></script>
-  <script src=roadview.js></script>
+  <script src="https://hamancctv.github.io/2/search-suggest.js"?></script>
   
   <!-- ✅ 메인 스크립트 -->
   <script>
@@ -75,7 +75,10 @@
     map.setMaxLevel(9); window.map=map;
 
 // 로드뷰 시작
-
+  // 로드뷰 초기화
+  initRoadview(map, mapCenter);
+});
+</script>
     //로드뷰 끝
 
     
