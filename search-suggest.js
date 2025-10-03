@@ -1,16 +1,94 @@
-// search-suggest.js (FINAL, no "결과 없음")
+// search-suggest.js (FINAL with full CSS inlined)
 (function () {
     console.log("[search-suggest] loaded FINAL");
 
+    // ✅ 검색창 & 제안창 CSS 동적 삽입
     const style = document.createElement("style");
     style.textContent = `
-      .gx-suggest-box.open .gx-item.active,
-      .gx-suggest-box.open .gx-item:hover {
+      /* 검색창 컨테이너 */
+      .gx-suggest-search {
+        position:absolute;
+        top:8px;
+        left:50%;
+        transform:translateX(-50%);
+        display:flex;
+        gap:8px;
+        align-items:center;
+        width:min(520px,90vw);
+        z-index:600;
+      }
+      .gx-suggest-search input {
+        flex:1;
+        height:40px;
+        padding:0 12px;
+        border:1px solid #ccc;
+        border-radius:10px;
+        background:#fff;
+        font-size:14px;
+        outline:none;
+      }
+      .gx-suggest-search button {
+        display:none;
+      }
+
+      /* 제안박스 */
+      .gx-suggest-box {
+        position:absolute;
+        top:48px;
+        left:50%;
+        transform:translateX(-50%) translateY(-6px);
+        width:min(520px,90vw);
+        max-height:40vh;
+        overflow-y:auto;
+        border:1px solid #ccc;
+        border-radius:10px;
+        background:rgba(255,255,255,0.96);
+        box-shadow:0 8px 20px rgba(0,0,0,.15);
+        z-index:610;
+        opacity:0;
+        pointer-events:none;
+        transition:opacity .18s ease, transform .18s ease;
+        display:block;
+      }
+      .gx-suggest-box.open {
+        opacity:1;
+        transform:translateX(-50%) translateY(0);
+        pointer-events:auto;
+      }
+
+      /* 아이템 */
+      .gx-item {
+        padding:10px 12px;
+        cursor:pointer;
+        display:flex;
+        align-items:center;
+        gap:8px;
+      }
+      .gx-item:hover,
+      .gx-item.active {
         background:#eef3ff;
+      }
+
+      /* 제목/뱃지 */
+      .gx-suggest-title {
+        display:inline-block;
+        max-width:60%;
+        overflow:hidden;
+        white-space:nowrap;
+        text-overflow:ellipsis;
+        font-weight:600;
+      }
+      .gx-badge {
+        font-size:12px;
+        color:#555;
+        background:#f2f4f8;
+        padding:2px 6px;
+        border-radius:6px;
       }
     `;
     document.head.appendChild(style);
 
+    // ✅ 제안창 UI 초기화
     function initSuggestUI(opts) {
         const {
             map,
