@@ -18,32 +18,54 @@ function initRoadview(map, mapCenter) {
     draggable: true
   });
 
+  // 로드뷰 위치 변경 시 마커 동기화
   kakao.maps.event.addListener(rv, 'position_changed', function () {
     const pos = rv.getPosition();
     if (overlayOn) rvMarker.setPosition(pos);
   });
 
-  // 로드뷰 토글 함수
-  window.setRoadviewRoad = function () {
-    const c = document.getElementById('roadviewControl');
-    if (c.classList.contains('active')) {
-      c.classList.remove('active');
-      overlayOn = false;
-      rvMarker.setMap(null);
-    } else {
-      c.classList.add('active');
+  // 지도 클릭 시 로드뷰 이동
+  kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
+    if (!overlayOn) return;
+    const latlng = mouseEvent.latLng;
+    rvMarker.setPosition(latlng);
+    rvClient.getNearestPanoId(latlng, 50, function (panoId) {
+      if (panoId) rv.setPanoId(panoId, latlng);
+    });
+  });
+
+  function toggleOverlay(active) {
+    if (active) {
       overlayOn = true;
+      document.getElementById('container').classList.add('view_roadview');
       rvMarker.setMap(map);
       rvMarker.setPosition(map.getCenter());
       rvClient.getNearestPanoId(map.getCenter(), 50, function (panoId) {
         if (panoId) rv.setPanoId(panoId, map.getCenter());
       });
+    } else {
+      overlayOn = false;
+      document.getElementById('container').classList.remove('view_roadview');
+      rvMarker.setMap(null);
+    }
+  }
+
+  // 토글 버튼
+  window.setRoadviewRoad = function () {
+    const c = document.getElementById('roadviewControl');
+    if (c.classList.contains('active')) {
+      c.classList.remove('active');
+      toggleOverlay(false);
+    } else {
+      c.classList.add('active');
+      toggleOverlay(true);
     }
   };
 
+  // 닫기 버튼
   window.closeRoadview = function () {
-    overlayOn = false;
-    document.getElementById('roadviewControl').classList.remove('active');
-    rvMarker.setMap(null);
+    const c = document.getElementById('roadviewControl');
+    c.classList.remove('active');
+    toggleOverlay(false);
   };
 }
