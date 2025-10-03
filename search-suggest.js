@@ -1,8 +1,8 @@
-// search-suggest.js (오빠 HTML 전용 FINAL)
+// search-suggest.js (오빠 HTML 전용 FINAL++)
 (function () {
-  console.log("[search-suggest] loaded FINAL");
+  console.log("[search-suggest] loaded FINAL++ (mobile optimized)");
 
-  // 최소 스타일(펄스 + 서브텍스트)
+  // 최소 스타일
   const style = document.createElement("style");
   style.textContent = `
     .gx-suggest-box{font-family:sans-serif;}
@@ -28,7 +28,7 @@
       map,
       data = window.SEL_SUGGEST || [],
       parent = document.getElementById('mapWrapper') || document.body,
-      badges = [],                 // 예: ['line','encloser','addr','ip']
+      badges = [],
       maxItems = 30,
       openOnFocus = false,
       chooseOnEnter = false
@@ -43,7 +43,7 @@
       return;
     }
 
-    // 데이터 정규화 (키 이름 혼용 대비)
+    // 데이터 정규화
     const RAW = (data || []).map((it, idx) => {
       const enclosure = it.enclosure ?? it.encloser ?? "";
       const address   = it.address   ?? it.addr     ?? "";
@@ -114,7 +114,7 @@
       const overlay = new kakao.maps.CustomOverlay({position:pos, content:node, map, zIndex:9999});
       setTimeout(()=>overlay.setMap(null), 1500);
       box.classList.remove('open');
-      kw.blur();   // ✅ 검색 완료 후 input 비활성화
+      kw.blur();   // ✅ 검색 완료 후 input 비활성화 (모바일 키보드 닫힘)
     }
 
     // 이벤트
@@ -132,7 +132,7 @@
         else if(suggestions.length) choose(0);
       } else if(e.key==='Escape'){
         box.classList.remove('open');
-        kw.blur();  // ✅ ESC 눌러도 input 비활성화
+        kw.blur();
       }
     });
 
@@ -146,8 +146,15 @@
     document.addEventListener('click', (e)=>{
       if(!wrap.contains(e.target) && !box.contains(e.target)) {
         box.classList.remove('open');
-        kw.blur();  // ✅ 바깥 클릭 시에도 input 비활성화
+        kw.blur();
       }
     });
+
+    // ✅ 모바일 대응: 지도 조작 시 키보드 닫기
+    if(map){
+      kakao.maps.event.addListener(map, 'click', ()=>{ kw.blur(); box.classList.remove('open'); });
+      kakao.maps.event.addListener(map, 'dragstart', ()=>{ kw.blur(); box.classList.remove('open'); });
+      kakao.maps.event.addListener(map, 'zoom_start', ()=>{ kw.blur(); box.classList.remove('open'); });
+    }
   };
 })();
