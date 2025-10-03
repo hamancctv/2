@@ -5,21 +5,22 @@
   <title>GIS 모바일</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="icon" href="https://hamancctv.github.io/2/favicon.ico" sizes="32x32"/>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css"><!-- 오빠가 준 CSS 전체 -->
 </head>
 <body>
   <div id="alert-overlay"><div id="alert-message"></div></div>
 
+  <!-- 지도 + 로드뷰 컨테이너 -->
   <div id="container">
-    <!-- ✅ 로드뷰 -->
+    <!-- 로드뷰 -->
     <div id="rvWrapper">
       <div id="roadview" style="width:100%;height:100%;"></div>
       <div id="close" title="로드뷰닫기" onclick="closeRoadview()"><span class="img"></span></div>
     </div>
 
-    <!-- ✅ 지도 -->
+    <!-- 지도 -->
     <div id="mapWrapper">
-      <div id="map"></div>
+      <div id="map" style="width:100%;height:100%"></div>
       <div id="roadviewControl" onclick="setRoadviewRoad()"></div>
 
       <!-- 검색창 -->
@@ -31,7 +32,7 @@
     </div>
   </div>
 
-  <!-- 우측 툴바 -->
+  <!-- 좌표 입력 + 복사 버튼 -->
   <div class="toolbar-right">
     <input type="text" id="gpsyx" class="input-common" inputmode="none" value="35.2725308711779, 128.406307024695"/>
     <button id="btn_input_copy" class="btn-common">복사</button>
@@ -45,7 +46,7 @@
   </div>
 
   <!-- SDK & 외부 스크립트 -->
-  <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services,clusterer,drawing&autoload=false"></script>
+  <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_APP_KEY&libraries=services,clusterer,drawing&autoload=false"></script>
   <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
 
   <!-- 외부 유틸 -->
@@ -54,36 +55,102 @@
   <script src="btnDistance.js"></script>
   <script src="markers-handler.js"></script>
   <script src="search-suggest.js"></script>
-  <script src="roadview.js"></script> <!-- 🔹 로드뷰 분리 스크립트 -->
 
-  <!-- ✅ 메인 스크립트 -->
+  <!-- 메인 스크립트 -->
   <script>
   kakao.maps.load(function () {
-    const mapCenter = new kakao.maps.LatLng(35.2725308711779,128.406307024695);
-    const map = new kakao.maps.Map(document.getElementById('map'), {
-      center: mapCenter, level: 4
-    });
+    const mapCenter=new kakao.maps.LatLng(35.2725308711779,128.406307024695);
+    const map=new kakao.maps.Map(document.getElementById('map'),{center:mapCenter,level:4});
     map.setMaxLevel(9);
-    window.map = map;
+    window.map=map;
 
-    // ✅ 로드뷰 초기화
-    initRoadview(map, mapCenter);
+    // ===== 로드뷰 =====
+    const rv = new kakao.maps.Roadview(document.getElementById('roadview'));
+    const rvClient = new kakao.maps.RoadviewClient();
+    let overlayOn = false;
 
-    // ===== 마커 =====
+    const rvMarker = new kakao.maps.Marker({
+      image: new kakao.maps.MarkerImage(
+        'https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png',
+        new kakao.maps.Size(26, 46),
+        {
+          spriteSize: new kakao.maps.Size(1666, 168),
+          spriteOrigin: new kakao.maps.Point(705, 114),
+          offset: new kakao.maps.Point(13, 46)
+        }
+      ),
+      position: mapCenter,
+      draggable: true
+    });
+
+    kakao.maps.event.addListener(rv, 'position_changed', function () {
+      const pos = rv.getPosition();
+      if (overlayOn) rvMarker.setPosition(pos);
+    });
+
+    kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
+      if (!overlayOn) return;
+      const latlng = mouseEvent.latLng;
+      rvMarker.setPosition(latlng);
+      rvClient.getNearestPanoId(latlng, 50, function (panoId) {
+        if (panoId) rv.setPanoId(panoId, latlng);
+      });
+    });
+
+    function toggleOverlay(active) {
+      if (active) {
+        overlayOn = true;
+        document.getElementById('container').classList.add('view_roadview');
+        rvMarker.setMap(map);
+        rvMarker.setPosition(map.getCenter());
+        rvClient.getNearestPanoId(map.getCenter(), 50, function (panoId) {
+          if (panoId) rv.setPanoId(panoId, map.getCenter());
+        });
+      } else {
+        overlayOn = false;
+        document.getElementById('container').classList.remove('view_roadview');
+        rvMarker.setMap(null);
+      }
+    }
+
+    // 토글 버튼
+    window.setRoadviewRoad = function () {
+      const c = document.getElementById('roadviewControl');
+      if (c.classList.contains('active')) {
+        c.classList.remove('active');
+        toggleOverlay(false);
+      } else {
+        c.classList.add('active');
+        toggleOverlay(true);
+      }
+    };
+
+    // 닫기 버튼
+    window.closeRoadview = function () {
+      const c = document.getElementById('roadviewControl');
+      c.classList.remove('active');
+      toggleOverlay(false);
+    };
+
+    // ===== 마커 데이터 생성 =====
     const raw=(window.SEL_SUGGEST||[]).map(it=>{
       const lat=parseFloat(it.lat),lng=parseFloat(it.lng);
       if(!isFinite(lat)||!isFinite(lng))return null;
       return{latlng:new kakao.maps.LatLng(lat,lng),content:it.name1||it.name,searchName:it.name2||it.name,group:it.line||null};
     }).filter(Boolean);
     const unique=new Map();
-    for(const p of raw){const key=p.latlng.getLat()+","+p.latlng.getLng();if(!unique.has(key))unique.set(key,p);}
+    for(const p of raw){
+      const key=p.latlng.getLat()+","+p.latlng.getLng();
+      if(!unique.has(key))unique.set(key,p);
+    }
     const finalPositions=[...unique.values()];
     if(window.initMarkers) initMarkers(map,finalPositions);
 
-    // ===== 검색창 =====
+    // ===== 검색창 초기화 =====
     if (window.initSuggestUI) {
       initSuggestUI({
-        map, data: window.SEL_SUGGEST,
+        map,
+        data: window.SEL_SUGGEST,
         parent: document.getElementById('mapWrapper'),
         getMarkers: () => window.markers,
         badges: ['line','encloser','addr','ip'],
@@ -102,7 +169,7 @@
       });
     }
 
-    // ===== 좌표 복사 =====
+    // ===== 좌표 input 갱신/복사 =====
     kakao.maps.event.addListener(map,'center_changed',()=>{
       const ll=map.getCenter();
       $('#gpsyx').val(ll.getLat()+', '+ll.getLng());
