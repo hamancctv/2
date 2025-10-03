@@ -1,13 +1,13 @@
-/* 숨김 토글 전용 클래스 (reflow 최소화) */
+/* 숨김 토글 전용 클래스 */
 .sel-hidden { display: none !important; }
 
 /* 🔒 사이트 전체 차단 */
 html, body, * {
-  -webkit-user-select: none;  /* 크롬/사파리 */
-  -moz-user-select: none;     /* 파이어폭스 */
-  -ms-user-select: none;      /* 구형 IE */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
   user-select: none;
-  -webkit-touch-callout: none; /* iOS 길게누르기 메뉴 차단 */
+  -webkit-touch-callout: none;
   -webkit-user-drag: none;
   user-drag: none;
 }
@@ -23,157 +23,165 @@ html, body, * {
   user-drag: auto !important;
 }
 
-#container {overflow:hidden;height:100%;position:relative;}
-#mapWrapper {width:100%;height:100%;z-index:1;}
-/* 기본 지도 전체화면 */
+/* 레이아웃 */
+html, body {
+  width:100%;
+  height:100%;
+  margin:0;
+  padding:0;
+  overflow:hidden;
+}
+#container {
+  position:relative;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+}
 #mapWrapper {
   position: relative;
   width: 100%;
   height: 100%;
   z-index: 1;
 }
+#map {
+  width:100%;
+  height:100%;
+}
 
 /* =========================
    로드뷰 관련 스타일 제거됨
    ========================= */
 
-/* 하단 컨트롤 버튼 스타일 개선 */
+/* 하단 컨트롤 버튼 */
 .custom_typecontrol2_m {
-    position: absolute;
-    bottom: 15px;
-    right: 15px;
-    display: flex;
-    gap: 8px; /* 버튼 사이 간격 */
-    z-index: 10;
-    font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+  font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
 }
-
 .custom_typecontrol2_m span {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 50px;
-    height: 36px;
-    padding: 0 12px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    background: #f0f0f0;
-    color: #333;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    transition: all 0.2s ease;
-    user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #f0f0f0;
+  color: #333;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+  user-select: none;
 }
-
-/* 호버 효과 */
 .custom_typecontrol2_m span:hover {
-    background: linear-gradient(145deg, #e0e0e0, #d1d1d1);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  background: linear-gradient(145deg, #e0e0e0, #d1d1d1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
-
-/* 클릭/선택된 버튼 */
 .custom_typecontrol2_m span.selected_btn {
-    background: linear-gradient(145deg, #425470, #5b6d8a);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    border-color: #2e3d5c;
+  background: linear-gradient(145deg, #425470, #5b6d8a);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border-color: #2e3d5c;
 }
-
-/* 클릭 시 누른 느낌 */
 .custom_typecontrol2_m span:active {
-    background: linear-gradient(145deg, #3a4b66, #52647e);
+  background: linear-gradient(145deg, #3a4b66, #52647e);
 }
 
 /* 공통 버튼 */
 .btn-common {
-    height: 32px;
-    padding: 0 10px;
-    border: 1px solid #ccc;
-    background: #f8f9fa;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    z-index: 200;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #ccc;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 200;
 }
 .btn-common:hover { background: #e9ecef; }
-.btn-primary {
-    background: #4caf50;
-    color: white;
-    border: none;
-}
+.btn-primary { background: #4caf50; color: white; border: none; }
 .btn-primary:hover { background: #43a047; }
 
 /* 공통 input */
 .input-common {
-    height: 32px;
-    padding: 0 8px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 14px;
-    z-index: 200;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 200;
 }
 
 /* 상단 툴바 */
 .toolbar {
-    position: absolute;
-    top: 12px;
-    left: 10px;
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    z-index: 500;
+  position: absolute;
+  top: 12px;
+  left: 10px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  z-index: 500;
 }
 .toolbar-right {
-    position: absolute;
-    top: 12px;
-    right: 10px;
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    z-index: 500;
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  z-index: 500;
 }
 
-html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
-
+/* 메뉴 */
 #menu_wrap {
-    position:absolute;top:40px;right:8px;bottom:70%;
-    width:270px;margin:3px 0 5px 10px;padding:5px;
-    overflow-y:auto;background:rgba(255, 255, 255, 0.8);
-    z-index: 1;font-size:12px;
+  position:absolute;
+  top:40px;
+  right:8px;
+  bottom:70%;
+  width:270px;
+  margin:3px 0 5px 10px;
+  padding:5px;
+  overflow-y:auto;
+  background:rgba(255, 255, 255, 0.8);
+  z-index: 1;
+  font-size:12px;
 }
 
 /* 알림 오버레이 */
 #alert-overlay {
-    position: fixed;
-    top: 50px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 15px 30px;
-    border-radius: 8px;
-    z-index: 1000;
-    display: none;
-    font-size: 1.2em;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  position: fixed;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 15px 30px;
+  border-radius: 8px;
+  z-index: 1000;
+  display: none;
+  font-size: 1.2em;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
-  
-/* 검색창 컨테이너 */
+
+/* 검색창 */
 .search-container {
   position: absolute;
-  top: 3px;                /* 지도 상단에서 약간 아래 */
+  top: 3px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  width: 400px;             /* 전체 가로 폭 */
+  width: 400px;
   z-index: 500;
 }
-
-/* 입력창 */
 .search-container input {
   flex: 1;
   height: 36px;
@@ -181,10 +189,8 @@ html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
   border: 1px solid #ccc;
   border-radius: 6px 0 0 6px;
   font-size: 14px;
-  margin-right: 6px; /* ← 버튼과의 간격 추가 */
+  margin-right: 6px;
 }
-
-/* 버튼 */
 .search-container button {
   height: 36px;
   padding: 0 15px;
@@ -199,26 +205,44 @@ html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
   background: #43a047;
 }
 
+/* 거리재기 버튼/오버레이 */
 #btnDistance {
-    position:absolute; top:50px; left:10px; z-index:1000;
-    display:inline-flex; align-items:center; justify-content:center;
-    padding:6px 12px; border-radius:6px; border:1px solid #666;
-    background:#fff; color:#000; cursor:pointer;
-    font-size:14px; font-weight:500; transition: background 0.2s,color 0.2s;
+  position:absolute;
+  top:50px;
+  left:10px;
+  z-index:1000;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 12px;
+  border-radius:6px;
+  border:1px solid #666;
+  background:#fff;
+  color:#000;
+  cursor:pointer;
+  font-size:14px;
+  font-weight:500;
+  transition: background 0.2s,color 0.2s;
 }
 #btnDistance.active { background:#db4040; color:#fff; }
 .labelBox {
-    background:#fff; border:1px solid #555; border-radius:3px;
-    font-size:12px; padding:2px 6px; cursor:pointer;
+  background:#fff;
+  border:1px solid #555;
+  border-radius:3px;
+  font-size:12px;
+  padding:2px 6px;
+  cursor:pointer;
 }
 .totalBox {
-    background:#ffeb3b; border:1px solid #333; border-radius:3px;
-    font-size:12px; padding:2px 6px; font-weight:bold;
+  background:#ffeb3b;
+  border:1px solid #333;
+  border-radius:3px;
+  font-size:12px;
+  padding:2px 6px;
+  font-weight:bold;
 }
-  
-/* ===== 거리재기 관련 CSS ===== */
 
-/* 점 (빨간 원) */
+/* 거리재기 점 */
 .dot {
   display: inline-block;
   width: 8px;
@@ -228,7 +252,7 @@ html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
   border: 2px solid white;
 }
 
-/* 세그먼트 거리 (말풍선) */
+/* 세그먼트 거리 */
 .dotOverlay {
   position: relative;
   background: #fffbe6;
