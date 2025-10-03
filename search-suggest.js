@@ -1,4 +1,4 @@
-// search-suggest.js (오빠 HTML 전용)
+// search-suggest.js (오빠 HTML 전용 FINAL)
 (function () {
   console.log("[search-suggest] loaded FINAL");
 
@@ -70,7 +70,6 @@
 
     function buildSub(it){
       const out = [];
-      // 옵션 키 혼용 지원
       if ((badges.includes('enclosure') || badges.includes('encloser')) && it.enclosure) out.push(`[${it.enclosure}]`);
       if (badges.includes('line') && it.line) out.push(it.line);
       if ((badges.includes('address') || badges.includes('addr')) && it.address) out.push(it.address);
@@ -115,6 +114,7 @@
       const overlay = new kakao.maps.CustomOverlay({position:pos, content:node, map, zIndex:9999});
       setTimeout(()=>overlay.setMap(null), 1500);
       box.classList.remove('open');
+      kw.blur();   // ✅ 검색 완료 후 input 비활성화
     }
 
     // 이벤트
@@ -132,6 +132,7 @@
         else if(suggestions.length) choose(0);
       } else if(e.key==='Escape'){
         box.classList.remove('open');
+        kw.blur();  // ✅ ESC 눌러도 input 비활성화
       }
     });
 
@@ -143,7 +144,10 @@
 
     // 바깥 클릭 시 닫기
     document.addEventListener('click', (e)=>{
-      if(!wrap.contains(e.target) && !box.contains(e.target)) box.classList.remove('open');
+      if(!wrap.contains(e.target) && !box.contains(e.target)) {
+        box.classList.remove('open');
+        kw.blur();  // ✅ 바깥 클릭 시에도 input 비활성화
+      }
     });
   };
 })();
