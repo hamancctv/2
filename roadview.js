@@ -1,68 +1,31 @@
 // roadview.js
-function initRoadview(map, mapCenter, options = {}) {
-  // ===== 기본 옵션 =====
-  const cfg = Object.assign({
-    miniMapWidth: "25%",   // 미니맵 가로 비율
-    miniMapHeight: "25%",  // 미니맵 세로 비율
-    minWidth: "200px",     // 최소 가로
-    minHeight: "150px",    // 최소 세로
-    position: "left-bottom" // 미니맵 위치: left-bottom, right-bottom, left-top, right-top
-  }, options);
-
-  // ===== 로드뷰 전용 스타일 동적 삽입 =====
+function initRoadview(map, mapCenter) {
   const style = document.createElement("style");
-
-  // 위치별 스타일 계산
-  let posCSS = "";
-  if (cfg.position === "right-bottom") {
-    posCSS = "bottom:0; right:0;";
-  } else if (cfg.position === "left-top") {
-    posCSS = "top:0; left:0;";
-  } else if (cfg.position === "right-top") {
-    posCSS = "top:0; right:0;";
-  } else {
-    // default left-bottom
-    posCSS = "bottom:0; left:0;";
-  }
-
   style.textContent = `
-  /* ================= 로드뷰 전용 스타일 ================= */
-
   #rvWrapper {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     z-index: 0;
     display: none;
   }
-
-  .view_roadview #rvWrapper {
-    display: block;
-    z-index: 1;
-  }
-
+  .view_roadview #rvWrapper { display: block; z-index: 1; }
   .view_roadview #mapWrapper {
     position: absolute;
-    ${posCSS}
-    width: ${cfg.miniMapWidth};
-    height: ${cfg.miniMapHeight};
-    min-width: ${cfg.minWidth};
-    min-height: ${cfg.minHeight};
+    bottom: 0; left: 0;
+    width: 25%; height: 25%;
+    min-width: 200px; min-height: 150px;
     z-index: 2;
     border: 2px solid #ccc;
     border-radius: 6px;
     background: #fff;
   }
-
   #roadviewControl {
     position:absolute;top:2px;left:115px;width:42px;height:42px;
     z-index: 1;cursor: pointer;
     background: url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/common/img_search.png) 0 -450px no-repeat;
   }
-  #roadviewControl.active {background-position:0 -350px;}
-
+  #roadviewControl.active { background-position:0 -350px; }
   #close {
     position: absolute;padding: 4px;top: 49px;left: 5px;cursor: pointer;
     background: #fff;border-radius: 4px;border: 1px solid #c8c8c8;box-shadow: 0px 1px #888;
@@ -75,7 +38,6 @@ function initRoadview(map, mapCenter, options = {}) {
   `;
   document.head.appendChild(style);
 
-  // ===== 로드뷰 로직 =====
   const rv = new kakao.maps.Roadview(document.getElementById('roadview'));
   const rvClient = new kakao.maps.RoadviewClient();
   let overlayOn = false;
@@ -124,7 +86,6 @@ function initRoadview(map, mapCenter, options = {}) {
     }
   }
 
-  // 외부에서 호출 가능한 함수 등록
   window.setRoadviewRoad = function () {
     const c = document.getElementById('roadviewControl');
     if (c.classList.contains('active')) {
