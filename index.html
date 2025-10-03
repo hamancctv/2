@@ -5,19 +5,22 @@
   <title>GIS 모바일</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="icon" href="https://hamancctv.github.io/2/favicon.ico" sizes="32x32"/>
-  <link rel="stylesheet" href="style.css"> <!-- 👉 로드뷰 제외한 기존 스타일 -->
+  <!-- 🔽 로드뷰 관련 없는 스타일만 -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="alert-overlay"><div id="alert-message"></div></div>
 
   <div id="container">
-    <!-- 로드뷰 영역 -->
+    <!-- ✅ 로드뷰 영역 -->
     <div id="rvWrapper">
       <div id="roadview" style="width:100%;height:100%;"></div>
-      <div id="close" title="로드뷰닫기" onclick="closeRoadview()"><span class="img"></span></div>
+      <div id="close" title="로드뷰닫기" onclick="closeRoadview()">
+        <span class="img"></span>
+      </div>
     </div>
 
-    <!-- 지도 영역 -->
+    <!-- ✅ 지도 영역 -->
     <div id="mapWrapper">
       <div id="map" style="width:100%;height:100%"></div>
       <div id="roadviewControl" onclick="setRoadviewRoad()"></div>
@@ -32,7 +35,7 @@
   </div>
 
   <!-- SDK & 외부 스크립트 -->
-  <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KEY&libraries=services,clusterer,drawing&autoload=false"></script>
+  <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_APP_KEY&libraries=services,clusterer,drawing&autoload=false"></script>
   <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
 
   <!-- 외부 유틸 -->
@@ -41,29 +44,40 @@
   <script src="btnDistance.js"></script>
   <script src="markers-handler.js"></script>
   <script src="search-suggest.js"></script>
-  <script src="roadview.js"></script> <!-- ✅ 로드뷰 전용 -->
+
+  <!-- ✅ 로드뷰 (스타일+기능 합본) -->
+  <script src="roadview.js"></script>
 
   <!-- 메인 스크립트 -->
   <script>
   kakao.maps.load(function () {
     const mapCenter = new kakao.maps.LatLng(35.2725308711779,128.406307024695);
-    const map = new kakao.maps.Map(document.getElementById('map'),{center:mapCenter,level:4});
+    const map = new kakao.maps.Map(document.getElementById('map'), {
+      center: mapCenter,
+      level: 4
+    });
     map.setMaxLevel(9); 
     window.map = map;
 
     // ===== 마커 생성 =====
-    const raw=(window.SEL_SUGGEST||[]).map(it=>{
-      const lat=parseFloat(it.lat),lng=parseFloat(it.lng);
-      if(!isFinite(lat)||!isFinite(lng))return null;
-      return{latlng:new kakao.maps.LatLng(lat,lng),content:it.name1||it.name,searchName:it.name2||it.name,group:it.line||null};
+    const raw = (window.SEL_SUGGEST || []).map(it => {
+      const lat = parseFloat(it.lat), lng = parseFloat(it.lng);
+      if (!isFinite(lat) || !isFinite(lng)) return null;
+      return {
+        latlng: new kakao.maps.LatLng(lat, lng),
+        content: it.name1 || it.name,
+        searchName: it.name2 || it.name,
+        group: it.line || null
+      };
     }).filter(Boolean);
-    const unique=new Map();
-    for(const p of raw){
-      const key=p.latlng.getLat()+","+p.latlng.getLng();
-      if(!unique.has(key))unique.set(key,p);
+
+    const unique = new Map();
+    for (const p of raw) {
+      const key = p.latlng.getLat() + "," + p.latlng.getLng();
+      if (!unique.has(key)) unique.set(key, p);
     }
-    const finalPositions=[...unique.values()];
-    if(window.initMarkers) initMarkers(map,finalPositions);
+    const finalPositions = [...unique.values()];
+    if (window.initMarkers) initMarkers(map, finalPositions);
 
     // ===== 검색창 초기화 =====
     if (window.initSuggestUI) {
@@ -80,17 +94,17 @@
     }
 
     // ===== 회선 토글 =====
-    const btn=document.getElementById("toggle_group");
-    if(window.drawGroupLinesMST){
-      btn.addEventListener("click",()=>{
+    const btn = document.getElementById("toggle_group");
+    if (window.drawGroupLinesMST) {
+      btn.addEventListener("click", () => {
         drawGroupLinesMST(map);
         btn.classList.toggle("selected_btn");
       });
     }
 
-    // ✅ 로드뷰 실행
-    if(window.initRoadview){
-      initRoadview(map,mapCenter);
+    // ===== ✅ 로드뷰 초기화 =====
+    if (window.initRoadview) {
+      initRoadview(map, mapCenter);
     }
   });
   </script>
