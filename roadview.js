@@ -69,3 +69,5 @@ function initRoadview(map, mapCenter) {
     toggleOverlay(false);
   };
 }
+// roadview.js 마지막에 추가
+document.getElementById("roadviewControl").addEventListener("click", setRoadviewRoad);
