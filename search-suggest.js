@@ -1,5 +1,6 @@
 /* ===== search-suggest.js (DOM + CSS 자동 생성, Safari 대응 + Enter/Click 이동 & 원 표시)
    추가: "/" 또는 클릭 포커스 시 입력이 비어 있으면 "마지막 검색어의 제안 리스트" 즉시 표시
+   변경: 제안 클릭/엔터 시 입력창 값은 name1 우선으로 설정
 */
 (function () {
   /* ---------- 유틸 ---------- */
@@ -132,7 +133,7 @@
 
     // === 상태 & 헬퍼 ===
     let activeIdx = -1, current = [];
-    let lastQuery = '';   // 마지막 비어있지 않은 검색어
+    let lastQuery = '';   // 마지막 비어있지 않은 검색어(입력창에 채워 넣는 값) — 이제 name1 우선
     let lastResults = []; // 마지막 검색 결과 리스트
     const items = () => Array.from(box.querySelectorAll('.gx-suggest-item'));
 
@@ -155,7 +156,12 @@
         if (out.length>=maxItems) break;
       } return out;
     }
+
+    // 리스트 표시는 기존 로직 유지(name2 > name > name1 > searchName)
     function titleOf(o){ return normalizeText(o.name2||o.name||o.name1||o.searchName||''); }
+    // 입력창에 채우는 값은 name1 우선 (없으면 name2 > name > searchName)
+    function labelForInput(o){ return normalizeText(o.name1||o.name2||o.name||o.searchName||''); }
+
     function makeItemHTML(o){
       const title=titleOf(o);
       const sub=badges.map(k=>o[k]?`<span>${escapeHTML(String(o[k]).replace(/^ip\\s*:\\s*/i,''))}</span>`:'').filter(Boolean).join(' ');
@@ -218,11 +224,13 @@
 
     function pick(idx){
       if(idx<0||idx>=current.length) return;
-      const o=current[idx]; const t=titleOf(o); if(t) input.value=t;
+      const o=current[idx];
+      const label = labelForInput(o);            // ← name1 우선
+      if (label) input.value = label;
 
       // 🔸 마지막 검색 상태 갱신
       if (current.length) { lastResults = current.slice(0); }
-      if (t) lastQuery = t;
+      if (label) lastQuery = label;
 
       const {lat, lng} = getLatLngFromItem(o);
       if (isFinite(lat) && isFinite(lng) && map) centerWithEffect(lat, lng);
@@ -238,7 +246,7 @@
       lastTyped=q;
       const list=filterData(q); current=list;
 
-      // 🔸 마지막 검색 상태(비어있지 않을 때만 기록)
+      // 🔸 마지막 검색 상태(비어있지 않을 때만 기록) — 사용자가 직접 친 값 그대로 기록
       if (q.trim() && list.length) { lastQuery = q; lastResults = list.slice(0); }
 
       if(list.length===0){closeBox();box.innerHTML='';return;}
@@ -247,13 +255,11 @@
 
     // === 포커스 시: 비어 있으면 마지막 검색 제안 바로 표시 (클릭/키보드 동일) ===
     input.addEventListener('focus',()=>{
-      // 로드뷰로 숨긴 상태면 패스
       if (root.classList.contains('is-hidden')) return;
 
       const q = (input.value||'').trim();
       if (q === '') {
         if (lastResults && lastResults.length) {
-          // 입력칸도 마지막 검색어로 채워주고 리스트 즉시 오픈
           try { input.value = lastQuery || ''; } catch(_) {}
           current = lastResults.slice(0);
           render(current); openBox(); setActive(0);
@@ -293,8 +299,8 @@
         if (useList.length) {
           const idx = (activeIdx>=0 && activeIdx<useList.length) ? activeIdx : 0;
           const o = useList[idx];
-          const t = titleOf(o);
-          if (t) { input.value = t; lastQuery = t; lastResults = useList.slice(0); }
+          const label = labelForInput(o);        // ← name1 우선
+          if (label) { input.value = label; lastQuery = label; lastResults = useList.slice(0); }
           const {lat, lng} = getLatLngFromItem(o);
           if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
           closeBox(); input.blur();
@@ -353,7 +359,6 @@
         e.preventDefault();
         try { input.focus(); } catch(_) {}
 
-        // 입력창이 비어있고, 이전 검색 히스토리가 있으면 즉시 제안 표시
         const emptyNow = !(input.value||'').trim();
         if (emptyNow && lastQuery && lastResults && lastResults.length) {
           try { input.value = lastQuery; } catch(_) {}
