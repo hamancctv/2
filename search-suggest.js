@@ -1,6 +1,7 @@
 /* ===== search-suggest.js (DOM + CSS 자동 생성, Safari 대응 + Enter/Click 이동 & 원 표시)
-   추가: "/" 또는 클릭 포커스 시 입력이 비어 있으면 "마지막 검색어의 제안 리스트" 즉시 표시
-   변경: 제안 클릭/엔터 시 입력창 값은 name1 우선으로 설정
+   단축키: "/" 누르면 입력창 포커스 + 비었으면 마지막 제안 노출
+   변경: 제안 클릭/엔터 시 입력창 값은 name에서 "-숫자-" 뒤 한글 연속구간 추출
+   추가: 포커스가 잡히면 입력값 전체 선택(클릭 포커스 + "/" 포커스 모두)
 */
 (function () {
   /* ---------- 유틸 ---------- */
@@ -8,6 +9,26 @@
   function toLowerNoSpace(s) { return normalizeText(s).replace(/\s+/g, '').toLowerCase(); }
   function escapeHTML(s) {
     return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  // name에서 "-숫자-" 다음 "연속된 한글(공백 포함)"만 추출
+  function extractKoreanAfterDashNumber(name) {
+    if (!name) return '';
+    const s = String(name);
+    const m = s.match(/-\s*\d+\s*-\s*(.+)$/);
+    if (!m) return '';
+    const after = m[1].trim();
+    const k = after.match(/^[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3\s]+/);
+    return k ? k[0].trim() : '';
+  }
+  // 포커스 직후 전체 선택 (iOS/Safari 대응)
+  function selectAllSoon(input) {
+    // 다음 페인트에서 selectionRange 우선, 실패 시 select()
+    const run = () => {
+      try { input.focus(); input.setSelectionRange(0, (input.value||'').length); }
+      catch(_) { try { input.select(); } catch(_) {} }
+    };
+    if (window.requestAnimationFrame) requestAnimationFrame(run);
+    else setTimeout(run, 0);
   }
 
   /* ---------- 스타일 주입 ---------- */
@@ -74,7 +95,6 @@
     if (root) {
       return { root, input: root.querySelector('.gx-input'), box: root.querySelector('.gx-suggest-box') };
     }
-
     root = document.createElement('div');
     root.className = 'gx-suggest-root';
 
@@ -103,11 +123,9 @@
     root.appendChild(box);
     parent.appendChild(root);
 
-    /* ✅ 핀치줌 차단(멀티터치만 막음: 드래그는 그대로 동작) */
+    // 핀치줌 차단(멀티터치만)
     [box].forEach(el => {
-      el.addEventListener('touchstart', e => {
-        if (e.touches.length > 1) e.preventDefault();
-      }, { passive:false });
+      el.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive:false });
     });
     document.addEventListener('gesturestart', e => e.preventDefault(), { passive:false });
 
@@ -131,10 +149,10 @@
     box.id = box.id || 'gx-suggest-list';
     input.setAttribute('aria-controls', box.id);
 
-    // === 상태 & 헬퍼 ===
+    // 상태
     let activeIdx = -1, current = [];
-    let lastQuery = '';   // 마지막 비어있지 않은 검색어(입력창에 채워 넣는 값) — 이제 name1 우선
-    let lastResults = []; // 마지막 검색 결과 리스트
+    let lastQuery = '';   // 마지막 입력/선택 텍스트
+    let lastResults = []; // 마지막 검색 결과
     const items = () => Array.from(box.querySelectorAll('.gx-suggest-item'));
 
     function openBox() { if (!box.classList.contains('open')) { box.classList.add('open'); input.setAttribute('aria-expanded', 'true'); } }
@@ -156,11 +174,13 @@
         if (out.length>=maxItems) break;
       } return out;
     }
-
-    // 리스트 표시는 기존 로직 유지(name2 > name > name1 > searchName)
+    // 리스트 타이틀은 기존
     function titleOf(o){ return normalizeText(o.name2||o.name||o.name1||o.searchName||''); }
-    // 입력창에 채우는 값은 name1 우선 (없으면 name2 > name > searchName)
-    function labelForInput(o){ return normalizeText(o.name1||o.name2||o.name||o.searchName||''); }
+    // 입력값 라벨: "-숫자-" 뒤 연속 한글 우선
+    function labelForInput(o){
+      const picked = extractKoreanAfterDashNumber(o.name);
+      return normalizeText(picked || o.name2 || o.name1 || o.name || o.searchName || '');
+    }
 
     function makeItemHTML(o){
       const title=titleOf(o);
@@ -181,14 +201,10 @@
       return {lat, lng};
     }
 
-    // === centerWithEffect (instant pulse) ===
+    // centerWithEffect
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
-
-      if (typeof window.setCenter === 'function') {
-        try { window.setCenter(lat, lng); } catch(_) {}
-        return;
-      }
+      if (typeof window.setCenter === 'function') { try { window.setCenter(lat, lng); } catch(_) {} return; }
 
       try { map.setLevel(1, { animate: true }); } catch(_) { try { map.setLevel(1); } catch(_) {} }
 
@@ -205,30 +221,22 @@
           setTimeout(()=>{ try { circle.setMap(null); } catch(_) {} }, 1000);
         } catch(_) {}
       }
-
       try {
         if (window.requestAnimationFrame) {
-          requestAnimationFrame(() => {
-            try { map.panTo(pt); } catch(_) {}
-            requestAnimationFrame(drawPulse);
-          });
+          requestAnimationFrame(() => { try { map.panTo(pt); } catch(_) {} ; requestAnimationFrame(drawPulse); });
         } else {
           setTimeout(() => { try { map.panTo(pt); } catch(_) {} ; setTimeout(drawPulse, 50); }, 16);
         }
-      } catch(_) {
-        try { map.panTo(pt); } catch(_) {}
-        setTimeout(drawPulse, 60);
-      }
+      } catch(_) { try { map.panTo(pt); } catch(_) {} ; setTimeout(drawPulse, 60); }
       setTimeout(drawPulse, 180);
     }
 
     function pick(idx){
       if(idx<0||idx>=current.length) return;
       const o=current[idx];
-      const label = labelForInput(o);            // ← name1 우선
+      const label = labelForInput(o);
       if (label) input.value = label;
 
-      // 🔸 마지막 검색 상태 갱신
       if (current.length) { lastResults = current.slice(0); }
       if (label) lastQuery = label;
 
@@ -237,7 +245,7 @@
       closeBox(); input.blur();
     }
 
-    // === 입력 이벤트 ===
+    // 입력 이벤트
     let lastTyped = '';
     input.addEventListener('input',()=>{
       const q=input.value||'';
@@ -246,32 +254,34 @@
       lastTyped=q;
       const list=filterData(q); current=list;
 
-      // 🔸 마지막 검색 상태(비어있지 않을 때만 기록) — 사용자가 직접 친 값 그대로 기록
       if (q.trim() && list.length) { lastQuery = q; lastResults = list.slice(0); }
 
       if(list.length===0){closeBox();box.innerHTML='';return;}
       render(list); openBox();
     });
 
-    // === 포커스 시: 비어 있으면 마지막 검색 제안 바로 표시 (클릭/키보드 동일) ===
+    // 포커스: 비어 있으면 마지막 검색 제안 + 전체 선택
     input.addEventListener('focus',()=>{
       if (root.classList.contains('is-hidden')) return;
 
+      let changed = false;
       const q = (input.value||'').trim();
       if (q === '') {
         if (lastResults && lastResults.length) {
           try { input.value = lastQuery || ''; } catch(_) {}
           current = lastResults.slice(0);
           render(current); openBox(); setActive(0);
+          changed = true;
         }
-        return;
+      } else if (openOnFocus) {
+        const list=filterData(q); current=list;
+        if(list.length>0){render(list);openBox(); changed = true;}
       }
-      if(!openOnFocus) return;
-      const list=filterData(q); current=list;
-      if(list.length>0){render(list);openBox();}
+      // 값 변경 여부와 상관없이 포커스 시 전체 선택
+      selectAllSoon(input);
     });
 
-    // === 키보드 내비게이션 & Enter 동작 ===
+    // 키보드 내비 & Enter
     input.addEventListener('keydown',(e)=>{
       const els=items(); const isOpen=box.classList.contains('open')&&els.length>0;
 
@@ -284,22 +294,19 @@
       else if(e.key==='Enter'){
         e.preventDefault();
 
-        // 제안창이 닫혀 있으면 현재 값으로 다시 검색
         let useList = current;
         if (!isOpen) {
           const q = (input.value||'').trim();
           useList = q ? filterData(q) : [];
           current = useList;
 
-          // 🔸 마지막 검색 상태 갱신
           if (q && useList.length) { lastQuery = q; lastResults = useList.slice(0); }
-
           if (useList.length) { render(useList); openBox(); }
         }
         if (useList.length) {
           const idx = (activeIdx>=0 && activeIdx<useList.length) ? activeIdx : 0;
           const o = useList[idx];
-          const label = labelForInput(o);        // ← name1 우선
+          const label = labelForInput(o);
           if (label) { input.value = label; lastQuery = label; lastResults = useList.slice(0); }
           const {lat, lng} = getLatLngFromItem(o);
           if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
@@ -310,7 +317,7 @@
       }
     });
 
-    // === 바깥 클릭으로 닫기 ===
+    // 바깥 클릭 닫기
     document.addEventListener('mousedown',(e)=>{
       if(!box.classList.contains('open')) return;
       if(e.target===input||box.contains(e.target)) return;
@@ -318,7 +325,7 @@
     });
     window.addEventListener('resize',closeBox);
 
-    // === 지도 이벤트 ===
+    // 지도 이벤트
     if (map) {
       kakao.maps.event.addListener(map, 'click', () => { closeBox(); });
       kakao.maps.event.addListener(map, 'dragstart', () => { input.blur(); });
@@ -326,23 +333,22 @@
       kakao.maps.event.addListener(map, 'dragend',   () => { input.blur(); });
     }
 
-    // ✅ Safari 대응: 지도 DOM touchend → blur (지연)
+    // Safari 대응
     const mapEl=document.getElementById('map');
     if(mapEl){
       mapEl.addEventListener('touchend',()=>{ setTimeout(()=>input.blur(),100); },{passive:true});
       mapEl.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
     }
-    // 제안창 스크롤/드래그 시 키보드만 내림 (제안창은 유지)
     box.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
 
-    // === 로드뷰 숨김 ===
+    // 로드뷰 숨김 대응
     if(hideOnRoadview){
       const container=parent.closest('#container')||document.getElementById('container')||document.body;
       const update=()=>{const on=container.classList.contains('view_roadview'); if(on){root.classList.add('is-hidden');closeBox();}else root.classList.remove('is-hidden');};
       update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
     }
 
-    /* === "/" 글로벌 단축키: 입력창 활성화 + 마지막 검색 제안 === */
+    /* "/" 단축키: 입력창 포커스 + 비어 있으면 마지막 검색 제안 + 전체 선택 */
     if (!root.__slashHandlerBound) {
       root.__slashHandlerBound = true;
       document.addEventListener('keydown', function onSlash(e){
@@ -357,6 +363,8 @@
         if (root.classList.contains('is-hidden')) return;
 
         e.preventDefault();
+
+        // 포커스
         try { input.focus(); } catch(_) {}
 
         const emptyNow = !(input.value||'').trim();
@@ -367,6 +375,8 @@
           openBox();
           setActive(0);
         }
+        // 전체 선택
+        selectAllSoon(input);
       }, { passive:false });
     }
   };
