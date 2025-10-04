@@ -75,7 +75,34 @@
     background: radial-gradient(#fff 0 28%, currentColor 29% 100%);
   }
 
-  /* 미니맵 크기조절 핸들 (오른쪽 위, 위로/오른쪽으로 끌면 커짐) */
+  /* === 동동이(MapWalker) 스타일 === */
+  .MapWalker { position:absolute; margin:-26px 0 0 -51px; }
+  .MapWalker .figure {
+    position:absolute; width:25px; height:39px; left:38px; top:-2px;
+    background:url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png) -298px -114px no-repeat;
+  }
+  .MapWalker .angleBack {
+    width:102px; height:52px;
+    background:url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png) -834px -2px no-repeat;
+  }
+  .MapWalker.m0  .figure{background-position:-298px -114px;}
+  .MapWalker.m1  .figure{background-position:-335px -114px;}
+  .MapWalker.m2  .figure{background-position:-372px -114px;}
+  .MapWalker.m3  .figure{background-position:-409px -114px;}
+  .MapWalker.m4  .figure{background-position:-446px -114px;}
+  .MapWalker.m5  .figure{background-position:-483px -114px;}
+  .MapWalker.m6  .figure{background-position:-520px -114px;}
+  .MapWalker.m7  .figure{background-position:-557px -114px;}
+  .MapWalker.m8  .figure{background-position:  -2px -114px;}
+  .MapWalker.m9  .figure{background-position: -39px -114px;}
+  .MapWalker.m10 .figure{background-position: -76px -114px;}
+  .MapWalker.m11 .figure{background-position:-113px -114px;}
+  .MapWalker.m12 .figure{background-position:-150px -114px;}
+  .MapWalker.m13 .figure{background-position:-187px -114px;}
+  .MapWalker.m14 .figure{background-position:-224px -114px;}
+  .MapWalker.m15 .figure{background-position:-261px -114px;}
+
+  /* 미니맵 크기조절 핸들 (오른쪽 위, 위/오른쪽으로 드래그하면 커짐) */
   #mapWrapper .rv-resizer{
     position:absolute; right:6px; top:6px;
     width:16px; height:16px;
@@ -131,8 +158,10 @@ const $  = s => document.querySelector(s);
 /* 전역 */
 let map, geocoder, places;
 let overlayOn = false, rv, rvClient, rvMarker;
+/* MapWalker(동동이) */
+let mapWalker = null;
 
-/* 로드뷰 마커 이미지 */
+/* 로드뷰 마커 이미지 (기존 드래그 가능한 마커) */
 function rvMarkerImage(){
   return new kakao.maps.MarkerImage(
     'https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png',
@@ -194,6 +223,38 @@ function setRoadviewAt(position){
   });
 }
 
+/* === 지도 위 동동이(MapWalker) 커스텀 오버레이 === */
+function MapWalker(position){
+  const content   = document.createElement('div');
+  const figure    = document.createElement('div');
+  const angleBack = document.createElement('div');
+  content.className = 'MapWalker';
+  figure.className  = 'figure';
+  angleBack.className = 'angleBack';
+  content.appendChild(angleBack);
+  content.appendChild(figure);
+
+  const walker = new kakao.maps.CustomOverlay({
+    position, content, yAnchor: 1
+  });
+
+  this.walker  = walker;
+  this.content = content;
+}
+MapWalker.prototype.setAngle = function(angle){
+  // 0~360을 16방위로 나눠 스프라이트 클래스를 부여
+  const a = ((angle % 360) + 360) % 360;
+  const idx = Math.floor(((a + 11.25) % 360) / 22.5); // 0~15
+  const base = 'MapWalker';
+  this.content.className = base + ' m' + idx;
+};
+MapWalker.prototype.setPosition = function(position){
+  this.walker.setPosition(position);
+};
+MapWalker.prototype.setMap = function(mapObj){
+  this.walker.setMap(mapObj);
+};
+
 /* 로드뷰 오버레이 토글 */
 function toggleOverlay(active){
   const btn = document.getElementById('roadviewControl');
@@ -202,6 +263,7 @@ function toggleOverlay(active){
     btn.classList.add('active');
     map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
 
+    // 드래그 가능한 로드뷰 이동 마커 (기존 기능 유지)
     if(!rvMarker){
       rvMarker = new kakao.maps.Marker({
         position: map.getCenter(),
@@ -212,15 +274,30 @@ function toggleOverlay(active){
     }
     rvMarker.setMap(map);
     rvMarker.setPosition(map.getCenter());
+
+    // 동동이(MapWalker) 생성/표시
+    try {
+      if (!mapWalker) mapWalker = new MapWalker(map.getCenter());
+      mapWalker.setMap(map);
+      mapWalker.setPosition(map.getCenter());
+    } catch(e){}
+
     setRoadviewAt(map.getCenter());
 
-    // ✅ 로드뷰 처음 켰을 때 동동이 각도 초기화
-    setTimeout(syncRvMarkerAngle, 80);
+    // 초기 각도 보정(로드뷰 세팅 직후)
+    setTimeout(()=>{
+      try {
+        const vp = rv.getViewpoint();
+        if (mapWalker) mapWalker.setAngle(vp.pan || 0);
+      } catch(e){}
+    }, 120);
+
   }else{
     overlayOn = false;
     btn.classList.remove('active');
     map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
     if(rvMarker) rvMarker.setMap(null);
+    if(mapWalker) mapWalker.setMap(null);
     document.getElementById('container').classList.remove('view_roadview');
     map.relayout();
   }
@@ -237,31 +314,26 @@ kakao.maps.load(function(){
   rvClient = new kakao.maps.RoadviewClient();
   rv       = new kakao.maps.Roadview(document.getElementById('roadview'));
 
-  /* === 동동이(로드뷰 마커) 회전 동기화 === */
-  function syncRvMarkerAngle(){
-    try {
-      if (!rv || !rvMarker) return;
-      const vp = rv.getViewpoint();             // { pan, tilt, zoom }
-      if (typeof rvMarker.setAngle === 'function') {
-        rvMarker.setAngle(vp.pan);              // 로드뷰 시선 방향으로 회전
-      }
-    } catch (e) {}
-  }
+  // 동동이 선생님 미리 만들어두고 숨겨두기
+  try { mapWalker = new MapWalker(center); } catch(e){}
+
+  /* === 로드뷰 ↔ 지도 싱크 & 동동이 동기화 === */
+  // 로드뷰 시선 변경 → 동동이 각도 동기화
   kakao.maps.event.addListener(rv, 'viewpoint_changed', function(){
-    if (!overlayOn || !rvMarker) return;
-    syncRvMarkerAngle();
-  });
-  kakao.maps.event.addListener(rv, 'panoid_changed', function(){
-    if (!overlayOn || !rvMarker) return;
-    syncRvMarkerAngle();
+    if (!overlayOn || !mapWalker) return;
+    try {
+      const vp = rv.getViewpoint(); // {pan, tilt, zoom}
+      mapWalker.setAngle(vp.pan || 0);
+    } catch(e){}
   });
 
-  // 로드뷰 ↔ 지도 싱크(위치)
+  // 로드뷰 위치 변경 → 지도/마커/동동이 위치 동기화
   kakao.maps.event.addListener(rv, 'position_changed', function(){
     if(!overlayOn) return;
     const pos = rv.getPosition();
     map.setCenter(pos);
     if(rvMarker) rvMarker.setPosition(pos);
+    if(mapWalker) mapWalker.setPosition(pos);
   });
 
   // 지도 클릭 → 로드뷰 이동(켜져 있을 때만)
@@ -269,6 +341,7 @@ kakao.maps.load(function(){
     if(!overlayOn) return;
     const pos = e.latLng;
     if(rvMarker) rvMarker.setPosition(pos);
+    if(mapWalker) mapWalker.setPosition(pos);
     setRoadviewAt(pos);
   });
 
@@ -379,7 +452,7 @@ kakao.maps.load(function(){
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
 
-      // 오른쪽 위 핸들: 오른쪽(→)으로, 위(↑)로 드래그할수록 커짐
+      // 오른쪽 위 핸들: 오른쪽(→), 위(↑)로 끌수록 커짐
       curW = Math.max(MIN_W, Math.min(startW + dx, MAX_W));
       curH = Math.max(MIN_H, Math.min(startH - dy, MAX_H));
 
