@@ -16,11 +16,12 @@
   width:min(520px,90vw); z-index:600;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
 }
-/* ✅ 제안창만 터치제스처 차단 */
+/* ✅ 제안창: 세로 스크롤 허용 + 핀치/더블탭 확대 차단 */
 .gx-suggest-box {
-  touch-action: none;
+  touch-action: pan-y;
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
+  overscroll-behavior: contain;
 }
 /* ✅ 검색창은 정상 입력되도록 허용 */
 .gx-suggest-search,
@@ -101,7 +102,7 @@
     root.appendChild(box);
     parent.appendChild(root);
 
-    /* ✅ 핀치줌 차단 (입력창 제외) */
+    /* ✅ 핀치줌 차단(멀티터치만 막음: 드래그는 그대로 동작) */
     [box].forEach(el => {
       el.addEventListener('touchstart', e => {
         if (e.touches.length > 1) e.preventDefault();
@@ -220,6 +221,7 @@
       mapEl.addEventListener('touchend',()=>{ setTimeout(()=>input.blur(),100); },{passive:true});
       mapEl.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
     }
+    // 제안창 스크롤/드래그 시 키보드만 내림 (제안창은 유지)
     box.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
 
     // === 로드뷰 숨김 ===
