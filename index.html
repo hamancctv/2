@@ -91,9 +91,10 @@
   }
   .view_roadview #mapWrapper .rv-resizer{ display:block; }
 
-  /* === MapWalker (카카오 샘플 동일 스프라이트) === */
+  /* === MapWalker (카카오 샘플 스프라이트) === */
   .MapWalker {position:absolute; margin:-26px 0 0 -51px; cursor:grab; }
   .MapWalker.dragging{ cursor:grabbing; }
+  .MapWalker.pick { outline:2px solid rgba(255,215,0,.7); border-radius:6px; }
   .MapWalker .figure {
     position:absolute; width:25px; left:38px; top:-2px; height:39px;
     background:url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png) -298px -114px no-repeat;
@@ -102,7 +103,8 @@
   .MapWalker .angleBack {
     width:102px; height:52px;
     background:url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png) -834px -2px no-repeat;
-    /* 바깥 웨지는 고정, 내부 짙은 부위만 스프라이트로 '도는 것처럼' 보임 */
+    /* ✅ 파란 웨지를 노란색 계열로 보정 */
+    filter: hue-rotate(60deg) saturate(1.8) brightness(1.05);
   }
   /* figure 방향 프레임 */
   .MapWalker.m0  .figure{background-position:-298px -114px;}
@@ -180,9 +182,10 @@ const $  = s => document.querySelector(s);
 /* 전역 */
 let map, geocoder, places;
 let overlayOn = false, rv, rvClient;
-let mapWalker = null;   // 보이는 + 드래그되는 "하나의" 동동이
+let mapWalker = null;   // 보이는 + 드래그/클릭 이동하는 동동이
+let pickMode  = false;  // 동동이 클릭 후 지도 클릭으로 옮기는 모드
 
-/* 카카오 샘플 기반 MapWalker + 드래그 지원 */
+/* 카카오 샘플 기반 MapWalker + 드래그 + 클릭-옮기기 지원 */
 function MapWalker(position){
   const content   = document.createElement('div');
   const figure    = document.createElement('div');
@@ -193,21 +196,25 @@ function MapWalker(position){
   content.appendChild(angleBack);
   content.appendChild(figure);
 
-  const walker = new kakao.maps.CustomOverlay({ position, content, yAnchor: 1 });
+  const walker = new kakao.maps.CustomOverlay({
+    position, content, yAnchor: 1,
+    clickable: true   // ✅ 오버레이 DOM 클릭 허용
+  });
+
   this.walker   = walker;
   this.content  = content;
   this.position = position;
 
   // ---- 드래그 (마우스/터치) ----
   const self = this;
-  let dragging = false, startX=0, startY=0, startPt=null;
+  let dragging = false, startX=0, startY=0, startPt=null, moved=false;
 
   function onDown(ev){
     if (!overlayOn) return;
     if (ev.touches && ev.touches.length > 1) return; // 멀티터치 무시
     ev.preventDefault();
     content.classList.add('dragging');
-    dragging = true;
+    dragging = true; moved = false;
     const t = ev.touches ? ev.touches[0] : ev;
     startX = t.clientX; startY = t.clientY;
 
@@ -229,6 +236,7 @@ function MapWalker(position){
     const t = ev.touches ? ev.touches[0] : ev;
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
 
     const proj = map.getProjection();
     const newPt = new kakao.maps.Point(startPt.x + dx, startPt.y + dy);
@@ -244,8 +252,20 @@ function MapWalker(position){
     map.setDraggable(true);
     map.setZoomable(true);
 
-    // 드래그 끝난 위치로 로드뷰 이동
-    try { setRoadviewAt(self.position); } catch(e) {}
+    if (moved) {
+      // 드래그 끝난 위치로 로드뷰 이동
+      try { setRoadviewAt(self.position); } catch(e) {}
+    } else {
+      // ✅ 드래그 없이 클릭만 했다면: "이동 모드" 토글
+      pickMode = !pickMode;
+      if (pickMode) {
+        content.classList.add('pick');
+        flash('이동할 위치를 지도에서 클릭하세요');
+      } else {
+        content.classList.remove('pick');
+        flash('이동 취소');
+      }
+    }
 
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup',   onUp);
@@ -260,7 +280,7 @@ MapWalker.prototype.setAngle = function(angle){
   // 0~360 → 16방위(22.5도) 인덱스
   const a = ((angle % 360) + 360) % 360;
   const idx = Math.floor(((a + 11.25) % 360) / 22.5); // 0..15
-  this.content.className = 'MapWalker m' + idx;
+  this.content.className = 'MapWalker m' + idx + (this.content.classList.contains('pick') ? ' pick' : '');
 };
 MapWalker.prototype.setPosition = function(position){
   this.position = position;
@@ -288,11 +308,11 @@ function flash(msg) {
   el.textContent = msg;
   el.style.cssText =
     'position:fixed;left:50%;top:14px;transform:translateX(-50%);' +
-    'background:rgba(0,0,0,.75);color:#fff;padding:8px 12px;border-radius:8px;' +
+    'background:rgba(0,0,0,.85);color:#fff;padding:8px 12px;border-radius:8px;' +
     'font-size:13px;z-index:9999;pointer-events:none';
   document.body.appendChild(el);
-  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; }, 1200);
-  setTimeout(()=> el.remove(), 1600);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; }, 1100);
+  setTimeout(()=> el.remove(), 1500);
 }
 
 /* ✅ 로드뷰 위치 세팅 */
@@ -327,7 +347,7 @@ function toggleOverlay(active){
     btn.classList.add('active');
     map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
 
-    // 보이는 + 드래그 가능한 동동이
+    // 보이는 + 드래그/클릭 가능한 동동이
     if (!mapWalker){
       mapWalker = new MapWalker(map.getCenter());
       mapWalker.setMap(map);
@@ -339,9 +359,10 @@ function toggleOverlay(active){
     setRoadviewAt(map.getCenter());
   }else{
     overlayOn = false;
+    pickMode  = false;
     btn.classList.remove('active');
     map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
-    if(mapWalker) mapWalker.setMap(null);
+    if(mapWalker) { mapWalker.content.classList.remove('pick'); mapWalker.setMap(null); }
     document.getElementById('container').classList.remove('view_roadview');
     map.relayout();
   }
@@ -371,12 +392,16 @@ kakao.maps.load(function(){
     if(mapWalker) mapWalker.setPosition(pos);
   });
 
-  // 지도 클릭 → 로드뷰 이동(켜져 있을 때만)
+  // 지도 클릭 → (이동 모드면 종료하면서) 로드뷰 이동
   kakao.maps.event.addListener(map, 'click', function(e){
     if(!overlayOn) return;
     const pos = e.latLng;
     if(mapWalker) mapWalker.setPosition(pos);
     setRoadviewAt(pos);
+    if (pickMode && mapWalker) {
+      pickMode = false;
+      mapWalker.content.classList.remove('pick');
+    }
   });
 
   // 로드뷰 버튼(새 CSS 아이콘) 클릭
@@ -483,7 +508,7 @@ kakao.maps.load(function(){
       const t = ev.touches ? ev.touches[0] : ev;
       const dx = (t.clientX - startX);
       const dy = (t.clientY - startY);
-      // bottom-left 고정이므로, 오른쪽(+dx) & 위쪽(-dy)로 키움
+      // bottom-left 고정: 오른쪽(+dx) & 위쪽(-dy)로 키움
       curW = clamp(startW + dx, MIN_W, maxW());
       curH = clamp(startH - dy, MIN_H, maxH());
       if (!rafId) rafId = requestAnimationFrame(applySize);
