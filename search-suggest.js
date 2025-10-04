@@ -2,9 +2,9 @@
    - Safari 대응 (핀치줌 차단)
    - 제안/키보드 내비/엔터 이동 + 즉시 펄스
    - "/" 핫키: 슬래시 입력 방지 + 마지막 검색어 복원 + 제안 열기 + 전체선택
-   - 입력창 클릭 시에도 제안 열기 + 전체선택
+   - 입력창 클릭: 전체선택 없이 제안만 열기(비어 있으면 마지막 검색어 복원)
    - 선택 텍스트: name에서 "-문자/숫자/한글-" 다음 ~ 한글이 끝날 때까지 추출
-   - 🆕 마커 클릭 시 입력창 자동 채움(제안창 열지 않음), 로드뷰 모드면 무시
+   - 마커 클릭: 입력창에 글만 채움(포커스/전체선택 X, 제안창 X), 로드뷰 모드면 무시
 ===== */
 (function () {
   /* ---------- 유틸 ---------- */
@@ -13,10 +13,9 @@
   function escapeHTML(s) {
     return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
-  // name에서 "-문자/숫자/한글-" 다음부터 '한글/공백 연속' 추출
+  // name에서 "-[문자/숫자/한글]-" 다음의 '한글/공백' 연속 추출
   function extractKoreanTail(name, fallback) {
     const src = normalizeText(name);
-    // -[A-Za-z0-9가-힣]+- 이후의 한글/공백 연속
     const m = src.match(/-[A-Za-z0-9가-힣]+-\s*([가-힣\s]+)/);
     if (m && m[1]) {
       const picked = m[1].trim();
@@ -34,7 +33,7 @@
   width:min(520px,90vw); z-index:600;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
 }
-.gx-suggest-box { /* 세로 스크롤 허용 + 핀치 차단 */
+.gx-suggest-box {
   touch-action: pan-y;
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
@@ -125,7 +124,7 @@
     root.appendChild(box);
     parent.appendChild(root);
 
-    /* 핀치줌 차단(멀티터치만 막음: 드래그는 그대로 동작) */
+    // 핀치줌 차단(멀티터치만 막음)
     [box].forEach(el => {
       el.addEventListener('touchstart', e => {
         if (e.touches.length > 1) e.preventDefault();
@@ -165,7 +164,7 @@
     let activeIdx = -1;
     let current = [];
     let last = '';
-    let __lastTypedQuery = '';   // 마지막 타이핑 비공백 쿼리
+    let __lastTypedQuery = '';   // 마지막 타이핑 비공백
     let __lastPickedQuery = '';  // 마지막 확정(Enter/클릭)
 
     const items = () => Array.from(box.querySelectorAll('.gx-suggest-item'));
@@ -260,13 +259,10 @@
     // 중심 이동 + 원: 전역 setCenter가 있으면 위임(중복 방지)
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
-
       if (typeof window.setCenter === 'function') {
         try { window.setCenter(lat, lng); } catch(_) {}
         return;
       }
-
-      // 부드러운 줌 + 팬
       try { map.setLevel(1, { animate: true }); } catch(_) { try { map.setLevel(1); } catch(_) {} }
 
       let drawn = false;
@@ -288,7 +284,6 @@
           setTimeout(()=>{ try { circle.setMap(null); } catch(_) {} }, 1000);
         } catch(_) {}
       }
-
       try {
         if (window.requestAnimationFrame) {
           requestAnimationFrame(() => {
@@ -340,7 +335,7 @@
       render(list); openBox();
     });
 
-    // 포커스 시
+    // 포커스 시 (자동 선택 없음)
     input.addEventListener('focus', () => {
       if (!openOnFocus) return;
       const q = input.value || '';
@@ -405,13 +400,12 @@
       kakao.maps.event.addListener(map, 'dragend',   () => { input.blur(); });
     }
 
-    // Safari 대응: 지도 DOM touchend → blur (지연)
+    // Safari 대응
     const mapEl = document.getElementById('map');
     if (mapEl) {
       mapEl.addEventListener('touchend', () => { setTimeout(()=>input.blur(), 100); }, { passive:true });
       mapEl.addEventListener('touchmove', () => { input.blur(); }, { passive:true });
     }
-    // 제안창 스크롤/드래그 시 키보드만 내림 (제안창은 유지)
     box.addEventListener('touchmove', () => { input.blur(); }, { passive:true });
 
     // 로드뷰 숨김
@@ -427,12 +421,7 @@
       mo.observe(container, { attributes:true, attributeFilter:['class'] });
     }
 
-    /* ===== "/" 핫키 + 클릭 포커스 보강 ===== */
-    function __rememberPickedSafe() {
-      const q = (input.value || '').trim();
-      if (q) __lastPickedQuery = q;
-    }
-    // 비어있으면 마지막 검색어 복원 + 제안 열기 + 전체 선택
+    /* ===== "/" 핫키 + 클릭 포커스 규칙 ===== */
     function __showLastQueryIfEmpty() {
       if ((input.value || '').trim() !== '') return;
       const fallback = __lastPickedQuery || __lastTypedQuery || '';
@@ -442,9 +431,7 @@
         const list = filterData(fallback);
         if (list && list.length) { render(list); openBox(); }
       } catch(_) {}
-      try { input.focus(); input.setSelectionRange(0, input.value.length); } catch(_) {}
     }
-    // 현재 내용으로 제안 열기 + 전체선택 (비어있으면 위와 동일)
     function __openWithCurrent() {
       const q = (input.value || '').trim();
       if (q) {
@@ -454,10 +441,9 @@
       } else {
         __showLastQueryIfEmpty();
       }
-      try { input.setSelectionRange(0, input.value.length); } catch(_) {}
     }
 
-    // 전역 "/" 핫키
+    // 전역 "/" 핫키: 전체선택 + 제안 열기
     function __onSlashHotkey(e) {
       const isSlash = (e.key === '/' || e.code === 'Slash' || e.keyCode === 191);
       if (!isSlash) return;
@@ -466,7 +452,7 @@
       const isOurInput = (ae === input);
       const isOtherEditable =
         !isOurInput && (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable));
-      if (isOtherEditable) return; // 다른 입력 필드면 간섭 금지
+      if (isOtherEditable) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -475,20 +461,20 @@
       if ((input.value || '').trim() === '') __showLastQueryIfEmpty();
       else __openWithCurrent();
 
+      // ⇦ 슬래시일 때만 전체선택
       try { input.setSelectionRange(0, input.value.length); } catch(_) {}
     }
     window.addEventListener('keydown', __onSlashHotkey, true);
 
-    // 입력창 클릭해도 제안 열기 + 전체 선택
+    // 입력창 "마우스 클릭": 전체선택 없이 제안창만
     input.addEventListener('mousedown', function () {
       setTimeout(() => {
         __openWithCurrent();
-        try { input.setSelectionRange(0, input.value.length); } catch(_) {}
+        // 전체선택 금지 (요청사항)
       }, 0);
     });
 
-    /* ===== 🆕 마커 클릭 → 입력창 자동 채움(제안창 X) ===== */
-    // data 배열에서 (lat,lng)와 가장 가까운 항목 찾기
+    /* ===== 마커 클릭 → 입력창에 글만 채우기(제안창 X, 포커스/선택 X) ===== */
     function findDataByLatLng(lat, lng) {
       if (!data || !data.length) return null;
       let best = null, bestD = Infinity;
@@ -498,25 +484,21 @@
         const d = (la - lat) * (la - lat) + (ln - lng) * (ln - lng);
         if (d < bestD) { bestD = d; best = o; }
       }
-      // 약 1e-6(위도기준 수십 cm) ~ 1e-5(수 m) 사이 임계값 사용
-      return (bestD <= 1e-5 * 1e-5) ? best : best; // 데이터가 동일 좌표면 바로 매칭
+      return best;
     }
 
     const patched = new WeakSet();
     function attachMarkerHandlersOnce() {
       const container = parent.closest('#container') || document.getElementById('container') || document.body;
-      const rvOn = container && container.classList.contains('view_roadview');
-
       const getList = typeof getMarkers === 'function' ? getMarkers() : (Array.isArray(window.markers) ? window.markers : []);
       if (!Array.isArray(getList)) return;
 
       getList.forEach(mk => {
         if (!mk || patched.has(mk)) return;
-        // kakao marker만 처리 (getPosition 존재)
         if (typeof mk.getPosition !== 'function') { patched.add(mk); return; }
 
         kakao.maps.event.addListener(mk, 'click', function () {
-          // 로드뷰 모드에서는 마커 클릭 무시(요청사항)
+          // 로드뷰 모드면 마커 클릭 무시
           const rvOnNow = container && container.classList.contains('view_roadview');
           if (rvOnNow) return;
 
@@ -526,24 +508,18 @@
             const lng = pos.getLng ? pos.getLng() : (pos.Ma || pos.x || pos.longitude || pos.lng);
             let o = null;
 
-            // 1) 데이터에서 좌표로 매칭
             if (isFinite(lat) && isFinite(lng)) {
               o = findDataByLatLng(Number(lat), Number(lng));
             }
-            // 2) 마커 타이틀이 있으면 그걸로 추출
             let text = '';
-            if (o) {
-              text = inputTitleOf(o);
-            } else if (typeof mk.getTitle === 'function') {
-              text = extractKoreanTail(mk.getTitle(), mk.getTitle());
-            }
+            if (o) text = extractKoreanTail(o.name, (o.name1 || o.name2 || o.name || o.searchName));
+            else if (typeof mk.getTitle === 'function') text = extractKoreanTail(mk.getTitle(), mk.getTitle());
 
             if (text) {
               input.value = text;
-              __lastPickedQuery = text; // 다음 "/" 복원에도 쓰이도록
-              // 제안창은 열지 말 것
+              __lastPickedQuery = text;
+              // 제안창 열지 않고, 포커스/전체선택도 하지 않음
               closeBox();
-              try { input.focus(); input.setSelectionRange(0, input.value.length); } catch(_) {}
             }
           } catch(_) {}
         });
@@ -551,16 +527,12 @@
         patched.add(mk);
       });
     }
-
-    // 초기 30초간(0.5초 간격) 폴링으로 신규 마커도 붙임 + 커스텀 이벤트 훅
     attachMarkerHandlersOnce();
     let tries = 0;
     const iv = setInterval(() => {
       attachMarkerHandlersOnce();
       if (++tries > 60) clearInterval(iv);
     }, 500);
-    // 외부에서 window.markers 갱신 시 다음 이벤트를 디스패치해주면 즉시 재부착:
-    //   document.dispatchEvent(new Event('markers:updated'));
     document.addEventListener('markers:updated', attachMarkerHandlersOnce);
   };
 })();
