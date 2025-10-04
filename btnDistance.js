@@ -26,39 +26,43 @@ if (!document.getElementById("btnDistance-style-main")) {
       border: 1px solid #ccc;
       border-radius: 8px;
       background: #fff;
-      color: #555; /* ✅ 항상 회색 유지 */
       cursor: pointer;
       transition: all .2s ease;
       box-sizing: border-box;
     }
+
     #btnDistance:hover {
       box-shadow: 0 3px 12px rgba(0,0,0,.12);
     }
-    /* ✅ 활성화 시: 버튼 테두리만 빨강 */
+
+    /* ✅ 활성화 시: 테두리만 빨강 */
     #btnDistance.active {
       border-color: #db4040;
     }
-    /* ✅ SVG (가운데 막대) 기본 상태 */
+
+    /* ✅ SVG 기본 (회색 막대, 자체 색 고정) */
     #btnDistance svg {
       width: 26px;
       height: 26px;
       display: block;
     }
     #btnDistance svg rect {
-      fill: currentColor;          /* 회색 내부 */
-      stroke: currentColor;
+      fill: #555;                /* 버튼 색 상속 안 함 */
+      stroke: #555;
       stroke-width: 2.2;
-      color: #555;                 /* ✅ 버튼 색상 상속 차단 */
+      transition: all .2s ease;
     }
-    /* ✅ 활성화 시: 막대 윤곽만 빨강 */
+
+    /* ✅ 활성화 시: 막대 윤곽만 빨강, 내부 비움 */
     #btnDistance.active svg rect {
-      fill: none;                  /* 내부 비움 */
-      stroke: #db4040;             /* 윤곽 빨강 */
+      fill: none;
+      stroke: #db4040;
       stroke-width: 3;
     }
   `;
   document.head.appendChild(st);
 }
+
 
   // --- 버튼 생성 ---
   let btn = document.getElementById("btnDistance");
