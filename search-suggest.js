@@ -54,7 +54,7 @@
 .gx-suggest-search .gx-btn{ display:none; }
 
 .gx-suggest-box{
-  position:absolute; top:52px; left:0; width:100%;
+  position:absolute; top:32px; left:0; width:100%;
   max-height:45vh; overflow:auto; -webkit-overflow-scrolling:touch;
   background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.15);
   opacity:0; pointer-events:none; transform:translateY(-8px);
