@@ -1,5 +1,4 @@
-// btnDistance.js — 거리재기(점 위 구간박스 + 점 오른쪽-아래 총거리박스),
-// 툴바 정렬/토글 OFF 시 전부 초기화
+// btnDistance.js — 거리재기(점/구간/총거리), 버튼 아이콘 두껍게/길게 + 활성화 시 빨간색
 (function () {
   console.log("[btnDistance] loaded");
 
@@ -14,7 +13,7 @@
   const toolbar = document.querySelector(".toolbar");
   if (!toolbar) { console.log("[btnDistance] no .toolbar found, disabled"); return; }
 
-  // 툴바 간격 보정 + 버튼 기본 스타일(필요 시)
+  // 툴바 간격/버튼 스타일
   if (!document.getElementById("btnDistance-toolbar-style")) {
     const st = document.createElement("style");
     st.id = "btnDistance-toolbar-style";
@@ -27,9 +26,16 @@
         cursor:pointer; transition:all .2s ease; box-sizing:border-box;
       }
       #btnDistance:hover { box-shadow:0 3px 12px rgba(0,0,0,.12); }
+      /* 🔴 활성화 시: 버튼 테두리/아이콘 모두 ‘빨간색’ */
       #btnDistance.active{
-        border-color:#007aff; box-shadow:0 0 0 2px rgba(0,122,255,.15) inset; color:#007aff;
+        border-color:#db4040;
+        box-shadow:0 0 0 2px rgba(219,64,64,.15) inset;
+        color:#db4040; /* rect fill/stroke = currentColor -> 빨간색 */
       }
+      /* SVG 크기 보장 */
+      #btnDistance svg { width:18px; height:18px; display:block; }
+      /* 기본(비활성) 아이콘은 현재 컬러(회색) */
+      #btnDistance svg rect { fill:currentColor; stroke:currentColor; stroke-width:1.6; }
     `;
     document.head.appendChild(st);
   }
@@ -41,10 +47,10 @@
     if (document.querySelector(".btn-satellite")) btn.className = "btn-satellite";
     btn.title = "거리 재기";
     btn.setAttribute("aria-pressed", "false");
-    // ⬇️ 얇은 가로 직사각형 아이콘(라운드)
+    // ⬇️ 더 길고(22) 더 두꺼운(높이 10) 직사각형, 둥근 모서리
     btn.innerHTML =
-      `<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;">
-         <rect x="4" y="10" width="16" height="4" rx="2" ry="2"></rect>
+      `<svg viewBox="0 0 24 24" aria-hidden="true">
+         <rect x="1" y="7" width="22" height="10" rx="3" ry="3"></rect>
        </svg>`;
     toolbar.appendChild(btn);
   }
@@ -82,9 +88,9 @@
         font-weight:600;
         white-space:nowrap;
         box-shadow:0 2px 6px rgba(0,0,0,.12);
-        margin-bottom: 14px; /* 점과의 간격 */
+        margin-bottom: 14px;
       }
-      /* 총거리 박스(점 '오른쪽-아래'로 14px/14px) */
+      /* 총거리 박스(점 '오른쪽-아래'로 8px/8px) */
       .km-total-box {
         background: #ffeb3b;
         color: #222;
@@ -93,15 +99,10 @@
         padding: 6px 10px;
         font-size: 13px; font-weight: 700;
         box-shadow: 0 2px 8px rgba(0,0,0,.15);
-        pointer-events: none; /* 클릭 간섭 방지 */
+        pointer-events: none;
         white-space:nowrap;
-        margin-top: 14px;     /* 아래로 14px */
-        margin-left: 14px;    /* 오른쪽으로 14px */
-      }
-      #btnDistance.active {
-        border-color:#007aff;
-        box-shadow:0 0 0 2px rgba(0,122,255,.15) inset;
-        color:#007aff;
+        margin-top: 8px;
+        margin-left: 8px;
       }
     `;
     document.head.appendChild(style);
@@ -116,6 +117,7 @@
   let segCount = 0;
 
   const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const formatDist = (m) => (m >= 1000 ? (m/1000).toFixed(2) + " km" : fmt(m) + " m");
 
   // 총거리 오버레이 생성/업데이트/제거
   function ensureTotalOverlay(position) {
@@ -126,8 +128,8 @@
       totalOverlay = new kakao.maps.CustomOverlay({
         position,
         content: el,
-        xAnchor: 0, // 점의 좌측-상단에 붙이고
-        yAnchor: 0, // ↘ 여백으로 대각선 아래로 밀어낸다
+        xAnchor: 0,
+        yAnchor: 0,
         zIndex: 5300
       });
     } else {
@@ -138,8 +140,7 @@
   function updateTotalOverlayText() {
     if (!totalOverlay) return;
     const m = clickLine ? Math.round(clickLine.getLength()) : 0;
-    const text = m >= 1000 ? `총 거리: ${(m/1000).toFixed(2)} km` : `총 거리: ${fmt(m)} m`;
-    totalOverlay.getContent().textContent = text;
+    totalOverlay.getContent().textContent = "총 거리: " + formatDist(m);
   }
   function removeTotalOverlay() {
     if (totalOverlay) { try { totalOverlay.setMap(null);} catch(_){} totalOverlay = null; }
@@ -160,15 +161,15 @@
     dots.push(dot);
   }
 
-  // 구간 박스(점 위)
-  function addSegmentBox(position, text) {
+  // 구간 박스(점 위) — “구간1:” 같은 문구 제거, 거리만
+  function addSegmentBox(position, distText) {
     const el = document.createElement("div");
     el.className = "km-seg";
-    el.textContent = text;
+    el.textContent = distText;
     const seg = new kakao.maps.CustomOverlay({
       position,
       content: el,
-      yAnchor: 1,    // 아래쪽이 점에 붙음 → margin-bottom으로 위로 띄움
+      yAnchor: 1,
       zIndex: 5200
     });
     seg.setMap(map);
@@ -211,11 +212,10 @@
       const segLine = new kakao.maps.Polyline({ path: [prev, pos] });
       const dist = Math.round(segLine.getLength());
       segCount += 1;
-      addSegmentBox(pos, `구간 ${segCount}: ${fmt(dist)}m`);
+      addSegmentBox(pos, formatDist(dist)); // ← “구간 n:” 제거, 거리만
       addDot(pos);
     }
 
-    // 총거리 박스: 마지막 점 ‘오른쪽-아래’에 표시(↘ 14px/14px 오프셋)
     ensureTotalOverlay(pos);
     updateTotalOverlayText();
   }
@@ -231,13 +231,13 @@
     btn.setAttribute("aria-pressed", drawing ? "true" : "false");
 
     if (drawing) {
-      resetMeasure();                 // 시작 전 깨끗하게
+      resetMeasure();
       map.setCursor('crosshair');
       kakao.maps.event.addListener(map, 'click', onMapClick);
     } else {
       kakao.maps.event.removeListener(map, 'click', onMapClick);
       map.setCursor('');
-      resetMeasure();                 // 선/점/구간/총거리 모두 제거
+      resetMeasure();
     }
   });
 
