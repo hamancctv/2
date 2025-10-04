@@ -156,12 +156,13 @@
     }
     function titleOf(o){ return normalizeText(o.name2||o.name||o.name1||o.searchName||''); }
 
-    // name에서 "-숫자-" 이후 ~ 한글 연속 구간 추출 → 없으면 name1 → title
+    // 🔄 변경: name에서 "-문자/숫자-" 이후 ~ 한글 연속 구간 추출 → 없으면 name1 → title
     function displayTextOf(o){
       const name = normalizeText(o.name||'');
       let disp = '';
       if (name) {
-        const parts = name.split(/-\s*\d+\s*-/);
+        // 이전: /-\s*\d+\s*-/  →  변경: /-\s*[A-Za-z0-9]+\s*-/
+        const parts = name.split(/-\s*[A-Za-z0-9]+\s*-/);
         if (parts.length > 1) {
           const after = normalizeText(parts.slice(1).join('-'));
           const m = after.match(/^[\uAC00-\uD7A3\s]+/); // 시작부터 연속 한글
