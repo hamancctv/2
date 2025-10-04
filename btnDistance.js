@@ -1,6 +1,6 @@
-// btnDistance-fixed.js — 거리재기(픽스형, 막대만 빨강, 점·구간·총거리 정상)
+// btnDistance-fixed.js — 거리재기(픽스형, 막대·테두리만 빨강, 점·구간·총거리 정상)
 (function () {
-  console.log("[btnDistance] loaded v2025-10-FINAL");
+  console.log("[btnDistance] loaded v2025-10-FINAL-PERFECT");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -18,7 +18,7 @@
         position: fixed;
         top: 156px;
         left: 10px;
-        z-index: 1000;
+        z-index: 550;
         width: 40px; height: 40px;
         display: inline-flex;
         align-items: center;
@@ -32,17 +32,26 @@
       }
       #btnDistance:hover { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
 
-      /* ✅ 버튼 기본 막대 색 (회색) */
+      /* ✅ 기본 막대 색 (회색) */
       #btnDistance svg {
         width: 26px; height: 26px; display: block;
       }
       #btnDistance svg rect {
-        fill: #555; stroke: #555; stroke-width: 2.4; transition: all .2s ease;
+        fill: #555;
+        stroke: #555;
+        stroke-width: 2.4;
+        transition: all .2s ease;
       }
 
-      /* ✅ 토글 ON → 막대만 빨강 (채움+윤곽) */
+      /* ✅ 토글 ON → 막대·테두리만 빨강 (배경은 흰색 고정) */
+      #btnDistance.active {
+        border-color: #db4040;
+        background: #fff !important; /* 🔒 버튼 전체 흰색 고정 */
+      }
       #btnDistance.active svg rect {
-        fill: #db4040; stroke: #db4040; stroke-width: 3;
+        fill: #db4040;
+        stroke: #db4040;
+        stroke-width: 3;
       }
     `;
     document.head.appendChild(st);
@@ -62,7 +71,7 @@
     document.body.appendChild(btn);
   }
 
-  // --- 측정 UI 스타일 ---
+  // --- 거리 UI 스타일 ---
   if (!document.getElementById("btnDistance-style")) {
     const style = document.createElement("style");
     style.id = "btnDistance-style";
@@ -113,7 +122,8 @@
   let totalOverlay = null;
 
   const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const formatDist = m => (m >= 1000 ? (m / 1000).toFixed(2) + " km" : fmt(m) + " m");
+  const formatDist = m =>
+    m >= 1000 ? (m / 1000).toFixed(2) + " km" : fmt(m) + " m";
 
   // --- 총거리 박스 (마지막 점 오른쪽 아래 8px) ---
   function ensureTotalOverlay(position) {
@@ -140,11 +150,15 @@
   function updateTotalOverlayText() {
     if (!totalOverlay) return;
     const m = clickLine ? Math.round(clickLine.getLength()) : 0;
-    totalOverlay.getContent().textContent = "총 거리: " + formatDist(m);
+    totalOverlay.getContent().textContent =
+      "총 거리: " + formatDist(m);
   }
 
   function removeTotalOverlay() {
-    if (totalOverlay) { try { totalOverlay.setMap(null); } catch (_) {} totalOverlay = null; }
+    if (totalOverlay) {
+      try { totalOverlay.setMap(null); } catch (_) {}
+      totalOverlay = null;
+    }
   }
 
   // --- 점/구간 ---
@@ -186,7 +200,7 @@
     removeTotalOverlay();
   }
 
-  // --- 지도 클릭 이벤트 ---
+  // --- 지도 클릭 ---
   function onMapClick(e) {
     if (!drawing || !mapExists()) return;
     const pos = e.latLng;
