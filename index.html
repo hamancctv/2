@@ -41,22 +41,7 @@
   }
 
   /* 검색창 & 제안창(마크업 훅) */
-  .search-wrap {
-    position:absolute; top:12px; left:50%; transform:translateX(-50%);
-    width:min(520px,90vw); display:flex; gap:8px; z-index:20;
-  }
-  .search-wrap input {
-    flex:1; height:42px; padding:0 14px; border:1px solid #ccc; border-radius:12px; outline:none;
-    background:#fff; font-size:15px; transition:border .2s, box-shadow .2s;
-  }
-  .search-wrap input:focus { border-color:#4a90e2; box-shadow:0 0 0 2px rgba(74,144,226,.2); }
-  .suggest-box {
-    position:absolute; top:52px; left:50%; transform:translateX(-50%) translateY(-8px);
-    width:min(520px,90vw); max-height:45vh; overflow:auto; -webkit-overflow-scrolling:touch;
-    background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.15);
-    z-index:21; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
-  }
-  .suggest-box.open { opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+
 
   /* 좌측 툴바 */
   .toolbar { position:absolute; top:60px; left:10px; display:flex; flex-direction:column; gap:8px; z-index:620; }
@@ -110,11 +95,7 @@
       </div>
 
       <!-- 검색 -->
-      <div class="search-wrap">
-        <input id="searchInput" class="gx-input" type="search" placeholder="예) 시설명, 주소…" autocomplete="off" />
-        <div id="suggestBox" class="gx-suggest-box suggest-box"></div>
-      </div>
-    </div>
+
 
     <!-- 로드뷰(전체화면) -->
     <div id="rvWrapper">
