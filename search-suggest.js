@@ -156,16 +156,15 @@
     }
     function titleOf(o){ return normalizeText(o.name2||o.name||o.name1||o.searchName||''); }
 
-    // 🔄 변경: name에서 "-문자/숫자-" 이후 ~ 한글 연속 구간 추출 → 없으면 name1 → title
+    // 🔄 name에서 "-문자/숫자-" 이후 ~ 한글 연속 구간 추출 → 없으면 name1 → title
     function displayTextOf(o){
       const name = normalizeText(o.name||'');
       let disp = '';
       if (name) {
-        // 이전: /-\s*\d+\s*-/  →  변경: /-\s*[A-Za-z0-9]+\s*-/
         const parts = name.split(/-\s*[A-Za-z0-9]+\s*-/);
         if (parts.length > 1) {
           const after = normalizeText(parts.slice(1).join('-'));
-          const m = after.match(/^[\uAC00-\uD7A3\s]+/); // 시작부터 연속 한글
+          const m = after.match(/^[\uAC00-\uD7A3\s]+/);
           disp = normalizeText(m ? m[0] : after);
         }
       }
@@ -188,7 +187,7 @@
       }); setActive(-1);
     }
 
-    // 좌표 파싱 안정화(+ 콤마 제거, 뒤바뀜 자동 교정)
+    // 좌표 파싱 안정화
     function getLatLngFromItem(o){
       function num(v){
         if (v == null) return NaN;
@@ -208,7 +207,7 @@
       return {lat, lng};
     }
 
-    // 지도 이동 + 펄스 (전역 setCenter가 있으면 위임)
+    // 지도 이동 + 펄스
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
 
@@ -264,7 +263,6 @@
       const {lat, lng} = getLatLngFromItem(o);
       if (isFinite(lat) && isFinite(lng) && map) {
         centerWithEffect(lat, lng);
-        // 로드뷰 모드면 RV도 같이 이동(충돌 방지)
         if (window.overlayOn && typeof window.setRoadviewAt === 'function' && window.kakao && kakao.maps) {
           try { window.setRoadviewAt(new kakao.maps.LatLng(lat, lng)); } catch(_){}
         }
@@ -279,7 +277,7 @@
       const q=input.value||'';
       if(q.trim()===''){closeBox();box.innerHTML='';lastInputValue='';return;}
       if(q===lastInputValue&&box.classList.contains('open'))return;
-      lastInputValue=q; lastQuery=q; // 마지막 검색어 저장
+      lastInputValue=q; lastQuery=q;
       const list=filterData(q); current=list;
       if(list.length===0){closeBox();box.innerHTML='';return;}
       render(list); openBox();
@@ -312,7 +310,7 @@
     document.addEventListener('keydown', (e)=>{
       if (e.key !== '/') return;
       const ae = document.activeElement;
-      if (isTypingElement(ae)) return; // 다른 입력 중이면 무시
+      if (isTypingElement(ae)) return;
       e.preventDefault();
       input.focus();
       if ((input.value||'').trim()==='' && lastQuery){
@@ -335,7 +333,6 @@
       else if(e.key==='ArrowUp'&&isOpen){ e.preventDefault(); setActive((activeIdx-1+els.length)%els.length); }
       else if(e.key==='Enter'){
         e.preventDefault();
-        // 제안창 열려있으면 활성 항목, 아니면 현재 쿼리로 재검색하여 맨 위
         let useList = current;
         if (!isOpen) {
           const q = (input.value||'').trim();
@@ -385,7 +382,6 @@
       mapEl.addEventListener('touchend',()=>{ setTimeout(()=>input.blur(),100); },{passive:true});
       mapEl.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
     }
-    // 제안창 스크롤/드래그 시 키보드만 내림 (제안창은 유지)
     box.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
 
     // === 로드뷰 숨김 ===
@@ -394,5 +390,30 @@
       const update=()=>{const on=container.classList.contains('view_roadview'); if(on){root.classList.add('is-hidden');closeBox();}else root.classList.remove('is-hidden');};
       update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
     }
+
+    /* === NEW: 인풋에 커서가 있어도 클릭/터치하면 제안창 열기 === */
+    function openSuggestionsOnDemand() {
+      let q = input.value || '';
+      if (q.trim() === '' && lastQuery) {
+        // 포커스 때와 동일하게 lastQuery 사용 (입력창도 채움)
+        input.value = lastQuery;
+        q = lastQuery;
+      }
+      const list = q.trim() ? filterData(q) : [];
+      current = list;
+      if (list.length > 0) { render(list); openBox(); }
+    }
+    // 마우스
+    input.addEventListener('mousedown', () => {
+      // 캐럿 이동/클릭 처리가 먼저 끝난 뒤 열리도록
+      setTimeout(openSuggestionsOnDemand, 0);
+    });
+    input.addEventListener('click', () => {
+      if (!box.classList.contains('open')) openSuggestionsOnDemand();
+    });
+    // 터치
+    input.addEventListener('touchend', () => {
+      setTimeout(openSuggestionsOnDemand, 0);
+    }, {passive:true});
   };
 })();
