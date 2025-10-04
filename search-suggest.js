@@ -16,6 +16,17 @@
   position:absolute; top:12px; left:50%; transform:translateX(-50%);
   width:min(520px,90vw); z-index:600;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
+
+  /* ✅ 터치 제스처 차단 */
+  touch-action: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+.gx-suggest-search,
+.gx-suggest-box {
+  touch-action: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
 }
 
 /* ====== 검색바 ====== */
@@ -66,7 +77,6 @@
 
   /* ---------- DOM 생성 ---------- */
   function createDOM(parent) {
-    // 이미 있으면 재사용
     let root = parent.querySelector('.gx-suggest-root');
     if (root) {
       const input = root.querySelector('.gx-input');
@@ -102,6 +112,14 @@
     root.appendChild(box);
     parent.appendChild(root);
 
+    /* ✅ 입력창/제안창 터치 제스처 방지 (JS 보강) */
+    [input, box].forEach(el => {
+      el.addEventListener('touchstart', e => {
+        if (e.touches.length > 1) e.preventDefault(); // 핀치줌 방지
+      }, { passive:false });
+      el.addEventListener('gesturestart', e => e.preventDefault()); // iOS Safari 전용
+    });
+
     return { root, input, box };
   }
 
@@ -116,7 +134,7 @@
       maxItems = 30,
       chooseOnEnter = true,
       openOnFocus = true,
-      hideOnRoadview = true,   // 로드뷰 시 자동 숨김
+      hideOnRoadview = true,
     } = opts || {};
     if (!parent || !map) return;
 
@@ -198,7 +216,7 @@
       box.querySelectorAll('.gx-suggest-item').forEach((el, idx) => {
         el.addEventListener('mouseenter', () => setActive(idx));
         el.addEventListener('mouseleave', () => setActive(-1));
-        el.addEventListener('mousedown', (e) => e.preventDefault()); // blur 전에 클릭 처리
+        el.addEventListener('mousedown', (e) => e.preventDefault());
         el.addEventListener('click', () => pick(idx));
       });
       setActive(-1);
@@ -251,7 +269,7 @@
       render(list); openBox();
     });
 
-    // 포커스 시 열기(글자 있을 때만)
+    // 포커스 시 열기
     input.addEventListener('focus', () => {
       if (!openOnFocus) return;
       const q = input.value || '';
@@ -265,7 +283,6 @@
     input.addEventListener('keydown', (e) => {
       const list = items();
       const open = box.classList.contains('open') && list.length > 0;
-
       if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         const q = input.value || '';
         if (q.trim() !== '') {
@@ -301,6 +318,23 @@
     // 리사이즈 시 닫기
     window.addEventListener('resize', closeBox);
 
+    /* ----- 지도 이벤트: 클릭 / 드래그 ----- */
+    if (map) {
+      // 지도 클릭 → 입력창 blur + 제안창 닫기
+      kakao.maps.event.addListener(map, 'click', () => {
+        input.blur();
+        closeBox();
+      });
+      // 지도 드래그 → 입력창 blur만 (제안창 유지)
+      kakao.maps.event.addListener(map, 'dragstart', () => { input.blur(); });
+      kakao.maps.event.addListener(map, 'drag',      () => { input.blur(); });
+      kakao.maps.event.addListener(map, 'dragend',   () => { input.blur(); });
+    }
+
+    /* ----- 제안창 스크롤/드래그 시 입력창 blur만 ----- */
+    box.addEventListener('touchstart', () => { input.blur(); }, { passive:true });
+    box.addEventListener('scroll',     () => { input.blur(); }, { passive:true });
+
     /* ----- 로드뷰 활성화 시 자동 숨김 ----- */
     if (hideOnRoadview) {
       const container = parent.closest('#container') || document.getElementById('container') || document.body;
@@ -309,7 +343,7 @@
         if (on) { root.classList.add('is-hidden'); closeBox(); }
         else    { root.classList.remove('is-hidden'); }
       };
-      update(); // 최초 1회
+      update();
       const mo = new MutationObserver(update);
       mo.observe(container, { attributes:true, attributeFilter:['class'] });
     }
