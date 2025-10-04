@@ -110,7 +110,7 @@
       for (const cm of connected) {
         for (const tm of groupMarkers) {
           if (connected.includes(tm)) continue;
-          const d = getDistance(cm.getPosition(), tm.getPosition());
+const d = getDistance(cm.__pos || cm.getPosition(), tm.__pos || tm.getPosition());
           if (!minEdge || d < minEdge.dist) {
             minEdge = { from: cm, to: tm, dist: d };
           }
