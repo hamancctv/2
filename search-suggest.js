@@ -1,27 +1,33 @@
-/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION)
-   ✅ 통합 내용
+/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v2)
+   ✅ 통합/요구사항
    - sel_suggest.js 1회 로더(loadSelSuggestScriptOnce) + 정규화/인덱싱(_needle)
-   - 제안 UI 생성(initSuggestUI): 슬래시 핫키, 키보드 내비(↑↓EnterEsc), 좌/우/↓ 비포커스 동작
-   - 마지막 하이픈(-) 이후 텍스트만 입력창에 채움
+   - 제안 UI(initSuggestUI): 슬래시 핫키, 키보드 내비(↑↓EnterEsc), 비활성 상태에서 ←/→/↓ 동작
+   - "두 번째 하이픈 뒤" 텍스트만 입력창에 채움 (제안 클릭/엔터/마커 클릭 모두 동일)
    - 마커 클릭 시 장소명 자동 입력(로드뷰 모드면 무시)
-   - 최근접 매칭(그리드 인덱스) + 폴백(전수 최근접) → 프리징 최소화
-   - 지도 이동 시 레벨 3 고정 + Pulse Circle(항상 표시, 인스턴스 재사용)
+   - 최근접 매칭: 공간 인덱스(≈50m 셀) + 폴백(선형 최근접) → 프리징 최소화
+   - 지도 이동 시 레벨 3 고정 + 빨간 원 Circle 항상 표시(인스턴스 재사용, 표시 1s)
    - 로드뷰 모드 시 자동 숨김(옵션)
-   - CSS z-index ↑, fixed 포지션(스태킹 컨텍스트 이슈 회피)
+   - CSS: position:fixed + 높은 z-index로 스태킹 이슈 회피, 제안창 간격 2px
    - 글로벌 핫키/윈도 이벤트 중복 바인딩 가드
 ===== */
 (function () {
-  /* ---------- 공용 유틸 ---------- */
   const G = (typeof window !== 'undefined' ? window : globalThis);
 
+  /* ---------- 유틸 ---------- */
   function normalizeText(s){ return (s||'').toString().trim(); }
   function toLowerNoSpace(s){ return normalizeText(s).replace(/\s+/g,'').toLowerCase(); }
   function escapeHTML(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-  // 마지막 하이픈 이후 문자열만 사용
-  function extractTailAfterLastHyphen(name, fallback){
+
+  // "두 번째 하이픈 뒤"부터 잘라 반환 (하이픈 1개면 첫 하이픈 뒤부터)
+  function extractAfterSecondHyphen(name, fallback){
     const src = normalizeText(name);
     let result = normalizeText(fallback || src);
-    if (src.includes('-')) result = src.substring(src.lastIndexOf('-') + 1).trim();
+    const i1 = src.indexOf('-');
+    if (i1 !== -1) {
+      const i2 = src.indexOf('-', i1 + 1);
+      result = (i2 !== -1) ? src.substring(i2 + 1).trim()
+                           : src.substring(i1 + 1).trim();
+    }
     return result;
   }
 
@@ -118,7 +124,7 @@
 .gx-suggest-root{
   position:fixed; top:12px; left:50%; transform:translateX(-50%);
   width:min(520px,90vw); z-index:999999;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun 고딕","맑은 고딕",sans-serif;
 }
 .gx-suggest-search{position:relative;display:flex;align-items:center;gap:8px;}
 .gx-suggest-search .gx-input{
@@ -173,7 +179,7 @@
     // iOS Safari 핀치 제스처 방지
     document.addEventListener('gesturestart', e=>e.preventDefault(), { passive:false });
 
-    // 박스에서 멀티터치 핀치 비활성(스크롤은 살림)
+    // 핀치 방지(멀티터치만): 제안창 스크롤은 유지
     [box].forEach(el=>{
       el.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive:false });
     });
@@ -254,6 +260,10 @@
 
     // 상태
     let activeIdx = -1, current = [], __lastTypedQuery = '', __lastPickedQuery = '';
+    // 외부 참조(글로벌 핫키에서 사용)
+    G.__gxLastTypedQuery = __lastTypedQuery;
+    G.__gxLastPickedQuery = __lastPickedQuery;
+
     let pickBlockUntil = 0;        // 확정 스로틀
     let pulseCircle = null;        // Circle 재사용
     let pulseHideTimer = null;     // Circle 숨김 타이머
@@ -324,13 +334,14 @@
       __lastPool = out.length >= 10 ? out : null;
       return out;
     }
+
     function getLatLngFromItem(o){
       const lat = Number(o?.lat ?? o?.latlng?.getLat?.());
       const lng = Number(o?.lng ?? o?.latlng?.getLng?.());
       return { lat, lng };
     }
 
-    // 지도 이동(레벨3 고정) + Pulse Circle(항상 표시, 재사용)
+    // 지도 이동(레벨3 고정) + 빨간 원 Circle 항상 표시(1초) — 인스턴스 재사용
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
       try{ map.setLevel(3); }catch{}
@@ -353,11 +364,15 @@
         }
         pulseCircle.setMap(map);
         if(pulseHideTimer) clearTimeout(pulseHideTimer);
-        pulseHideTimer = setTimeout(()=>{ try{ pulseCircle.setMap(null); }catch{} }, 600);
+        // 항상 사용: 1초 표시 후 숨김. 다음 호출 시 재표시.
+        pulseHideTimer = setTimeout(()=>{ try{ pulseCircle.setMap(null); }catch{} }, 1000);
       }catch{}
     }
 
-    function __rememberPicked(){ const q = (input.value||'').trim(); if(q) __lastPickedQuery = q; }
+    function __rememberPicked(){
+      const q = (input.value||'').trim();
+      if(q){ __lastPickedQuery = q; G.__gxLastPickedQuery = q; }
+    }
 
     function pick(i){
       if(i<0 || i>=current.length) return;
@@ -366,7 +381,7 @@
       pickBlockUntil = now + 450;
 
       const o = current[i];
-      const t = extractTailAfterLastHyphen(o.name1 || o.name2 || o.name || o.searchName);
+      const t = extractAfterSecondHyphen(o.name1 || o.name2 || o.name || o.searchName);
       if(t) input.value = t;
 
       const {lat, lng} = getLatLngFromItem(o);
@@ -379,7 +394,7 @@
     // 입력 이벤트
     input.addEventListener('input', ()=>{
       const q = (input.value||'').trim();
-      if(q) __lastTypedQuery = q;
+      if(q){ __lastTypedQuery = q; G.__gxLastTypedQuery = q; }
       if(!q){ closeBox(); box.innerHTML=''; return; }
       const list = filterData(q); current = list;
       if(!list.length){ closeBox(); box.innerHTML=''; return; }
@@ -462,46 +477,57 @@
         if(!isSlash) return;
 
         const ae = document.activeElement;
-        const isOurInput = (ae===input);
-        const isOtherEditable = !isOurInput && (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
-        if(isOtherEditable) return;
+        const isOtherEditable = (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
+        // 다른 입력 요소 사용 중이면 개입 X (우리 입력창은 focus로 덮어쓸 거라 예외 없음)
+        if(isOtherEditable && !ae.classList.contains('gx-input')) return;
 
         e.preventDefault();
         e.stopPropagation();
 
-        try{ input.focus(); }catch{}
+        // 현재 인스턴스의 input에 포커스
+        const el = document.querySelector('.gx-suggest-root .gx-input');
+        if(el){ try{ el.focus(); }catch{} }
 
-        let seed = (input.value||'').trim();
-        if(!seed) seed = __lastPickedQuery || __lastTypedQuery || '';
+        // 비어있으면 최근 질의 복원 후 제안 열기
+        const inputEl = el || document.activeElement;
+        if(!inputEl) return;
+        let seed = (inputEl.value||'').trim();
+        if(!seed) seed = G.__gxLastPickedQuery || G.__gxLastTypedQuery || '';
         if(seed){
-          input.value = seed;
-          const list = filterData(seed); current = list;
-          if(list.length){ render(list); openBox(); }
+          inputEl.value = seed;
+          // 렌더 트리거(현재 인스턴스에 위임)
+          try{ inputEl.dispatchEvent(new Event('input', {bubbles:true})); }catch{}
         }
-        try{ input.setSelectionRange(0, input.value.length); }catch{}
+        try{ inputEl.setSelectionRange(0, inputEl.value.length); }catch{}
       }, true);
 
       // 비활성 상태에서도 화살표 지원: ←/→ 커서 이동, ↓ 제안 열기
       window.addEventListener('keydown',(e)=>{
         const ae = document.activeElement;
-        const isOurInput = (ae===input);
+        const isOurInput = (ae && ae.classList && ae.classList.contains('gx-input'));
         const isOtherEditable = !isOurInput && (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
-        if(isOtherEditable) return;
-        if(isOurInput) return; // 이미 우리 입력창이면 이 핸들러는 패스
+        if(isOtherEditable) return; // 다른 입력 요소 사용 중이면 개입 X
+        if(isOurInput) return;      // 이미 우리 입력창이면 이 핸들러는 패스
+
+        const inputEl = document.querySelector('.gx-suggest-root .gx-input');
+        if(!inputEl) return;
 
         if(e.key==='ArrowDown'){
           e.preventDefault();
-          try{ input.focus(); }catch{}
-          let seed = (input.value||'').trim();
-          if(!seed) seed = __lastPickedQuery || __lastTypedQuery || '';
-          const list = seed ? filterData(seed) : [];
-          if(list.length){ render(list); openBox(); }
+          try{ inputEl.focus(); }catch{}
+          let seed = (inputEl.value||'').trim();
+          if(!seed) seed = G.__gxLastPickedQuery || G.__gxLastTypedQuery || '';
+          // 렌더 트리거
+          if(seed){
+            inputEl.value = seed;
+            try{ inputEl.dispatchEvent(new Event('input', {bubbles:true})); }catch{}
+          }
         }else if(e.key==='ArrowLeft' || e.key==='ArrowRight'){
           e.preventDefault();
-          try{ input.focus(); }catch{}
-          const val = input.value||'';
+          try{ inputEl.focus(); }catch{}
+          const val = inputEl.value||'';
           const pos = (e.key==='ArrowLeft') ? Math.max(0, val.length-1) : val.length;
-          try{ input.setSelectionRange(pos, pos); }catch{}
+          try{ inputEl.setSelectionRange(pos, pos); }catch{}
         }
       }, true);
     }
@@ -532,15 +558,15 @@
             }
 
             if (found) {
-              text = extractTailAfterLastHyphen(found.name1 || found.name2 || found.name || found.searchName);
+              text = extractAfterSecondHyphen(found.name1 || found.name2 || found.name || found.searchName);
             }
             if (!text && typeof mk.getTitle==='function') {
-              const t = mk.getTitle(); if (t) text = extractTailAfterLastHyphen(t, t);
+              const t = mk.getTitle(); if (t) text = extractAfterSecondHyphen(t, t);
             }
 
             if(text){
               input.value = text;
-              __lastPickedQuery = text;
+              __lastPickedQuery = text; G.__gxLastPickedQuery = text;
               closeBox(); // 포커스 유지
             }
           }catch{}
