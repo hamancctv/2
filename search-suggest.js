@@ -119,35 +119,111 @@
     injectCSS();
     const { root, input, box } = createDOM(parent);
 
-    /* ... (검색/제안창 렌더링 로직은 기존 그대로, 생략 없이 유지) ... */
+    // === 기존 검색/렌더링 로직 (전부 그대로) ===
+    function openBox() { if (!box.classList.contains('open')) { box.classList.add('open'); input.setAttribute('aria-expanded', 'true'); } }
+    function closeBox() { if (box.classList.contains('open')) { box.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); } setActive(-1); }
+    function setActive(i) {
+      const list = items();
+      list.forEach(el => { el.classList.remove('active'); el.setAttribute('aria-selected','false'); });
+      activeIdx = i;
+      if (i >= 0 && i < list.length) {
+        const el = list[i]; el.classList.add('active'); el.setAttribute('aria-selected','true');
+        try { el.scrollIntoView({ block:'nearest' }); } catch(_) {}
+      }
+    }
+    function items() { return Array.from(box.querySelectorAll('.gx-suggest-item')); }
+    let activeIdx = -1, current = [];
+    function filterData(q) {
+      const needle = toLowerNoSpace(q); if (!needle) return [];
+      const out=[]; for (const o of data) {
+        const hay = toLowerNoSpace([o.name,o.name1,o.name2,o.searchName,o.addr,o.line,o.encloser].filter(Boolean).join(' '));
+        if (hay.includes(needle)) out.push(o);
+        if (out.length>=maxItems) break;
+      } return out;
+    }
+    function titleOf(o){ return normalizeText(o.name2||o.name||o.name1||o.searchName||''); }
+    function makeItemHTML(o){
+      const title=titleOf(o);
+      const sub=badges.map(k=>o[k]?`<span>${escapeHTML(String(o[k]))}</span>`:'').filter(Boolean).join(' ');
+      return `<div class="gx-suggest-item" role="option" aria-selected="false"><div class="gx-suggest-title">${escapeHTML(title)}</div>${sub?`<div class="gx-suggest-sub">${sub}</div>`:''}</div>`;
+    }
+    function render(list){ box.innerHTML=list.map(makeItemHTML).join('');
+      box.querySelectorAll('.gx-suggest-item').forEach((el,idx)=>{
+        el.addEventListener('mouseenter',()=>setActive(idx));
+        el.addEventListener('mouseleave',()=>setActive(-1));
+        el.addEventListener('mousedown',e=>e.preventDefault());
+        el.addEventListener('click',()=>pick(idx));
+      }); setActive(-1);
+    }
+    function pick(idx){ if(idx<0||idx>=current.length)return; const o=current[idx]; const t=titleOf(o); if(t) input.value=t;
+      const lat=parseFloat(o.lat||(o.latlng&&o.latlng.getLat&&o.latlng.getLat()));
+      const lng=parseFloat(o.lng||(o.latlng&&o.latlng.getLng&&o.latlng.getLng()));
+      if(isFinite(lat)&&isFinite(lng)&&map){ const ll=new kakao.maps.LatLng(lat,lng);
+        try{map.setLevel(3);}catch(_){} try{map.panTo(ll);}catch(_){} }
+      closeBox(); input.blur();
+    }
 
-    // === 지도 이벤트 ===
+    // === 입력 이벤트 ===
+    let last='';
+    input.addEventListener('input',()=>{
+      const q=input.value||'';
+      if(q.trim()===''){closeBox();box.innerHTML='';last='';return;}
+      if(q===last&&box.classList.contains('open'))return;
+      last=q; const list=filterData(q); current=list;
+      if(list.length===0){closeBox();box.innerHTML='';return;}
+      render(list); openBox();
+    });
+    input.addEventListener('focus',()=>{
+      if(!openOnFocus)return;
+      const q=input.value||''; if(q.trim()==='')return;
+      const list=filterData(q); current=list; if(list.length>0){render(list);openBox();}
+    });
+
+    // === 키보드 내비게이션 ===
+    input.addEventListener('keydown',(e)=>{
+      const list=items(); const open=box.classList.contains('open')&&list.length>0;
+      if(!open&&(e.key==='ArrowDown'||e.key==='ArrowUp')){
+        const q=input.value||''; if(q.trim()!==''){const l=filterData(q); current=l; if(l.length>0){render(l);openBox();}}
+      }
+      if(e.key==='ArrowDown'&&open){e.preventDefault();setActive((activeIdx+1)%list.length);}
+      else if(e.key==='ArrowUp'&&open){e.preventDefault();setActive((activeIdx-1+list.length)%list.length);}
+      else if(e.key==='Enter'&&open&&chooseOnEnter){
+        if(list.length&&document.activeElement===input){e.preventDefault();pick(list.findIndex(el=>el.classList.contains('active')));}
+      } else if(e.key==='Escape'){closeBox();}
+    });
+
+    // === 바깥 클릭으로 닫기 ===
+    document.addEventListener('mousedown',(e)=>{
+      if(!box.classList.contains('open'))return;
+      if(e.target===input||box.contains(e.target))return;
+      closeBox();
+    });
+    window.addEventListener('resize',closeBox);
+
+    // === 지도 이벤트 (역할 분리) ===
     if (map) {
-      kakao.maps.event.addListener(map, 'click', () => { input.blur(); closeBox(); });
+      // 지도 클릭 → 제안창만 닫기
+      kakao.maps.event.addListener(map, 'click', () => { closeBox(); });
+
+      // 지도 드래그 → blur (키보드만 내리기)
       kakao.maps.event.addListener(map, 'dragstart', () => { input.blur(); });
       kakao.maps.event.addListener(map, 'drag',      () => { input.blur(); });
       kakao.maps.event.addListener(map, 'dragend',   () => { input.blur(); });
     }
 
-    // ✅ iOS Safari 대응: 실제 DOM 터치 이벤트에 blur 연결
-    const mapEl = document.getElementById('map');
-    if (mapEl) {
-      mapEl.addEventListener('touchend', () => { input.blur(); closeBox(); }, { passive:true });
-      mapEl.addEventListener('touchmove', () => { input.blur(); }, { passive:true });
+    // ✅ Safari 대응: 지도 DOM touchend → blur
+    const mapEl=document.getElementById('map');
+    if(mapEl){
+      mapEl.addEventListener('touchend',()=>{ input.blur(); },{passive:true});
+      mapEl.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
     }
-    box.addEventListener('touchmove', () => { input.blur(); }, { passive:true });
+    box.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
 
-    /* 로드뷰 활성화 시 자동 숨김 */
-    if (hideOnRoadview) {
-      const container = parent.closest('#container') || document.getElementById('container') || document.body;
-      const update = () => {
-        const on = container.classList.contains('view_roadview');
-        if (on) { root.classList.add('is-hidden'); closeBox(); }
-        else root.classList.remove('is-hidden');
-      };
-      update();
-      const mo = new MutationObserver(update);
-      mo.observe(container, { attributes:true, attributeFilter:['class'] });
+    // === 로드뷰 숨김 ===
+    if(hideOnRoadview){
+      const container=parent.closest('#container')||document.getElementById('container')||document.body;
+      const update=()=>{const on=container.classList.contains('view_roadview'); if(on){root.classList.add('is-hidden');closeBox();}else root.classList.remove('is-hidden');};
+      update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
     }
   };
 })();
