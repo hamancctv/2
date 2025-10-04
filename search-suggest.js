@@ -1,20 +1,18 @@
-/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v5)
-   ✅ 통합/요구사항
-   - sel_suggest.js 1회 로더(loadSelSuggestScriptOnce) + 정규화/인덱싱(_needle)
-   - 제안 UI(initSuggestUI): 슬래시 핫키, 키보드 내비(↑↓EnterEsc)
-   - 비활성 상태에서도 ←/→/↓ 지원
-     · ←(Left): 커서 맨 오른쪽(끝)으로
-     · →(Right): 커서 맨 왼쪽(처음)으로
-     · ↓(Down): 포커스 + 제안 열기
-   - "두 번째 하이픈 뒤" 텍스트로 입력(제안 클릭/엔터/마커 클릭 공통)
-   - 마커 클릭 시 자동 입력(로드뷰 모드면 무시)
-   - 근접 매칭: 공간 인덱스(≈50m) + 폴백(선형)
-   - 지도 이동 시 레벨 3 + 빨간 원(1s, 인스턴스 재사용)
-   - 로드뷰 모드 시 자동 숨김
-   - z-index 안전, 제안창 간격 2px
-   - 글로벌 핫키 중복 바인딩 가드
-   - ▶︎ 제안창 빈 영역 클릭 시 닫고 **같은 좌표로 지도에 클릭 재발송**(한 번에 지도 클릭)
-===== */
+/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v6)
+   ✅ 변경 요약
+   - 제안창 닫힘 상태: display:none + pointer-events:none (지도 클릭 100% 보장)
+   - 열릴 때만 display:block + pointer-events:auto
+   - 빈 영역 클릭 시 닫고 같은 좌표로 지도 클릭 재발송(원클릭)
+   - 나머지 기능(v5) 동일 유지:
+     · 슬래시 핫키, 키보드 내비(↑↓EnterEsc)
+     · 비활성 ←/→/↓: ←=끝, →=처음, ↓=열기
+     · "두 번째 하이픈 뒤" 텍스트 입력(제안/엔터/마커 공통)
+     · 마커 클릭 자동 입력(로드뷰 무시)
+     · 근접 매칭(≈50m 그리드 + 폴백)
+     · 지도 레벨 3 고정 + 빨간 원(1s, 재사용)
+     · 로드뷰 모드 자동 숨김
+     · z-index 안전, 제안창 간격 2px
+*/
 (function () {
   const G = (typeof window !== 'undefined' ? window : globalThis);
 
@@ -39,19 +37,12 @@
   /* ---------- sel_suggest 로더(1회) + 정규화/인덱싱 ---------- */
   G.SEL_SUG = G.SEL_SUG || { data: [], ready: false, _promise: null, varName: null };
 
-  /**
-   * sel_suggest.js를 <script>로 한 번만 로드해서 전역 배열을 가져옵니다.
-   * @param {string} url      ex) 'https://hamancctv.github.io/2/sel_suggest.js'
-   * @param {string} varName  전역 변수명 (기본 'sel_suggest')
-   * @return {Promise<Array<{name*,name1,name2,searchName,addr,line,encloser,lat,lng,_needle}>>}
-   */
   function loadSelSuggestScriptOnce(url, varName = 'sel_suggest'){
     if (G.SEL_SUG.ready && G.SEL_SUG.varName === varName) return Promise.resolve(G.SEL_SUG.data);
     if (G.SEL_SUG._promise) return G.SEL_SUG._promise;
 
     G.SEL_SUG.varName = varName;
 
-    // 이미 전역에 있으면 스크립트 로드 없이 정규화
     if (Array.isArray(G[varName])) {
       const norm = normalizeSelArray(G[varName]);
       G.SEL_SUG.data = norm; G.SEL_SUG.ready = true;
@@ -77,14 +68,12 @@
   }
   G.loadSelSuggestScriptOnce = loadSelSuggestScriptOnce;
 
-  /** 다양한 포맷을 통일 포맷으로 변환 + _needle 인덱싱 */
   function normalizeSelArray(arr){
     const out = [];
     for (const item of arr) {
       let o = null;
 
       if (Array.isArray(item)) {
-        // 예: [name, lat, lng, ...]
         const name = String(item[0] ?? '');
         const lat  = Number(item[1] ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()));
         const lng  = Number(item[2] ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()));
@@ -137,14 +126,25 @@
   background:#fff;font-size:15px;outline:none;transition:border .2s ease,box-shadow .2s ease;
 }
 .gx-suggest-search .gx-input:focus{border-color:#4a90e2;box-shadow:0 0 0 2px rgba(74,144,226,.2);}
+
+/* ✅ 닫힘 상태: 지도 클릭 방해 방지 (완전 제거) */
 .gx-suggest-box{
   position:absolute;top:calc(100% + 2px);left:0;width:100%;
   max-height:45vh;overflow:auto;-webkit-overflow-scrolling:touch;
   background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);
-  opacity:0;pointer-events:auto;transform:translateY(-8px);
+  opacity:0;transform:translateY(-8px);
+  display:none;                 /* ← 완전 제거 */
+  pointer-events:none;          /* ← 이벤트 차단 */
   transition:opacity .25s ease,transform .25s ease;
 }
-.gx-suggest-box.open{opacity:1;transform:translateY(0);}
+/* ✅ 열림 상태만 표시 + 이벤트 허용 */
+.gx-suggest-box.open{
+  display:block;
+  pointer-events:auto;
+  opacity:1;
+  transform:translateY(0);
+}
+
 .gx-suggest-item{padding:12px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:4px;border-bottom:1px solid #f0f0f0;transition:background .2s;}
 .gx-suggest-item:hover,.gx-suggest-item.active{background:#d9e9ff;}
 .gx-suggest-title{font-weight:600;font-size:15px;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -180,6 +180,10 @@
 
     search.appendChild(input); root.appendChild(search); root.appendChild(box);
     parent.appendChild(root);
+
+    // 기본 닫힘 상태를 inline으로도 보장
+    box.style.display = 'none';
+    box.style.pointerEvents = 'none';
 
     // iOS Safari 핀치 제스처 방지
     document.addEventListener('gesturestart', e=>e.preventDefault(), { passive:false });
@@ -277,8 +281,23 @@
     let __lastQ = "", __lastPool = null;
 
     const items = () => Array.from(box.querySelectorAll('.gx-suggest-item'));
-    const openBox = () => { if(!box.classList.contains('open')) box.classList.add('open'); input.setAttribute('aria-expanded','true'); };
-    const closeBox = () => { if(box.classList.contains('open')) box.classList.remove('open'); input.setAttribute('aria-expanded','false'); setActive(-1); };
+    const openBox = () => {
+      if(!box.classList.contains('open')) box.classList.add('open');
+      input.setAttribute('aria-expanded','true');
+      // ✅ 안전하게 inline으로도 보장
+      box.style.display = 'block';
+      box.style.pointerEvents = 'auto';
+    };
+    const closeBox = () => {
+      if(box.classList.contains('open')) box.classList.remove('open');
+      input.setAttribute('aria-expanded','false');
+      setActive(-1);
+      // ✅ 완전 제거
+      box.style.display = 'none';
+      box.style.pointerEvents = 'none';
+      // 필요하면 렌더 캐시 줄이기
+      // box.innerHTML = '';
+    };
 
     function setActive(i){
       const list = items();
@@ -369,7 +388,6 @@
         }
         pulseCircle.setMap(map);
         if(pulseHideTimer) clearTimeout(pulseHideTimer);
-        // 항상 사용: 1초 표시 후 숨김. 다음 호출 시 재표시.
         pulseHideTimer = setTimeout(()=>{ try{ pulseCircle.setMap(null); }catch{} }, 1000);
       }catch{}
     }
@@ -452,7 +470,7 @@
       },0);
     });
 
-    /* ▶︎ 빈 영역 클릭 시: 닫고 같은 좌표로 지도에 click 재발송 (한 번에 동작) */
+    /* ▶︎ 빈 영역 클릭 시: 닫고 같은 좌표로 지도에 click 재발송 (원클릭) */
     function forwardClickToUnderlying(clientX, clientY){
       const el = document.elementFromPoint(clientX, clientY);
       if (!el) return;
@@ -492,11 +510,20 @@
       },{passive:true});
     }
 
+    /* ✅ 화면에서 안 보이면 강제 닫기 (완전 제거 보장) */
+    try{
+      const io = new IntersectionObserver((entries)=>{
+        const on = entries[0] && entries[0].isIntersecting;
+        if(!on) closeBox();
+      }, { root:null, threshold:0 });
+      io.observe(root);
+    }catch{}
+
     /* ----- 글로벌 핫키(중복 바인딩 가드) ----- */
     if (!G.__gxSuggestBound) {
       G.__gxSuggestBound = true;
 
-      // "/" 핫키: 슬래시 입력 방지 + 포커스 + 최근 질의 복원 + 제안 열기 + 전체선택
+      // "/" 핫키
       window.addEventListener('keydown',(e)=>{
         const isSlash = (e.key==='/' || e.code==='Slash' || e.keyCode===191);
         if(!isSlash) return;
