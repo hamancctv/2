@@ -101,23 +101,20 @@
     pointer-events:none;
   }
 
-  /* 웨지 컬러 균일화 */
+  /* 웨지 컬러 '균일' 노란색 */
   .MapWalker .angleBase,
   .MapWalker .angleFront{
     position:absolute; left:0; top:0; width:102px; height:52px;
     background-image:url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/roadview_minimap_wk_2018.png);
     background-repeat:no-repeat;
-    filter: hue-rotate(180deg) saturate(180%) brightness(1.10);
+    /* 파랑을 안정적인 노랑으로 */
+    filter: sepia(1) saturate(6) hue-rotate(5deg) brightness(1.12) contrast(0.98);
   }
   .MapWalker .angleBase{
     background-position:-834px -2px;
-    opacity:.26;
+    opacity:.28;
   }
-  .MapWalker .angleFront{
-    opacity:.88;
-    filter: hue-rotate(180deg) saturate(180%) brightness(1.18) contrast(0.96);
-  }
-  .MapWalker.m8 .angleFront{ filter: hue-rotate(180deg) saturate(180%) brightness(1.22) contrast(0.96); }
+  .MapWalker .angleFront{ opacity:.90; }
 
   .MapWalker.m0  .angleFront{ background-position:-834px  -2px; }
   .MapWalker.m1  .angleFront{ background-position:-938px  -2px; }
@@ -197,11 +194,12 @@ let overlayOn = false, rv, rvClient;
 let mapWalker = null;   // 동동이
 let pickMode  = false;  // 동동이 클릭 후 지도 클릭으로 이동
 
-/* ===================== (1) 오버레이/이벤트 관리 패치 ===================== */
+/* ===================== (A) 오버레이/이벤트 관리 패치 ===================== */
 const __rvOverlayRegistry = new Set(); // setMap으로 올라온 모든 오버레이
-function __rvIsWalker(ov){ try { return mapWalker && ov === mapWalker.walker; } catch(_) { return false; } }
 
-// setMap 패치: 표시/해제 시 추적
+function __rvIsWalker(o){ return mapWalker && o === mapWalker.walker; }
+
+/* setMap 추적: 생성/표시되는 모든 오버레이를 등록 */
 function patchOverlayZTracking(){
   const classes = [
     kakao.maps.Marker,
@@ -217,6 +215,7 @@ function patchOverlayZTracking(){
     if (!C || !C.prototype || C.prototype.__rvPatchedSetMap) return;
     const orig = C.prototype.setMap;
     if (typeof orig !== 'function') return;
+
     C.prototype.setMap = function(m){
       const ret = orig.apply(this, arguments);
       if (m) __rvOverlayRegistry.add(this); else __rvOverlayRegistry.delete(this);
@@ -232,7 +231,47 @@ function patchOverlayZTracking(){
   });
 }
 
-// addListener 패치: 리스너 추적 & RV 중 새 리스너 즉시 음소거
+/* setZIndex 가로채기: RV 중엔 무조건 1로 고정(동동이 제외) */
+function patchZIndexSetter(){
+  const classes = [
+    kakao.maps.Marker,
+    kakao.maps.CustomOverlay,
+    kakao.maps.InfoWindow,
+    kakao.maps.Polyline,
+    kakao.maps.Polygon,
+    kakao.maps.Circle,
+    kakao.maps.Rectangle
+  ].filter(Boolean);
+
+  classes.forEach(C => {
+    if (!C || !C.prototype || C.prototype.__rvPatchedSetZ) return;
+    const orig = C.prototype.setZIndex;
+    if (typeof orig !== 'function') return;
+
+    C.prototype.setZIndex = function(z){
+      try{
+        if (!__rvIsWalker(this)){ // 동동이는 건드리지 않음
+          if (overlayOn) {
+            if (this.__rvOrigZ === undefined && typeof this.getZIndex === 'function'){
+              this.__rvOrigZ = this.getZIndex();
+            }
+            // RV 중엔 어떤 값이 와도 1로 고정
+            return orig.call(this, 1);
+          } else {
+            // 평상시엔 정상 동작 + 원복 추적
+            if (this.__rvOrigZ === undefined && typeof this.getZIndex === 'function'){
+              this.__rvOrigZ = this.getZIndex();
+            }
+          }
+        }
+      }catch(_){}
+      return orig.apply(this, arguments);
+    };
+    C.prototype.__rvPatchedSetZ = true;
+  });
+}
+
+/* addListener 가로채기: RV ON이면 리스너를 등록 대신 음소거 큐에 넣음 */
 function patchEventCapture(){
   if (kakao.maps.event.__rvPatchedAdd) return;
   const origAdd = kakao.maps.event.addListener;
@@ -243,17 +282,17 @@ function patchEventCapture(){
     if (!target.__rvHandlers[type]) target.__rvHandlers[type] = [];
     target.__rvHandlers[type].push(handler);
 
-    const h = origAdd.call(this, target, type, handler);
-
-    // RV ON이면(동동이 제외) 즉시 음소거
+    // RV 중 & 동동이 아니면 — 바로 음소거로
     if (overlayOn && !__rvIsWalker(target)) {
-      try { origRemove.call(this, target, type, handler); } catch(_) {}
       if (!target.__rvMuted) target.__rvMuted = {};
       if (!target.__rvMuted[type]) target.__rvMuted[type] = [];
       target.__rvMuted[type].push(handler);
+      return null; // 실제 등록 안 함
     }
-    return h;
+
+    return origAdd.call(this, target, type, handler);
   };
+
   kakao.maps.event.removeListener = function(target, type, handler){
     // 내부 추적에서 제거
     if (target && target.__rvHandlers && target.__rvHandlers[type]) {
@@ -306,7 +345,7 @@ function __rvMuteOverlay(o){
       }
       o.setDraggable(false);
     }
-    // DOM 컨텐츠 차단
+    // 커스텀오버레이 DOM은 포인터 차단
     if (typeof o.getContent === 'function'){
       const el = o.getContent();
       if (el && el.style){
@@ -314,13 +353,13 @@ function __rvMuteOverlay(o){
         el.style.pointerEvents = 'none';
       }
     }
-    // 리스너 음소거
+    // 이미 등록돼 있던 리스너 음소거
     if (o.__rvHandlers){
       if (!o.__rvMuted) o.__rvMuted = {};
       for (const type in o.__rvHandlers){
         for (const fn of o.__rvHandlers[type]){
-          if (!o.__rvMuted[type]) o.__rvMuted[type] = [];
           try { kakao.maps.event.removeListener(o, type, fn); } catch(_) {}
+          if (!o.__rvMuted[type]) o.__rvMuted[type] = [];
           o.__rvMuted[type].push(fn);
         }
       }
@@ -329,6 +368,7 @@ function __rvMuteOverlay(o){
 }
 function __rvUnmuteOverlay(o){
   try{
+    if (__rvIsWalker(o)) return;
     // clickable / draggable 원복
     if (typeof o.setClickable === 'function'){
       const val = (o.__rvOrigClickable !== undefined) ? !!o.__rvOrigClickable : true;
@@ -338,14 +378,14 @@ function __rvUnmuteOverlay(o){
       const val = (o.__rvOrigDraggable !== undefined) ? !!o.__rvOrigDraggable : false;
       o.setDraggable(val);
     }
-    // DOM 컨텐츠 원복
+    // DOM 포인터 원복
     if (typeof o.getContent === 'function'){
       const el = o.getContent();
       if (el && el.style){
         el.style.pointerEvents = (o.__rvOrigPE !== undefined) ? o.__rvOrigPE : '';
       }
     }
-    // 리스너 복구
+    // 음소거했던 리스너 복구
     if (o.__rvMuted){
       for (const type in o.__rvMuted){
         for (const fn of o.__rvMuted[type]){
@@ -356,6 +396,8 @@ function __rvUnmuteOverlay(o){
     }
   }catch(e){}
 }
+
+/* 일괄 적용/해제 */
 function setAllOverlaysZForRV(enable){
   __rvOverlayRegistry.forEach(o => { enable ? __rvLowerZ(o) : __rvRestoreZ(o); });
 }
@@ -363,7 +405,7 @@ function setAllOverlaysClickForRV(disable){
   __rvOverlayRegistry.forEach(o => { disable ? __rvMuteOverlay(o) : __rvUnmuteOverlay(o); });
 }
 
-/* ===================== (2) MapWalker ===================== */
+/* ===================== (B) MapWalker ===================== */
 function MapWalker(position){
   const content   = document.createElement('div');
   const angleBase = document.createElement('div');
@@ -382,7 +424,7 @@ function MapWalker(position){
   const walker = new kakao.maps.CustomOverlay({
     position, content, yAnchor: 1, clickable: true
   });
-  walker.setZIndex(99999);  // 동동이는 항상 최상단
+  walker.setZIndex(2147483000);  // 최상단
 
   this.walker   = walker;
   this.content  = content;
@@ -519,7 +561,7 @@ function toggleOverlay(active){
     btn.classList.add('active');
     map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
 
-    // RV 진입: 모든 오버레이 zIndex=1 + 클릭/드래그/리스너 음소거
+    // RV 진입: setZIndex 클램핑 활성 + 모든 오버레이 zIndex=1, 클릭/드래그/포인터 차단
     setAllOverlaysZForRV(true);
     setAllOverlaysClickForRV(true);
 
@@ -537,7 +579,7 @@ function toggleOverlay(active){
     btn.classList.remove('active');
     map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
 
-    // RV 종료: 원복
+    // RV 종료: 원복(리스너/포인터/드래그 + zIndex)
     setAllOverlaysClickForRV(false);
     setAllOverlaysZForRV(false);
 
@@ -560,6 +602,7 @@ kakao.maps.load(function(){
 
   // ✅ 패치들(가장 먼저)
   patchOverlayZTracking();
+  patchZIndexSetter();
   patchEventCapture();
 
   // 로드뷰 시선(회전) → 동동이 프레임
