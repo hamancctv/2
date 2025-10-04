@@ -1,35 +1,123 @@
-/* ===== search-suggest.js (FULL-STABLE-LAST-HYPHEN-NOFREEZE-SLASH-L3-ARROWS, 2025-10-05)
-   - Safari 대응 / 핀치줌 차단
-   - 제안창 자동 생성 + 입력창과 2px 간격
-   - "/" 핫키: 슬래시 입력 방지 + 입력창 활성화 + 최근 질의 복원 + 제안 열기 + 전체선택
-   - 마지막 하이픈(-) 이후 텍스트만 표시 ("도-002-마산고등학교" → "마산고등학교")
-   - 마커 클릭 시 입력창만 갱신(로드뷰 시 무시)
+/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION)
+   ✅ 통합 내용
+   - sel_suggest.js 1회 로더(loadSelSuggestScriptOnce) + 정규화/인덱싱(_needle)
+   - 제안 UI 생성(initSuggestUI): 슬래시 핫키, 키보드 내비(↑↓EnterEsc), 좌/우/↓ 비포커스 동작
+   - 마지막 하이픈(-) 이후 텍스트만 입력창에 채움
+   - 마커 클릭 시 장소명 자동 입력(로드뷰 모드면 무시)
+   - 최근접 매칭(그리드 인덱스) + 폴백(전수 최근접) → 프리징 최소화
+   - 지도 이동 시 레벨 3 고정 + Pulse Circle(항상 표시, 인스턴스 재사용)
    - 로드뷰 모드 시 자동 숨김(옵션)
-   - 프리징 최소화: Circle 재사용(항상 표시), pick 스로틀, IME 가드, blur 제거
-   - 지도 이동 시 레벨 3 고정
-   - 비활성 상태에서도 ArrowLeft/Right 커서 이동, ArrowDown 제안창 열기
+   - CSS z-index ↑, fixed 포지션(스태킹 컨텍스트 이슈 회피)
+   - 글로벌 핫키/윈도 이벤트 중복 바인딩 가드
 ===== */
 (function () {
-  /* ---------- 유틸 ---------- */
+  /* ---------- 공용 유틸 ---------- */
+  const G = (typeof window !== 'undefined' ? window : globalThis);
+
   function normalizeText(s){ return (s||'').toString().trim(); }
   function toLowerNoSpace(s){ return normalizeText(s).replace(/\s+/g,'').toLowerCase(); }
   function escapeHTML(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-  // ✅ 마지막 하이픈 이후 문자열만 사용
-  function extractKoreanTail(name, fallback) {
+  // 마지막 하이픈 이후 문자열만 사용
+  function extractTailAfterLastHyphen(name, fallback){
     const src = normalizeText(name);
     let result = normalizeText(fallback || src);
     if (src.includes('-')) result = src.substring(src.lastIndexOf('-') + 1).trim();
     return result;
   }
 
-  /* ---------- 스타일 주입 ---------- */
+  /* ---------- sel_suggest 로더(1회) + 정규화/인덱싱 ---------- */
+  G.SEL_SUG = G.SEL_SUG || { data: [], ready: false, _promise: null, varName: null };
+
+  /**
+   * sel_suggest.js를 <script>로 한 번만 로드해서 전역 배열을 가져옵니다.
+   * @param {string} url      ex) 'https://hamancctv.github.io/2/sel_suggest.js'
+   * @param {string} varName  전역 변수명 (기본 'sel_suggest')
+   * @return {Promise<Array<{name*,name1,name2,searchName,addr,line,encloser,lat,lng,_needle}>>}
+   */
+  function loadSelSuggestScriptOnce(url, varName = 'sel_suggest'){
+    if (G.SEL_SUG.ready && G.SEL_SUG.varName === varName) return Promise.resolve(G.SEL_SUG.data);
+    if (G.SEL_SUG._promise) return G.SEL_SUG._promise;
+
+    G.SEL_SUG.varName = varName;
+
+    // 이미 전역에 있으면 스크립트 로드 없이 정규화
+    if (Array.isArray(G[varName])) {
+      const norm = normalizeSelArray(G[varName]);
+      G.SEL_SUG.data = norm; G.SEL_SUG.ready = true;
+      return Promise.resolve(norm);
+    }
+
+    G.SEL_SUG._promise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = url;
+      s.async = true;
+      s.onload = () => {
+        const raw = G[varName];
+        if (!Array.isArray(raw)) { reject(new Error(`Global "${varName}" not found or not an array after loading ${url}`)); return; }
+        const norm = normalizeSelArray(raw);
+        G.SEL_SUG.data = norm; G.SEL_SUG.ready = true;
+        resolve(norm);
+      };
+      s.onerror = () => reject(new Error(`Failed to load ${url}`));
+      document.head.appendChild(s);
+    });
+
+    return G.SEL_SUG._promise;
+  }
+  G.loadSelSuggestScriptOnce = loadSelSuggestScriptOnce;
+
+  /** 다양한 포맷을 통일 포맷으로 변환 + _needle 인덱싱 */
+  function normalizeSelArray(arr){
+    const out = [];
+    for (const item of arr) {
+      let o = null;
+
+      if (Array.isArray(item)) {
+        // 예: [name, lat, lng, ...]
+        const name = String(item[0] ?? '');
+        const lat  = Number(item[1] ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()));
+        const lng  = Number(item[2] ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()));
+        o = { name, name1: name, name2: '', searchName: '', addr: '', line: '', encloser: '', lat, lng };
+
+      } else if (item && typeof item === 'object') {
+        const lat = Number(
+          item.lat ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()) ??
+          item.y ?? item.latitude
+        );
+        const lng = Number(
+          item.lng ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()) ??
+          item.x ?? item.longitude
+        );
+        o = {
+          name: item.name || '',
+          name1: item.name1 || item.name || '',
+          name2: item.name2 || '',
+          searchName: item.searchName || '',
+          addr: item.addr || '',
+          line: item.line || '',
+          encloser: item.encloser || '',
+          lat, lng
+        };
+      }
+
+      if (!o) continue;
+      if (!isFinite(o.lat) || !isFinite(o.lng)) continue;
+
+      o._needle = [o.name,o.name1,o.name2,o.searchName,o.addr,o.line,o.encloser]
+        .filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
+
+      out.push(o);
+    }
+    return out;
+  }
+
+  /* ---------- CSS 주입 ---------- */
   function injectCSS(){
     if(document.getElementById('gx-suggest-style')) return;
     const css = `
 .gx-suggest-root{
-  position:absolute; top:12px; left:50%; transform:translateX(-50%);
-  width:min(520px,90vw); z-index:20000;
+  position:fixed; top:12px; left:50%; transform:translateX(-50%);
+  width:min(520px,90vw); z-index:999999;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
 }
 .gx-suggest-search{position:relative;display:flex;align-items:center;gap:8px;}
@@ -58,7 +146,7 @@
     document.head.appendChild(st);
   }
 
-  /* ---------- DOM ---------- */
+  /* ---------- DOM 생성 ---------- */
   function createDOM(parent){
     if(!parent || parent.nodeType !== 1) parent = document.body; // 안전장치
     let root = parent.querySelector('.gx-suggest-root');
@@ -85,31 +173,93 @@
     // iOS Safari 핀치 제스처 방지
     document.addEventListener('gesturestart', e=>e.preventDefault(), { passive:false });
 
+    // 박스에서 멀티터치 핀치 비활성(스크롤은 살림)
+    [box].forEach(el=>{
+      el.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive:false });
+    });
+
     return { root, input, box };
   }
 
-  /* ---------- 메인 ---------- */
-  window.initSuggestUI = function initSuggestUI(opts){
+  /* ---------- 공간 인덱스(최근접 매칭) ---------- */
+  function buildGeoIndex(arr, cell = 0.0005){ // ~50m 셀
+    const m = new Map();
+    for (const o of arr) {
+      const la = Number(o?.lat ?? o?.latlng?.getLat?.());
+      const ln = Number(o?.lng ?? o?.latlng?.getLng?.());
+      if (!isFinite(la) || !isFinite(ln)) continue;
+      const ky = `${Math.floor(la/cell)}:${Math.floor(ln/cell)}`;
+      const bucket = m.get(ky);
+      if (bucket) bucket.push(o); else m.set(ky, [o]);
+    }
+    return { map:m, cell };
+  }
+  function nearestFromIndex(lat, lng, geoIndex){
+    if (!geoIndex) return null;
+    const {map, cell} = geoIndex;
+    const gx = Math.floor(lat/cell), gy = Math.floor(lng/cell);
+    let best=null, bestD=Infinity;
+    for (let dx=-1; dx<=1; dx++){
+      for (let dy=-1; dy<=1; dy++){
+        const list = map.get(`${gx+dx}:${gy+dy}`); if (!list) continue;
+        for (const o of list){
+          const la = Number(o.lat ?? o.latlng?.getLat?.());
+          const ln = Number(o.lng ?? o.latlng?.getLng?.());
+          if (!isFinite(la)||!isFinite(ln)) continue;
+          const d = (la-lat)*(la-lat) + (ln-lng)*(ln-lng);
+          if (d < bestD){ bestD=d; best=o; }
+        }
+      }
+    }
+    return best;
+  }
+  function nearestLinear(lat, lng, data){
+    let best=null, bestD=Infinity;
+    for (const o of data){
+      const la = Number(o.lat ?? o.latlng?.getLat?.());
+      const ln = Number(o.lng ?? o.latlng?.getLng?.());
+      if (!isFinite(la)||!isFinite(ln)) continue;
+      const d = (la-lat)*(la-lat) + (ln-lng)*(ln-lng);
+      if (d < bestD){ bestD=d; best=o; }
+    }
+    return best;
+  }
+
+  /* ---------- 메인: 제안 UI ---------- */
+  G.initSuggestUI = function initSuggestUI(opts){
     const {
       map,
       data = [],
-      parent = document.body,          // ✅ 기본 parent를 body로
+      parent = document.body,
       getMarkers = null,
       badges = [],
       maxItems = 30,
-      hideOnRoadview = true            // 로드뷰에서 숨길지 여부
+      hideOnRoadview = true
     } = opts || {};
     if(!map) return;
 
     injectCSS();
     const { root, input, box } = createDOM(parent);
 
+    // 데이터 인덱싱(_needle 없으면 생성)
+    for (const o of data) {
+      if (!o._needle) {
+        o._needle = [o.name,o.name1,o.name2,o.searchName,o.addr,o.line,o.encloser]
+          .filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
+      }
+    }
+
+    // 공간 인덱스(근접 탐색) 작성
+    const geoIndex = buildGeoIndex(data, 0.0005); // ~50m
+
     // 상태
     let activeIdx = -1, current = [], __lastTypedQuery = '', __lastPickedQuery = '';
-    // 프리징/이펙트 상태
-    let pickBlockUntil = 0;
-    let pulseCircle = null;
-    let pulseHideTimer = null;
+    let pickBlockUntil = 0;        // 확정 스로틀
+    let pulseCircle = null;        // Circle 재사용
+    let pulseHideTimer = null;     // Circle 숨김 타이머
+
+    // 진행형(접두) 캐시
+    let __lastQ = "", __lastPool = null;
 
     const items = () => Array.from(box.querySelectorAll('.gx-suggest-item'));
     const openBox = () => { if(!box.classList.contains('open')) box.classList.add('open'); input.setAttribute('aria-expanded','true'); };
@@ -158,18 +308,29 @@
     }
 
     function filterData(q){
-      const n = toLowerNoSpace(q); if(!n) return [];
+      const n = (q||'').toString().trim().replace(/\s+/g,'').toLowerCase();
+      if (!n) return [];
+      const pool = (n.startsWith(__lastQ) && Array.isArray(__lastPool)) ? __lastPool : data;
       const out = [];
-      for(const o of data){
-        const hay = toLowerNoSpace([o.name,o.name1,o.name2,o.searchName,o.addr,o.line,o.encloser].filter(Boolean).join(' '));
-        if(hay.includes(n)) out.push(o);
-        if(out.length >= maxItems) break;
+      for (const o of pool) {
+        const key = o._needle || [o.name,o.name1,o.name2,o.searchName,o.addr,o.line,o.encloser]
+          .filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
+        if (key.includes(n)) {
+          out.push(o);
+          if (out.length >= maxItems) break;
+        }
       }
+      __lastQ = n;
+      __lastPool = out.length >= 10 ? out : null;
       return out;
     }
-    const getLatLng = (o)=>({ lat:Number(o.lat || o.latlng?.getLat?.()), lng:Number(o.lng || o.latlng?.getLng?.()) });
+    function getLatLngFromItem(o){
+      const lat = Number(o?.lat ?? o?.latlng?.getLat?.());
+      const lng = Number(o?.lng ?? o?.latlng?.getLng?.());
+      return { lat, lng };
+    }
 
-    // ✅ 지도 이동(레벨3 고정) + 써클 항상 표시(인스턴스 재사용)
+    // 지도 이동(레벨3 고정) + Pulse Circle(항상 표시, 재사용)
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
       try{ map.setLevel(3); }catch{}
@@ -196,28 +357,23 @@
       }catch{}
     }
 
-    function __rememberPicked(){
-      const q = (input.value||'').trim();
-      if(q) __lastPickedQuery = q;
-    }
+    function __rememberPicked(){ const q = (input.value||'').trim(); if(q) __lastPickedQuery = q; }
 
     function pick(i){
       if(i<0 || i>=current.length) return;
-
-      // 연타 스로틀(0.45s)
       const now = Date.now();
       if(now < pickBlockUntil) return;
       pickBlockUntil = now + 450;
 
       const o = current[i];
-      const t = extractKoreanTail(o.name1 || o.name || o.searchName);
+      const t = extractTailAfterLastHyphen(o.name1 || o.name2 || o.name || o.searchName);
       if(t) input.value = t;
 
-      const {lat, lng} = getLatLng(o);
+      const {lat, lng} = getLatLngFromItem(o);
       if(isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
 
       __rememberPicked();
-      closeBox(); // 포커스 유지(blur 제거)
+      closeBox(); // blur 없음
     }
 
     // 입력 이벤트
@@ -230,7 +386,7 @@
       render(list); openBox();
     });
 
-    // 포커스 시 현재 값 기준으로 열기
+    // 포커스 시 현재 값으로 열기
     input.addEventListener('focus', ()=>{
       const q = (input.value||'').trim();
       if(!q) return;
@@ -238,10 +394,9 @@
       if(list.length){ render(list); openBox(); }
     });
 
-    // 키보드 내비: keydown에서는 ↑/↓/Esc만, IME 조합 중이면 무시
+    // 키보드 내비: ↑/↓/Esc + Enter 확정(IME 가드)
     input.addEventListener('keydown',(e)=>{
       if(e.isComposing || e.keyCode===229) return;
-
       const listEls = items();
       const isOpen  = box.classList.contains('open') && listEls.length>0;
 
@@ -257,18 +412,12 @@
       }else if(e.key==='Escape'){
         closeBox();
       }
-      // Enter 확정은 keyup에서 1회 처리
     });
-
-    // Enter 확정 1회 (IME 가드)
     input.addEventListener('keyup',(e)=>{
       if(e.isComposing || e.keyCode===229) return;
       if(e.key!=='Enter') return;
-
-      const listEls = items();
-      const isOpen  = box.classList.contains('open') && listEls.length>0;
+      const isOpen = box.classList.contains('open') && items().length>0;
       if(!isOpen) return;
-
       pick(activeIdx>=0 && activeIdx<current.length ? activeIdx : 0);
     });
 
@@ -289,7 +438,6 @@
       if(e.target===input || box.contains(e.target)) return;
       closeBox();
     });
-
     window.addEventListener('resize', closeBox);
 
     // 지도 이벤트
@@ -304,69 +452,65 @@
       },{passive:true});
     }
 
-    /* ===== "/" 글로벌 핫키 =====
-       - 다른 입력필드/콘텐츠편집 중이면 무시
-       - 슬래시 입력 자체는 막고, 우리 입력창 포커스 + 제안 열기 + 전체선택
-    */
-    window.addEventListener('keydown',(e)=>{
-      const isSlash = (e.key==='/' || e.code==='Slash' || e.keyCode===191);
-      if(!isSlash) return;
+    /* ----- 글로벌 핫키(중복 바인딩 가드) ----- */
+    if (!G.__gxSuggestBound) {
+      G.__gxSuggestBound = true;
 
-      const ae = document.activeElement;
-      const isOurInput = (ae===input);
-      const isOtherEditable = !isOurInput && (ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA' || ae.isContentEditable));
-      if(isOtherEditable) return;
+      // "/" 핫키: 슬래시 입력 방지 + 포커스 + 최근 질의 복원 + 제안 열기 + 전체선택
+      window.addEventListener('keydown',(e)=>{
+        const isSlash = (e.key==='/' || e.code==='Slash' || e.keyCode===191);
+        if(!isSlash) return;
 
-      e.preventDefault();
-      e.stopPropagation();
+        const ae = document.activeElement;
+        const isOurInput = (ae===input);
+        const isOtherEditable = !isOurInput && (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
+        if(isOtherEditable) return;
 
-      try{ input.focus(); }catch{}
-
-      // 비어있으면 최근 질의 복원 후 제안 열기
-      let seed = (input.value||'').trim();
-      if(!seed) seed = __lastPickedQuery || __lastTypedQuery || '';
-      if(seed){
-        input.value = seed;
-        const list = filterData(seed); current = list;
-        if(list.length){ render(list); openBox(); }
-      }
-
-      // 전체선택
-      try{ input.setSelectionRange(0, input.value.length); }catch{}
-    }, true);
-
-    /* ===== 비활성 상태 키보드 지원 =====
-       - ArrowLeft/ArrowRight: 입력창 비포커스여도 포커스 주고 커서 이동
-       - ArrowDown: 입력창 비포커스여도 포커스 + 제안창 열기
-    */
-    window.addEventListener('keydown',(e)=>{
-      const ae = document.activeElement;
-      const isOurInput = (ae===input);
-      const isOtherEditable = !isOurInput && (ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA' || ae.isContentEditable));
-      if(isOtherEditable) return; // 다른 입력 요소 사용 중이면 개입 X
-      if(isOurInput) return;      // 이미 우리 입력창이면 여기선 패스(위 핸들러에서 처리)
-
-      if(e.key==='ArrowDown'){
         e.preventDefault();
+        e.stopPropagation();
+
         try{ input.focus(); }catch{}
+
         let seed = (input.value||'').trim();
         if(!seed) seed = __lastPickedQuery || __lastTypedQuery || '';
-        const list = seed ? filterData(seed) : [];
-        if(list.length){ render(list); openBox(); }
-      }else if(e.key==='ArrowLeft' || e.key==='ArrowRight'){
-        e.preventDefault();
-        try{ input.focus(); }catch{}
-        const val = input.value||'';
-        const pos = (e.key==='ArrowLeft') ? Math.max(0, val.length-1) : val.length;
-        try{ input.setSelectionRange(pos, pos); }catch{}
-      }
-    }, true);
+        if(seed){
+          input.value = seed;
+          const list = filterData(seed); current = list;
+          if(list.length){ render(list); openBox(); }
+        }
+        try{ input.setSelectionRange(0, input.value.length); }catch{}
+      }, true);
 
-    /* ===== 마커 클릭 → 입력창만 갱신 (로드뷰 모드면 무시) ===== */
+      // 비활성 상태에서도 화살표 지원: ←/→ 커서 이동, ↓ 제안 열기
+      window.addEventListener('keydown',(e)=>{
+        const ae = document.activeElement;
+        const isOurInput = (ae===input);
+        const isOtherEditable = !isOurInput && (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
+        if(isOtherEditable) return;
+        if(isOurInput) return; // 이미 우리 입력창이면 이 핸들러는 패스
+
+        if(e.key==='ArrowDown'){
+          e.preventDefault();
+          try{ input.focus(); }catch{}
+          let seed = (input.value||'').trim();
+          if(!seed) seed = __lastPickedQuery || __lastTypedQuery || '';
+          const list = seed ? filterData(seed) : [];
+          if(list.length){ render(list); openBox(); }
+        }else if(e.key==='ArrowLeft' || e.key==='ArrowRight'){
+          e.preventDefault();
+          try{ input.focus(); }catch{}
+          const val = input.value||'';
+          const pos = (e.key==='ArrowLeft') ? Math.max(0, val.length-1) : val.length;
+          try{ input.setSelectionRange(pos, pos); }catch{}
+        }
+      }, true);
+    }
+
+    /* ----- 마커 클릭 → 입력창 자동 입력 (로드뷰 모드면 무시) ----- */
     const patched = new WeakSet();
     function attachMarkerHandlersOnce(){
       const container = parent.closest('#container') || document.getElementById('container') || document.body;
-      const list = (typeof getMarkers==='function' ? getMarkers() : (Array.isArray(window.markers) ? window.markers : [])) || [];
+      const list = (typeof getMarkers==='function' ? getMarkers() : (Array.isArray(G.markers) ? G.markers : [])) || [];
       if(!Array.isArray(list)) return;
 
       list.forEach(mk=>{
@@ -377,22 +521,27 @@
           if(container && container.classList.contains('view_roadview')) return;
           try{
             const pos = mk.getPosition();
-            const lat = pos.getLat ? pos.getLat() : pos.La;
-            const lng = pos.getLng ? pos.getLng() : pos.Ma;
+            const lat = pos.getLat ? pos.getLat() : (pos?.La ?? pos?.y ?? pos?.latitude);
+            const lng = pos.getLng ? pos.getLng() : (pos?.Ma ?? pos?.x ?? pos?.longitude);
 
             let text = '';
-            const found = Array.isArray(data) ? data.find(o=>{
-              const la = Number(o.lat), ln = Number(o.lng);
-              return isFinite(la)&&isFinite(ln)&&Math.abs(la-lat)<0.0001&&Math.abs(ln-lng)<0.0001;
-            }) : null;
+            let found = null;
 
-            if(found) text = extractKoreanTail(found.name1 || found.name || found.searchName);
-            else if(typeof mk.getTitle==='function') text = extractKoreanTail(mk.getTitle(), mk.getTitle());
+            if (isFinite(lat) && isFinite(lng)) {
+              found = nearestFromIndex(Number(lat), Number(lng), geoIndex) || nearestLinear(Number(lat), Number(lng), data);
+            }
+
+            if (found) {
+              text = extractTailAfterLastHyphen(found.name1 || found.name2 || found.name || found.searchName);
+            }
+            if (!text && typeof mk.getTitle==='function') {
+              const t = mk.getTitle(); if (t) text = extractTailAfterLastHyphen(t, t);
+            }
 
             if(text){
               input.value = text;
               __lastPickedQuery = text;
-              closeBox(); // 제안창 닫되 포커스는 유지
+              closeBox(); // 포커스 유지
             }
           }catch{}
         });
@@ -416,4 +565,5 @@
       mo.observe(container,{ attributes:true, attributeFilter:['class'] });
     }
   };
+
 })();
