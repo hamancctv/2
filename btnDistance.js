@@ -1,6 +1,6 @@
-// btnDistance-fixed.js — 거리재기(픽스형, 제안창 아래, 위성뷰·로드뷰 정상, 막대·테두리만 빨강)
+// btnDistance-fixed.js — 거리재기(지도 컨트롤 통합형, 제안창 아래, 막대·테두리만 빨강)
 (function () {
-  console.log("[btnDistance] loaded v2025-10-FINAL-STABLE");
+  console.log("[btnDistance] loaded v2025-10-STABLE-CONTROL");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -14,11 +14,8 @@
     const st = document.createElement("style");
     st.id = "btnDistance-style-main";
     st.textContent = `
+      /* 거리 버튼 기본 스타일 */
       #btnDistance {
-        position: fixed;
-        top: 156px;
-        left: 10px;
-        z-index: 400; /* ✅ 제안창(600~700)보다 아래 */
         width: 40px; height: 40px;
         display: inline-flex;
         align-items: center;
@@ -32,32 +29,24 @@
       }
       #btnDistance:hover { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
 
-      /* ✅ 기본 막대 색 (회색) */
-      #btnDistance svg {
-        width: 26px; height: 26px; display: block;
-      }
+      #btnDistance svg { width: 26px; height: 26px; display: block; }
       #btnDistance svg rect {
-        fill: #555;
-        stroke: #555;
-        stroke-width: 2.4;
-        transition: all .2s ease;
+        fill: #555; stroke: #555; stroke-width: 2.4; transition: all .2s ease;
       }
 
-      /* ✅ 토글 ON → 막대·테두리만 빨강 (배경은 흰색 고정) */
+      /* 토글 ON → 막대·테두리만 빨강 */
       #btnDistance.active {
         border-color: #db4040;
         background: #fff !important;
       }
       #btnDistance.active svg rect {
-        fill: #db4040;
-        stroke: #db4040;
-        stroke-width: 3;
+        fill: #db4040; stroke: #db4040; stroke-width: 3;
       }
     `;
     document.head.appendChild(st);
   }
 
-  // --- 버튼 생성 ---
+  // --- 버튼 생성 및 지도 컨트롤 레이어에 삽입 ---
   let btn = document.getElementById("btnDistance");
   if (!btn) {
     btn = document.createElement("button");
@@ -68,8 +57,25 @@
         <rect x="2" y="5" width="32" height="14" rx="3" ry="3"></rect>
       </svg>
     `;
-    // ✅ body가 아니라 mapWrapper 내부에 추가 (제안창과 같은 컨텍스트)
-    (document.getElementById("mapWrapper") || document.body).appendChild(btn);
+
+    // ✅ Kakao control 레이어에 삽입
+    const ctrlLayer = document.querySelector(".map_controls, .custom_typecontrol");
+    if (ctrlLayer) {
+      // 로드뷰 아래에 붙이기
+      const rvBtn = ctrlLayer.querySelector(".btn_roadview");
+      if (rvBtn && rvBtn.parentElement) {
+        rvBtn.parentElement.insertBefore(btn, rvBtn.nextSibling);
+      } else {
+        ctrlLayer.appendChild(btn);
+      }
+    } else {
+      // fallback
+      document.body.appendChild(btn);
+      btn.style.position = "fixed";
+      btn.style.top = "156px";
+      btn.style.left = "10px";
+      btn.style.zIndex = 300;
+    }
   }
 
   // --- 거리 UI 스타일 ---
@@ -77,7 +83,6 @@
     const style = document.createElement("style");
     style.id = "btnDistance-style";
     style.textContent = `
-      /* 점 */
       .km-dot {
         width: 12px; height: 12px;
         border: 2px solid #e53935;
@@ -85,7 +90,6 @@
         border-radius: 50%;
         box-shadow: 0 0 0 1px rgba(0,0,0,.06);
       }
-      /* 구간 박스 */
       .km-seg {
         background:#fff;
         color:#e53935;
@@ -98,7 +102,6 @@
         box-shadow:0 2px 6px rgba(0,0,0,.12);
         margin-bottom:14px;
       }
-      /* 총거리 박스 */
       .km-total-box {
         background:#ffeb3b;
         color:#222;
@@ -126,10 +129,8 @@
   const formatDist = m =>
     m >= 1000 ? (m / 1000).toFixed(2) + " km" : fmt(m) + " m";
 
-  // --- 총거리 박스 (마지막 점 오른쪽 아래 8px) ---
   function ensureTotalOverlay(position) {
-    const xOffset = 8;
-    const yOffset = -8;
+    const xOffset = 8, yOffset = -8;
     if (!totalOverlay) {
       const el = document.createElement("div");
       el.className = "km-total-box";
@@ -144,45 +145,37 @@
     }
     totalOverlay.setPosition(position);
     totalOverlay.setMap(map);
-    const el = totalOverlay.getContent();
-    el.style.transform = `translate(${xOffset}px, ${-yOffset}px)`;
+    totalOverlay.getContent().style.transform = `translate(${xOffset}px, ${-yOffset}px)`;
   }
 
   function updateTotalOverlayText() {
     if (!totalOverlay) return;
     const m = clickLine ? Math.round(clickLine.getLength()) : 0;
-    totalOverlay.getContent().textContent =
-      "총 거리: " + formatDist(m);
+    totalOverlay.getContent().textContent = "총 거리: " + formatDist(m);
   }
 
   function removeTotalOverlay() {
-    if (totalOverlay) {
-      try { totalOverlay.setMap(null); } catch (_) {}
-      totalOverlay = null;
-    }
+    if (totalOverlay) { try { totalOverlay.setMap(null); } catch(_){} totalOverlay = null; }
   }
 
-  // --- 점/구간 ---
-  function addDot(position) {
+  function addDot(pos) {
     const el = document.createElement("div");
     el.className = "km-dot";
     const dot = new kakao.maps.CustomOverlay({
-      position,
+      position: pos,
       content: el,
-      xAnchor: 0.5,
-      yAnchor: 0.5,
-      zIndex: 5000
+      xAnchor: 0.5, yAnchor: 0.5, zIndex: 5000
     });
     dot.setMap(map);
     dots.push(dot);
   }
 
-  function addSegmentBox(position, distText) {
+  function addSegmentBox(pos, distText) {
     const el = document.createElement("div");
     el.className = "km-seg";
     el.textContent = distText;
     const seg = new kakao.maps.CustomOverlay({
-      position,
+      position: pos,
       content: el,
       yAnchor: 1,
       zIndex: 5200
@@ -191,17 +184,15 @@
     segOverlays.push(seg);
   }
 
-  // --- 초기화 ---
   function resetMeasure() {
     if (clickLine) { clickLine.setMap(null); clickLine = null; }
-    dots.forEach(d => { try { d.setMap(null); } catch (_) {} });
-    segOverlays.forEach(o => { try { o.setMap(null); } catch (_) {} });
+    dots.forEach(d => { try { d.setMap(null); } catch(_){} });
+    segOverlays.forEach(o => { try { o.setMap(null); } catch(_){} });
     dots = [];
     segOverlays = [];
     removeTotalOverlay();
   }
 
-  // --- 지도 클릭 ---
   function onMapClick(e) {
     if (!drawing || !mapExists()) return;
     const pos = e.latLng;
@@ -226,12 +217,10 @@
       addSegmentBox(pos, formatDist(dist));
       addDot(pos);
     }
-
     ensureTotalOverlay(pos);
     updateTotalOverlayText();
   }
 
-  // --- 토글 ---
   btn.addEventListener("click", () => {
     if (!mapExists()) return;
     drawing = !drawing;
