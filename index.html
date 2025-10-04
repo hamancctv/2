@@ -78,6 +78,23 @@
     display:block;
     background: radial-gradient(#fff 0 28%, currentColor 29% 100%);
   }
+  /* 미니맵 크기조절 핸들 */
+#mapWrapper .rv-resizer{
+  position:absolute; right:6px; bottom:6px;
+  width:16px; height:16px;
+  border:1px solid #bbb; border-radius:4px; background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+  cursor:nwse-resize; z-index:650; display:none;
+}
+#mapWrapper .rv-resizer::before{
+  content:""; position:absolute; inset:2px;
+  background:
+    linear-gradient(135deg, transparent 50%, #888 0) no-repeat;
+  opacity:.7;
+}
+/* 로드뷰일 때만 핸들 보이기 */
+.view_roadview #mapWrapper .rv-resizer{ display:block; }
+
 </style>
 </head>
 <body>
@@ -294,7 +311,111 @@ kakao.maps.load(function(){
       chooseOnEnter: true,
       openOnFocus: true
     });
-  }
+  }  /* ===== 미니맵(로드뷰시) 크기 조절 ===== */
+  (function setupMiniMapResizer(){
+    const container = document.getElementById('container');
+    const wrapper   = document.getElementById('mapWrapper');
+
+    // 핸들 생성 (HTML 수정 없이 JS로 주입)
+    const handle = document.createElement('div');
+    handle.className = 'rv-resizer';
+    wrapper.appendChild(handle);
+
+    const MIN_W = 200, MIN_H = 150;                      // CSS와 동일 최소값
+    const MAX_W = Math.min(window.innerWidth  * 0.9, 900);
+    const MAX_H = Math.min(window.innerHeight * 0.9, 700);
+
+    // 저장된 크기 적용
+    function loadSize(){
+      try{
+        const saved = JSON.parse(localStorage.getItem('rvMiniSize')||'{}');
+        if (saved && saved.w && saved.h) {
+          wrapper.style.width  = saved.w + 'px';
+          wrapper.style.height = saved.h + 'px';
+          try { map && map.relayout(); } catch(e){}
+        }
+      }catch(e){}
+    }
+    function saveSize(w,h){
+      try { localStorage.setItem('rvMiniSize', JSON.stringify({ w:Math.round(w), h:Math.round(h) })); } catch(e){}
+    }
+
+    let startX, startY, startW, startH, curW, curH, active=false, rafId=null;
+
+    function onDown(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      const t = ev.touches ? ev.touches[0] : ev;
+      startX = t.clientX; startY = t.clientY;
+      const r = wrapper.getBoundingClientRect();
+      startW = r.width; startH = r.height;
+      active = true;
+
+      document.addEventListener('mousemove', onMove, {passive:false});
+      document.addEventListener('mouseup',   onUp,   {passive:false});
+      document.addEventListener('touchmove', onMove, {passive:false});
+      document.addEventListener('touchend',  onUp,   {passive:false});
+    }
+
+    function onMove(ev){
+      if (!active) return;
+      ev.preventDefault();
+      const t = ev.touches ? ev.touches[0] : ev;
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+
+      // wrapper는 bottom-left 고정이라 가로는 +dx, 세로는 -dy 방향으로 증가
+      curW = Math.max(MIN_W, Math.min(startW + dx, MAX_W));
+      curH = Math.max(MIN_H, Math.min(startH - dy, MAX_H));
+
+      if (!rafId) {
+        rafId = requestAnimationFrame(applySize);
+      }
+    }
+
+    function applySize(){
+      rafId = null;
+      if (curW && curH) {
+        wrapper.style.width  = curW + 'px';
+        wrapper.style.height = curH + 'px';
+        try { map && map.relayout(); } catch(e){}
+      }
+    }
+
+    function onUp(ev){
+      if (!active) return;
+      ev.preventDefault();
+      active = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend',  onUp);
+      if (curW && curH) saveSize(curW, curH);
+    }
+
+    handle.addEventListener('mousedown',  onDown, {passive:false});
+    handle.addEventListener('touchstart', onDown, {passive:false});
+
+    // 로드뷰 진입/종료에 따라 크기 적용/복원
+    const mo = new MutationObserver(() => {
+      const rvOn = container.classList.contains('view_roadview');
+      if (rvOn) {
+        // 진입 시 저장된 크기 적용(없으면 기본 26%)
+        loadSize();
+      } else {
+        // 종료 시 전체 화면으로 복귀
+        wrapper.style.width  = '100%';
+        wrapper.style.height = '100%';
+        try { map && map.relayout(); } catch(e){}
+      }
+    });
+    mo.observe(container, { attributes:true, attributeFilter:['class'] });
+
+    // 혹시 처음부터 로드뷰면 한 번 적용
+    if (container.classList.contains('view_roadview')) {
+      loadSize();
+    }
+  })();
+
 });
 </script>
 </body>
