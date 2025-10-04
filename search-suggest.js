@@ -1,4 +1,4 @@
-/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 대응 + Enter/Click 이동 & 원 표시 + TAB Trap) ===== */
+/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 대응 + Enter/Click 이동 & 원 표시 + Lightweight TAB Trap) ===== */
 (function () {
   /* ---------- 유틸 ---------- */
   function normalizeText(s) { return (s || '').toString().trim(); }
@@ -173,11 +173,10 @@
       return {lat, lng};
     }
 
-    // === centerWithEffect (instant pulse, no idle wait) ===
+    // === centerWithEffect (instant pulse) ===
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
 
-      // 전역 setCenter가 있으면 위임 (중복 방지)
       if (typeof window.setCenter === 'function') {
         try { window.setCenter(lat, lng); } catch(_) {}
         return;
@@ -190,15 +189,9 @@
         if (drawn) return; drawn = true;
         try {
           const circle = new kakao.maps.Circle({
-            center: pt,
-            radius: 50,
-            strokeWeight: 1,
-            strokeColor: '#ffa500',
-            strokeOpacity: 1,
-            strokeStyle: 'dashed',
-            fillColor: '#FF1000',
-            fillOpacity: 0.3,
-            zIndex: 9999
+            center: pt, radius: 50, strokeWeight: 1,
+            strokeColor: '#ffa500', strokeOpacity: 1, strokeStyle: 'dashed',
+            fillColor: '#FF1000', fillOpacity: 0.3, zIndex: 9999
           });
           circle.setMap(map);
           setTimeout(()=>{ try { circle.setMap(null); } catch(_) {} }, 1000);
@@ -209,7 +202,7 @@
         if (window.requestAnimationFrame) {
           requestAnimationFrame(() => {
             try { map.panTo(pt); } catch(_) {}
-            requestAnimationFrame(drawPulse);   // 다음 프레임에 바로 원
+            requestAnimationFrame(drawPulse);
           });
         } else {
           setTimeout(() => { try { map.panTo(pt); } catch(_) {} ; setTimeout(drawPulse, 50); }, 16);
@@ -311,74 +304,46 @@
       update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
     }
 
-    /* ===== TAB Trap (지도 컨테이너 한정, 검색 인풋만 Tab 허용, Tab=토글) ===== */
+    /* ===== Lightweight TAB Trap =====
+       - DOM을 건드리지 않고 keydown만 가로채서 토글
+       - 기본: 차단(on). Tab을 누르면 허용(off). 다시 누르면 차단(on).
+       - 차단 상태에선 검색 input에서만 Tab 허용, 그 외는 블록 */
     (function setupTabTrap(){
       const container = parent.closest('#container') || document.getElementById('container') || document.body;
       if (!container) return;
 
-      let tabTrapOn = true;                 // 기본 차단 ON
-      const savedTab = new WeakMap();
+      let trapOn = true; // 기본 차단
 
-      const focusableSel = [
-        'a[href]','area[href]',
-        'button','input','select','textarea',
-        'iframe','summary',
-        '[contenteditable="true"]',
-        '[tabindex]'
-      ].join(',');
-
-      const isVisible = (el) => {
-        const s = window.getComputedStyle(el);
-        return s.visibility !== 'hidden' && s.display !== 'none';
-      };
-
-      function listTargets(){
-        return Array.from(container.querySelectorAll(focusableSel))
-          .filter(el => el !== document.body && !el.disabled && isVisible(el));
-      }
-
-      function applyTrap(on){
-        const targets = listTargets();
-        for (const el of targets){
-          if (el === input) { el.setAttribute('tabindex', '0'); continue; }
-          if (on){
-            if (!savedTab.has(el)) {
-              const prev = el.getAttribute('tabindex');
-              savedTab.set(el, prev === null ? undefined : prev);
-            }
-            el.setAttribute('tabindex', '-1');
-          }else{
-            if (savedTab.has(el)) {
-              const prev = savedTab.get(el);
-              if (prev === undefined) el.removeAttribute('tabindex');
-              else el.setAttribute('tabindex', prev);
-            }else{
-              el.removeAttribute('tabindex');
-            }
-          }
-        }
-      }
-
-      // 초기 적용(차단)
-      applyTrap(true);
-
-      // 지도 컨테이너 내부에서만 Tab 토글
-      document.addEventListener('keydown', (e)=>{
+      document.addEventListener('keydown', (e) => {
         if (e.key !== 'Tab') return;
         if (!container.contains(e.target)) return;
 
-        if (!tabTrapOn) {
-          // 현재 허용 → 차단으로 전환, 인풋에 고정
-          tabTrapOn = true;
-          applyTrap(true);
-          try{ input.focus(); }catch(_){}
-          e.preventDefault(); // 포커스가 밖으로 튀지 않게
+        // 매번 Tab 누를 때마다 토글
+        trapOn = !trapOn;
+
+        if (trapOn) {
+          // 이제 차단 모드: 인풋 외에는 Tab 이동 막고, 포커스 인풋으로
+          if (e.target !== input) {
+            e.preventDefault();
+            try { input.focus(); } catch(_) {}
+          } else {
+            // 인풋에서 Tab 눌러도 차단 전환 직후엔 머무르게
+            e.preventDefault();
+          }
         } else {
-          // 현재 차단 → 허용으로 전환 (자연스러운 Tab 이동 허용)
-          tabTrapOn = false;
-          applyTrap(false);
-          // e.preventDefault() 하지 않음: 다음 포커스로 자연 이동
+          // 허용 모드: 기본 동작 그대로(포커스 자연 이동)
+          // nothing
         }
+      }, true);
+
+      // 차단 모드일 땐 인풋 외 요소에서 Tab을 아예 못 나가게 보조 가드
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Tab') return;
+        if (!container.contains(e.target)) return;
+        if (!trapOn) return;         // 허용 모드면 패스
+        if (e.target === input) return; // 인풋이면 허용(위 토글 로직이 이미 막음)
+        e.preventDefault();
+        try { input.focus(); } catch(_) {}
       }, true);
     })();
 
