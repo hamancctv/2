@@ -35,27 +35,22 @@ if (!document.getElementById("btnDistance-style-main")) {
       box-shadow: 0 3px 12px rgba(0,0,0,.12);
     }
 
-    /* ✅ 활성화 시: 테두리만 빨강 */
-    #btnDistance.active {
-      border-color: #db4040;
-    }
-
-    /* ✅ SVG 기본 (회색 막대, 자체 색 고정) */
+    /* 기본 상태: 회색 막대 */
     #btnDistance svg {
       width: 26px;
       height: 26px;
       display: block;
     }
     #btnDistance svg rect {
-      fill: #555;                /* 버튼 색 상속 안 함 */
+      fill: #555;
       stroke: #555;
-      stroke-width: 2.2;
+      stroke-width: 2.4;
       transition: all .2s ease;
     }
 
-    /* ✅ 활성화 시: 막대 윤곽만 빨강, 내부 비움 */
+    /* ✅ 활성화 시: 안의 막대만 빨간색 (채움+테두리) */
     #btnDistance.active svg rect {
-      fill: none;
+      fill: #db4040;
       stroke: #db4040;
       stroke-width: 3;
     }
