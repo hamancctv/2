@@ -1,4 +1,4 @@
-/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 완전 대응) ===== */
+/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 완전 대응 + Enter 이동) ===== */
 (function () {
   /* ---------- 유틸 ---------- */
   function normalizeText(s) { return (s || '').toString().trim(); }
@@ -123,7 +123,17 @@
     injectCSS();
     const { root, input, box } = createDOM(parent);
 
-    // === 기존 검색/렌더링 로직 (전부 유지) ===
+    // 접근성
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-expanded', 'false');
+    box.id = box.id || 'gx-suggest-list';
+    input.setAttribute('aria-controls', box.id);
+
+    // === 상태 & 헬퍼 ===
+    let activeIdx = -1, current = [];
+    const items = () => Array.from(box.querySelectorAll('.gx-suggest-item'));
+
     function openBox() { if (!box.classList.contains('open')) { box.classList.add('open'); input.setAttribute('aria-expanded', 'true'); } }
     function closeBox() { if (box.classList.contains('open')) { box.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); } setActive(-1); }
     function setActive(i) {
@@ -135,8 +145,6 @@
         try { el.scrollIntoView({ block:'nearest' }); } catch(_) {}
       }
     }
-    function items() { return Array.from(box.querySelectorAll('.gx-suggest-item')); }
-    let activeIdx = -1, current = [];
     function filterData(q) {
       const needle = toLowerNoSpace(q); if (!needle) return [];
       const out=[]; for (const o of data) {
@@ -148,7 +156,7 @@
     function titleOf(o){ return normalizeText(o.name2||o.name||o.name1||o.searchName||''); }
     function makeItemHTML(o){
       const title=titleOf(o);
-      const sub=badges.map(k=>o[k]?`<span>${escapeHTML(String(o[k]))}</span>`:'').filter(Boolean).join(' ');
+      const sub=badges.map(k=>o[k]?`<span>${escapeHTML(String(o[k]).replace(/^ip\s*:\s*/i,''))}</span>`:'').filter(Boolean).join(' ');
       return `<div class="gx-suggest-item" role="option" aria-selected="false"><div class="gx-suggest-title">${escapeHTML(title)}</div>${sub?`<div class="gx-suggest-sub">${sub}</div>`:''}</div>`;
     }
     function render(list){ box.innerHTML=list.map(makeItemHTML).join('');
@@ -159,11 +167,44 @@
         el.addEventListener('click',()=>pick(idx));
       }); setActive(-1);
     }
-    function pick(idx){ if(idx<0||idx>=current.length)return; const o=current[idx]; const t=titleOf(o); if(t) input.value=t;
-      const lat=parseFloat(o.lat||(o.latlng&&o.latlng.getLat&&o.latlng.getLat()));
-      const lng=parseFloat(o.lng||(o.latlng&&o.latlng.getLng&&o.latlng.getLng()));
-      if(isFinite(lat)&&isFinite(lng)&&map){ const ll=new kakao.maps.LatLng(lat,lng);
-        try{map.setLevel(3);}catch(_){} try{map.panTo(ll);}catch(_){} }
+    function getLatLngFromItem(o){
+      const lat = parseFloat(o.lat || (o.latlng && o.latlng.getLat && o.latlng.getLat()));
+      const lng = parseFloat(o.lng || (o.latlng && o.latlng.getLng && o.latlng.getLng()));
+      return {lat, lng};
+    }
+    // ✅ setCenter 효과 호출 (전역 setCenter 있으면 사용, 없으면 동일 효과 폴백)
+    function centerWithEffect(lat, lng){
+      if (typeof window.setCenter === 'function') {
+        try { window.setCenter(lat, lng); return; } catch(_) {}
+      }
+      const moveLatLon = new kakao.maps.LatLng(lat, lng);
+      try { map.setLevel(1); } catch(_) {}
+      try { map.panTo(moveLatLon); } catch(_) {}
+      try {
+        const circle = new kakao.maps.Circle({
+          center: moveLatLon,
+          radius: 50,
+          strokeWeight: 1,
+          strokeColor: '#ffa500',
+          strokeOpacity: 1,
+          strokeStyle: 'dashed',
+          fillColor: '#FF1000',
+          fillOpacity: 0.3
+        });
+        circle.setMap(map);
+        setTimeout(()=>{ try { circle.setMap(null); } catch(_) {} }, 1000);
+      } catch(_) {}
+    }
+
+    function pick(idx){
+      if(idx<0||idx>=current.length) return;
+      const o=current[idx]; const t=titleOf(o); if(t) input.value=t;
+      const {lat, lng} = getLatLngFromItem(o);
+      if (isFinite(lat) && isFinite(lng) && map) {
+        // 기존 pick은 Level 3 + panTo였지만, 마우스 선택은 기존 유지
+        const ll=new kakao.maps.LatLng(lat,lng);
+        try{map.setLevel(3);}catch(_){} try{map.panTo(ll);}catch(_){} 
+      }
       closeBox(); input.blur();
     }
 
@@ -178,28 +219,44 @@
       render(list); openBox();
     });
     input.addEventListener('focus',()=>{
-      if(!openOnFocus)return;
-      const q=input.value||''; if(q.trim()==='')return;
+      if(!openOnFocus) return;
+      const q=input.value||''; if(q.trim()==='') return;
       const list=filterData(q); current=list; if(list.length>0){render(list);openBox();}
     });
 
-    // === 키보드 내비게이션 ===
+    // === 키보드 내비게이션 & Enter 동작 ===
     input.addEventListener('keydown',(e)=>{
-      const list=items(); const open=box.classList.contains('open')&&list.length>0;
+      const els=items(); const open=box.classList.contains('open')&&els.length>0;
+
       if(!open&&(e.key==='ArrowDown'||e.key==='ArrowUp')){
         const q=input.value||''; if(q.trim()!==''){const l=filterData(q); current=l; if(l.length>0){render(l);openBox();}}
       }
-      if(e.key==='ArrowDown'&&open){e.preventDefault();setActive((activeIdx+1)%list.length);}
-      else if(e.key==='ArrowUp'&&open){e.preventDefault();setActive((activeIdx-1+list.length)%list.length);}
-      else if(e.key==='Enter'&&open&&chooseOnEnter){
-        if(list.length&&document.activeElement===input){e.preventDefault();pick(list.findIndex(el=>el.classList.contains('active')));}
-      } else if(e.key==='Escape'){closeBox();}
+
+      if(e.key==='ArrowDown'&&open){ e.preventDefault(); setActive((activeIdx+1)%els.length); }
+      else if(e.key==='ArrowUp'&&open){ e.preventDefault(); setActive((activeIdx-1+els.length)%els.length); }
+      else if(e.key==='Enter'){
+        if(open && chooseOnEnter){
+          e.preventDefault();
+          // ✅ 활성 항목이 있으면 그걸, 없으면 맨 위(0)로 이동 + setCenter 효과
+          const useIdx = (activeIdx>=0 && activeIdx<current.length) ? activeIdx : 0;
+          if (current.length > 0) {
+            const {lat, lng} = getLatLngFromItem(current[useIdx]);
+            if (isFinite(lat) && isFinite(lng)) {
+              centerWithEffect(lat, lng);
+            }
+            closeBox();
+            input.blur();
+          }
+        }
+      } else if(e.key==='Escape'){
+        closeBox();
+      }
     });
 
     // === 바깥 클릭으로 닫기 ===
     document.addEventListener('mousedown',(e)=>{
-      if(!box.classList.contains('open'))return;
-      if(e.target===input||box.contains(e.target))return;
+      if(!box.classList.contains('open')) return;
+      if(e.target===input||box.contains(e.target)) return;
       closeBox();
     });
     window.addEventListener('resize',closeBox);
