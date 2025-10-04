@@ -310,7 +310,8 @@ kakao.maps.load(function(){
       chooseOnEnter: true,
       openOnFocus: true
     });
-  }  /* ===== 미니맵(로드뷰시) 크기 조절 ===== */
+  }  
+  /* ===== 미니맵(로드뷰시) 크기 조절 ===== */
   (function setupMiniMapResizer(){
     const container = document.getElementById('container');
     const wrapper   = document.getElementById('mapWrapper');
@@ -394,6 +395,29 @@ kakao.maps.load(function(){
     handle.addEventListener('mousedown',  onDown, {passive:false});
     handle.addEventListener('touchstart', onDown, {passive:false});
 
+// 로드뷰 시선(pan) → 동동이 각도 동기화
+function syncRvMarkerAngle(){
+  try {
+    if (!rv || !rvMarker) return;
+    const vp = rv.getViewpoint();         // { pan, tilt, zoom }
+    if (typeof rvMarker.setAngle === 'function') {
+      rvMarker.setAngle(vp.pan);          // ← 동동이 회전!
+    }
+  } catch (e) {}
+}
+// 로드뷰의 시선이 바뀔 때마다(드래그로 회전 등) 동동이 각도 동기화
+kakao.maps.event.addListener(rv, 'viewpoint_changed', function () {
+  if (!overlayOn || !rvMarker) return;
+  syncRvMarkerAngle();
+});
+
+// 로드뷰 파노라마가 바뀔 때(장소 이동 등)도 한 번 각도 동기화
+kakao.maps.event.addListener(rv, 'panoid_changed', function () {
+  if (!overlayOn || !rvMarker) return;
+  syncRvMarkerAngle();
+});
+
+    
     // 로드뷰 진입/종료에 따라 크기 적용/복원
     const mo = new MutationObserver(() => {
       const rvOn = container.classList.contains('view_roadview');
