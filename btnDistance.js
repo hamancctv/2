@@ -16,7 +16,7 @@
     st.textContent = `
       #btnDistance {
         position: fixed;
-        top: 156px;           /* 원하는 위치 */
+        top: 70px;           /* 원하는 위치 */
         left: 10px;          /* 왼쪽 여백 */
         z-index: 1000;       /* 지도 위 표시 */
         width: 40px; height: 40px;
@@ -49,61 +49,54 @@
     btn = document.createElement("button");
     btn.id = "btnDistance";
     btn.title = "거리 재기";
-btn.innerHTML = `
-  <svg viewBox="0 0 32 24" aria-hidden="true">
-    <rect x="2" y="5" width="28" height="14" rx="3" ry="3"></rect>
-  </svg>
-`;
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="1" y="7" width="22" height="10" rx="3" ry="3"></rect>
+      </svg>
+    `;
     document.body.appendChild(btn); // ✅ 픽스형으로 body에 바로 추가
   }
 
   // --- 측정 UI 스타일 ---
-if (!document.getElementById("btnDistance-style-main")) {
-  const st = document.createElement("style");
-  st.id = "btnDistance-style-main";
-  st.textContent = `
-    #btnDistance {
-      position: fixed;
-      top: 70px;
-      left: 10px;
-      z-index: 1000;
-      width: 40px; height: 40px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      background: #fff;
-      color: #555;
-      cursor: pointer;
-      transition: all .2s ease;
-      box-sizing: border-box;
-    }
-    #btnDistance:hover {
-      box-shadow: 0 3px 12px rgba(0,0,0,.12);
-    }
-    /* 활성화 시: 테두리와 아이콘 윤곽만 빨간색 */
-    #btnDistance.active {
-      border-color: #db4040;
-    }
-    #btnDistance svg {
-      width: 22px;  /* 버튼보다 조금 작게 */
-      height: 22px;
-      display: block;
-    }
-    #btnDistance svg rect {
-      fill: currentColor;
-      stroke: currentColor;
-      stroke-width: 2;
-    }
-    #btnDistance.active svg rect {
-      fill: none;
-      stroke: #db4040;
-      stroke-width: 3;   /* ✅ 더 두껍게 */
-    }
-  `;
-  document.head.appendChild(st);
-}
+  if (!document.getElementById("btnDistance-style")) {
+    const style = document.createElement("style");
+    style.id = "btnDistance-style";
+    style.textContent = `
+      .km-dot {
+        width: 12px; height: 12px;
+        border: 2px solid #e53935;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(0,0,0,.06);
+      }
+      .km-seg {
+        background:#fff;
+        color:#e53935;
+        border:1px solid #e53935;
+        border-radius:8px;
+        padding:2px 6px;
+        font-size:12px;
+        font-weight:600;
+        white-space:nowrap;
+        box-shadow:0 2px 6px rgba(0,0,0,.12);
+        margin-bottom:14px;
+      }
+      .km-total-box {
+        background: #ffeb3b;
+        color: #222;
+        border: 1px solid #e0c200;
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 13px; font-weight: 700;
+        box-shadow: 0 2px 8px rgba(0,0,0,.15);
+        pointer-events: none;
+        white-space:nowrap;
+        margin-top: 28px;
+        margin-left: 18px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   // --- 내부 상태 ---
   let drawing = false;
