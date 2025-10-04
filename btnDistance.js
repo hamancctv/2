@@ -1,4 +1,4 @@
-// btnDistance.js — 거리재기(분기점 흰원/빨간테두리 + 구간 박스 + 우상단 총거리),
+// btnDistance.js — 거리재기(분기점 흰원/빨간테두리 + 구간 박스 위로 + 우하단 총거리),
 // 툴바에 자동 삽입(로드뷰 버튼 바로 아래), 토글 OFF 시 모두 초기화
 (function () {
   console.log("[btnDistance] loaded");
@@ -18,13 +18,13 @@
     return;
   }
 
-  // 기본 버튼 스타일이 없을 경우를 대비해 최소 스타일 주입
-  if (!document.getElementById("btnDistance-fallback-style")) {
+  // 툴바 가드(일렬 + 간격)
+  if (!document.getElementById("btnDistance-toolbar-style")) {
     const st = document.createElement("style");
-    st.id = "btnDistance-fallback-style";
+    st.id = "btnDistance-toolbar-style";
     st.textContent = `
-      /* 툴바 버튼 공통(없을 때용 최소치) */
       .toolbar { display:flex; flex-direction:column; gap:8px; }
+      /* 버튼 공통 최소치(페이지에 이미 있으면 그대로 사용) */
       #btnDistance {
         width:40px; height:40px;
         display:inline-flex; align-items:center; justify-content:center;
@@ -44,26 +44,26 @@
   if (!btn) {
     btn = document.createElement("button");
     btn.id = "btnDistance";
-    // 페이지에 .btn-satellite가 있다면 재사용(크기/간격 동일), 없으면 fallback 스타일이 적용됨
-    btn.className = (document.querySelector(".btn-satellite") ? "btn-satellite" : "");
+    // .btn-satellite 스타일이 있으면 재사용(크기/간격 통일)
+    if (document.querySelector(".btn-satellite")) btn.className = "btn-satellite";
     btn.title = "거리 재기";
     btn.setAttribute("aria-pressed", "false");
     btn.innerHTML =
       `<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;">
          <path d="M3 17l1.5 1.5L7 16l-2-2-2 3zm3-3l3 3 8.5-8.5-3-3L6 11zm10-8l3 3 1-1a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-1 1z"/>
        </svg>`;
-
-    // 로드뷰 버튼 바로 아래에 삽입 (일렬, 동일 간격)
-    const rvBtn = toolbar.querySelector("#roadviewControl");
-    if (rvBtn && rvBtn.nextSibling) {
-      toolbar.insertBefore(btn, rvBtn.nextSibling);
-    } else if (rvBtn) {
-      toolbar.appendChild(btn);
-    } else {
-      // 로드뷰 버튼이 없으면 맨 끝
-      toolbar.appendChild(btn);
-    }
+    toolbar.appendChild(btn);
   }
+
+  // 버튼 위치를 로드뷰 버튼(#roadviewControl) 바로 아래로 강제
+  (function placeButton() {
+    const rvBtn = toolbar.querySelector("#roadviewControl");
+    if (!rvBtn) return; // 없으면 현재 위치 유지
+    if (btn.previousElementSibling === rvBtn) return; // 이미 아래면 패스
+    // 로드뷰 버튼 다음으로 이동
+    if (rvBtn.nextSibling) toolbar.insertBefore(btn, rvBtn.nextSibling);
+    else toolbar.appendChild(btn);
+  })();
 
   // --- 측정 UI 스타일(점/구간/총거리) 주입(한 번만) ---
   if (!document.getElementById("btnDistance-style")) {
@@ -78,7 +78,7 @@
         border-radius: 50%;
         box-shadow: 0 0 0 1px rgba(0,0,0,.06);
       }
-      /* 구간 박스(각 클릭 지점) */
+      /* 구간 박스(각 클릭 지점) — 점과 안 겹치게 위로 띄움 */
       .km-seg {
         background:#fff;
         color:#e53935;
@@ -89,10 +89,11 @@
         font-weight:600;
         white-space:nowrap;
         box-shadow:0 2px 6px rgba(0,0,0,.12);
+        margin-bottom: 14px; /* ← yAnchor:1이라 점 기준 위로 14px 띄움 */
       }
-      /* 총거리 박스(지도 우상단 고정, 노란색) */
+      /* 총거리 박스(지도 우하단 고정, 노란색) */
       .km-total-box {
-        position: absolute; right: 8px; top: 8px;
+        position: absolute; right: 8px; bottom: 8px;  /* ← 우하단 */
         z-index: 660;
         background: #ffeb3b;
         color: #222;
@@ -118,7 +119,7 @@
   let clickLine = null;               // 확정 경로 polyline
   let dots = [];                      // 분기점 점(CustomOverlay) 목록
   let segOverlays = [];               // 구간 박스(CustomOverlay) 목록
-  let totalBoxEl = null;              // 총거리 고정 박스(우상단)
+  let totalBoxEl = null;              // 총거리 고정 박스(우하단)
   let segCount = 0;
 
   const mapWrapper = document.getElementById("mapWrapper");
@@ -161,7 +162,7 @@
     dots.push(dot);
   }
 
-  // --- 구간 박스 추가 ---
+  // --- 구간 박스 추가(점 위로) ---
   function addSegmentBox(position, text) {
     const el = document.createElement("div");
     el.className = "km-seg";
@@ -169,7 +170,7 @@
     const seg = new kakao.maps.CustomOverlay({
       position,
       content: el,
-      yAnchor: 1,
+      yAnchor: 1,    // 앵커 하단이 지점에 붙음 → margin-bottom으로 위로 띄움
       zIndex: 5200
     });
     seg.setMap(map);
@@ -215,10 +216,10 @@
       const segLine = new kakao.maps.Polyline({ path: [prev, pos] });
       const dist = Math.round(segLine.getLength());
       segCount += 1;
-      addSegmentBox(pos, `구간 ${segCount}: ${fmt(dist)}m`);
+      addSegmentBox(pos, `구간 ${segCount}: ${fmt(dist)}m`);  // ← 점 위로
       addDot(pos);
     }
-    ensureTotalBox();
+    ensureTotalBox();   // 우하단 고정 박스
     updateTotalBox();
   }
 
