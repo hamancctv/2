@@ -16,17 +16,17 @@
   position:absolute; top:12px; left:50%; transform:translateX(-50%);
   width:min(520px,90vw); z-index:600;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
-
-  /* ✅ 터치 제스처 차단 */
+}
+.gx-suggest-search,
+.gx-suggest-box {
+  /* ✅ 드래그/핀치 차단 */
   touch-action: none;
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
 }
-.gx-suggest-search,
-.gx-suggest-box {
-  touch-action: none;
-  -webkit-user-drag: none;
-  -webkit-touch-callout: none;
+.gx-suggest-search .gx-input {
+  /* ✅ 입력창은 키보드 동작 가능 */
+  touch-action: auto;
 }
 
 /* ====== 검색바 ====== */
@@ -112,13 +112,13 @@
     root.appendChild(box);
     parent.appendChild(root);
 
-    /* ✅ 입력창/제안창 터치 제스처 방지 (JS 보강) */
+    /* ✅ JS 보강: 핀치줌/제스처 차단 */
     [input, box].forEach(el => {
       el.addEventListener('touchstart', e => {
         if (e.touches.length > 1) e.preventDefault(); // 핀치줌 방지
       }, { passive:false });
-      el.addEventListener('gesturestart', e => e.preventDefault()); // iOS Safari 전용
     });
+    document.addEventListener('gesturestart', e => e.preventDefault(), { passive:false });
 
     return { root, input, box };
   }
@@ -320,12 +320,7 @@
 
     /* ----- 지도 이벤트: 클릭 / 드래그 ----- */
     if (map) {
-      // 지도 클릭 → 입력창 blur + 제안창 닫기
-      kakao.maps.event.addListener(map, 'click', () => {
-        input.blur();
-        closeBox();
-      });
-      // 지도 드래그 → 입력창 blur만 (제안창 유지)
+      kakao.maps.event.addListener(map, 'click', () => { input.blur(); closeBox(); });
       kakao.maps.event.addListener(map, 'dragstart', () => { input.blur(); });
       kakao.maps.event.addListener(map, 'drag',      () => { input.blur(); });
       kakao.maps.event.addListener(map, 'dragend',   () => { input.blur(); });
