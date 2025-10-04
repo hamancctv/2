@@ -1,9 +1,8 @@
-// btnDistance.js — 거리재기(분기점 흰원/빨간테두리 + 구간 박스 위로 + 우하단 총거리),
-// 툴바에 자동 삽입(로드뷰 버튼 바로 아래), 토글 OFF 시 모두 초기화
+// btnDistance.js — 거리재기(점 위 구간박스 + 점 아래 총거리박스), 
+// 툴바 정렬/토글 OFF 시 전부 초기화
 (function () {
   console.log("[btnDistance] loaded");
 
-  // --- 안전 가드 ---
   const mapExists = () =>
     typeof window !== "undefined" &&
     window.map &&
@@ -11,20 +10,16 @@
     kakao.maps &&
     typeof kakao.maps.Polyline === "function";
 
-  // --- 툴바/버튼 준비(없으면 생성 + 스타일 주입) ---
+  // --- 툴바/버튼 준비 ---
   const toolbar = document.querySelector(".toolbar");
-  if (!toolbar) {
-    console.log("[btnDistance] no .toolbar found, disabled");
-    return;
-  }
+  if (!toolbar) { console.log("[btnDistance] no .toolbar found, disabled"); return; }
 
-  // 툴바 가드(일렬 + 간격)
+  // 툴바 간격 보정 + 버튼 기본 스타일(필요 시)
   if (!document.getElementById("btnDistance-toolbar-style")) {
     const st = document.createElement("style");
     st.id = "btnDistance-toolbar-style";
     st.textContent = `
       .toolbar { display:flex; flex-direction:column; gap:8px; }
-      /* 버튼 공통 최소치(페이지에 이미 있으면 그대로 사용) */
       #btnDistance {
         width:40px; height:40px;
         display:inline-flex; align-items:center; justify-content:center;
@@ -39,12 +34,10 @@
     document.head.appendChild(st);
   }
 
-  // 버튼 DOM 확보/생성
   let btn = document.getElementById("btnDistance");
   if (!btn) {
     btn = document.createElement("button");
     btn.id = "btnDistance";
-    // .btn-satellite 스타일이 있으면 재사용(크기/간격 통일)
     if (document.querySelector(".btn-satellite")) btn.className = "btn-satellite";
     btn.title = "거리 재기";
     btn.setAttribute("aria-pressed", "false");
@@ -55,17 +48,16 @@
     toolbar.appendChild(btn);
   }
 
-  // 버튼 위치를 로드뷰 버튼(#roadviewControl) 바로 아래로 강제
+  // 로드뷰 버튼 바로 아래에 위치 고정
   (function placeButton() {
     const rvBtn = toolbar.querySelector("#roadviewControl");
-    if (!rvBtn) return; // 없으면 현재 위치 유지
-    if (btn.previousElementSibling === rvBtn) return; // 이미 아래면 패스
-    // 로드뷰 버튼 다음으로 이동
+    if (!rvBtn) return;
+    if (btn.previousElementSibling === rvBtn) return;
     if (rvBtn.nextSibling) toolbar.insertBefore(btn, rvBtn.nextSibling);
     else toolbar.appendChild(btn);
   })();
 
-  // --- 측정 UI 스타일(점/구간/총거리) 주입(한 번만) ---
+  // --- 측정 UI 스타일 ---
   if (!document.getElementById("btnDistance-style")) {
     const style = document.createElement("style");
     style.id = "btnDistance-style";
@@ -78,7 +70,7 @@
         border-radius: 50%;
         box-shadow: 0 0 0 1px rgba(0,0,0,.06);
       }
-      /* 구간 박스(각 클릭 지점) — 점과 안 겹치게 위로 띄움 */
+      /* 구간 박스(점 위로, 간섭 최소) */
       .km-seg {
         background:#fff;
         color:#e53935;
@@ -89,12 +81,10 @@
         font-weight:600;
         white-space:nowrap;
         box-shadow:0 2px 6px rgba(0,0,0,.12);
-        margin-bottom: 14px; /* ← yAnchor:1이라 점 기준 위로 14px 띄움 */
+        margin-bottom: 14px; /* 점과의 간격 */
       }
-      /* 총거리 박스(지도 우하단 고정, 노란색) */
+      /* 총거리 박스(점 아래로, 구간 박스와 동일 간격) */
       .km-total-box {
-        position: absolute; right: 8px; bottom: 8px;  /* ← 우하단 */
-        z-index: 660;
         background: #ffeb3b;
         color: #222;
         border: 1px solid #e0c200;
@@ -102,9 +92,10 @@
         padding: 6px 10px;
         font-size: 13px; font-weight: 700;
         box-shadow: 0 2px 8px rgba(0,0,0,.15);
-        pointer-events: none; /* 간섭 방지 */
+        pointer-events: none; /* 클릭 간섭 방지 */
+        margin-top: 14px;     /* 점과의 간격(구간 박스와 동일) */
+        white-space:nowrap;
       }
-      /* 버튼 토글 비주얼(클래스 직접 지정 케이스용) */
       #btnDistance.active {
         border-color:#007aff;
         box-shadow:0 0 0 2px rgba(0,122,255,.15) inset;
@@ -116,38 +107,43 @@
 
   // --- 내부 상태 ---
   let drawing = false;
-  let clickLine = null;               // 확정 경로 polyline
-  let dots = [];                      // 분기점 점(CustomOverlay) 목록
-  let segOverlays = [];               // 구간 박스(CustomOverlay) 목록
-  let totalBoxEl = null;              // 총거리 고정 박스(우하단)
+  let clickLine = null;        // 확정 경로 polyline
+  let dots = [];               // 분기점 점(CustomOverlay) 목록
+  let segOverlays = [];        // 구간 박스(CustomOverlay) 목록
+  let totalOverlay = null;     // 총거리 박스(CustomOverlay, 마지막 점 아래)
   let segCount = 0;
 
-  const mapWrapper = document.getElementById("mapWrapper");
   const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-  // --- 총거리 박스 생성/업데이트/숨김 ---
-  function ensureTotalBox() {
-    if (!totalBoxEl) {
-      totalBoxEl = document.createElement("div");
-      totalBoxEl.className = "km-total-box";
-      totalBoxEl.style.display = "none";
-      (mapWrapper || document.body).appendChild(totalBoxEl);
+  // 총거리 오버레이 생성/업데이트/제거
+  function ensureTotalOverlay(position) {
+    if (!totalOverlay) {
+      const el = document.createElement("div");
+      el.className = "km-total-box";
+      el.textContent = "총 거리: 0 m";
+      totalOverlay = new kakao.maps.CustomOverlay({
+        position,
+        content: el,
+        xAnchor: 0.5,
+        yAnchor: 0,   // 점 ‘아래’에 붙음
+        zIndex: 5300
+      });
+    } else {
+      totalOverlay.setPosition(position);
     }
-    totalBoxEl.style.display = "block";
+    totalOverlay.setMap(map);
   }
-  function hideTotalBox() {
-    if (totalBoxEl) totalBoxEl.style.display = "none";
+  function updateTotalOverlayText() {
+    if (!totalOverlay) return;
+    const m = clickLine ? Math.round(clickLine.getLength()) : 0;
+    const text = m >= 1000 ? `총 거리: ${(m/1000).toFixed(2)} km` : `총 거리: ${fmt(m)} m`;
+    totalOverlay.getContent().textContent = text;
   }
-  function updateTotalBox() {
-    if (!totalBoxEl) return;
-    if (!clickLine) { totalBoxEl.textContent = "총 거리: 0 m"; return; }
-    const m = Math.round(clickLine.getLength());
-    totalBoxEl.textContent = m >= 1000
-      ? `총 거리: ${(m/1000).toFixed(2)} km`
-      : `총 거리: ${fmt(m)} m`;
+  function removeTotalOverlay() {
+    if (totalOverlay) { try { totalOverlay.setMap(null);} catch(_){} totalOverlay = null; }
   }
 
-  // --- 점(분기점) 추가 ---
+  // 점(분기점)
   function addDot(position) {
     const el = document.createElement("div");
     el.className = "km-dot";
@@ -162,7 +158,7 @@
     dots.push(dot);
   }
 
-  // --- 구간 박스 추가(점 위로) ---
+  // 구간 박스(점 위)
   function addSegmentBox(position, text) {
     const el = document.createElement("div");
     el.className = "km-seg";
@@ -170,14 +166,14 @@
     const seg = new kakao.maps.CustomOverlay({
       position,
       content: el,
-      yAnchor: 1,    // 앵커 하단이 지점에 붙음 → margin-bottom으로 위로 띄움
+      yAnchor: 1,    // 아래쪽이 점에 붙음 → margin-bottom으로 위로 띄움
       zIndex: 5200
     });
     seg.setMap(map);
     segOverlays.push(seg);
   }
 
-  // --- 초기화/리셋(모든 요소 제거) ---
+  // 초기화
   function resetMeasure() {
     if (clickLine) { clickLine.setMap(null); clickLine = null; }
     dots.forEach(d => { try { d.setMap(null); } catch(_){} });
@@ -185,16 +181,15 @@
     segOverlays.forEach(o => { try { o.setMap(null); } catch(_){} });
     segOverlays = [];
     segCount = 0;
-    hideTotalBox();
+    removeTotalOverlay();
   }
 
-  // --- 지도 클릭 처리(분기점 생성/선연장/표시) ---
+  // 지도 클릭 → 점/선/구간/총거리
   function onMapClick(mouseEvent) {
     if (!drawing || !mapExists()) return;
     const pos = mouseEvent.latLng;
 
     if (!clickLine) {
-      // 첫 점
       clickLine = new kakao.maps.Polyline({
         map: map,
         path: [pos],
@@ -204,26 +199,26 @@
         strokeStyle: 'solid'
       });
       addDot(pos);
-      segCount = 0; // 첫 점은 구간 생성 전
+      segCount = 0;
     } else {
-      // 다음 점 → 구간 생성
       const path = clickLine.getPath();
       const prev = path[path.length - 1];
       path.push(pos);
       clickLine.setPath(path);
 
-      // 구간 길이 계산
       const segLine = new kakao.maps.Polyline({ path: [prev, pos] });
       const dist = Math.round(segLine.getLength());
       segCount += 1;
-      addSegmentBox(pos, `구간 ${segCount}: ${fmt(dist)}m`);  // ← 점 위로
+      addSegmentBox(pos, `구간 ${segCount}: ${fmt(dist)}m`);
       addDot(pos);
     }
-    ensureTotalBox();   // 우하단 고정 박스
-    updateTotalBox();
+
+    // 총거리 박스: 마지막 점 ‘바로 아래’에 표시
+    ensureTotalOverlay(pos);
+    updateTotalOverlayText();
   }
 
-  // --- 토글 ---
+  // 토글
   btn.addEventListener('click', function toggleMeasure() {
     if (!mapExists()) {
       console.warn("[btnDistance] map not ready yet");
