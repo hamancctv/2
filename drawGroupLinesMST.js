@@ -1,7 +1,7 @@
-// drawGroupLinesMSTButton.js — 그룹별 MST 토글 버튼 (거리재기 아래, 견고한 거리계산/그룹검증/배치)
-// v2025-10-robust
+// drawGroupLinesMSTButton.js — 그룹별 MST 토글 버튼 (거리재기 아래, Lat/Lng 숫자만 사용)
+// v2025-10-robust-NUMERIC
 (function () {
-  console.log("[MST] loader start");
+  console.log("[MST] loader start (numeric-only)");
 
   // ===== 유틸 =====
   const mapReady = () =>
@@ -11,15 +11,14 @@
     kakao.maps &&
     typeof kakao.maps.Polyline === "function";
 
-  // 두 LatLng 간 거리(m) - 하버사인
-  function getDistance(latlng1, latlng2) {
+  // 하버사인 (숫자 위도/경도)
+  function getDistanceLL(lat1, lng1, lat2, lng2) {
     const R = 6371000; // m
     const toRad = Math.PI / 180;
-    const lat1 = latlng1.getLat() * toRad;
-    const lat2 = latlng2.getLat() * toRad;
-    const dLat = (lat2 - lat1);
-    const dLng = (latlng2.getLng() - latlng1.getLng()) * toRad;
-    const a = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+    const φ1 = lat1 * toRad, φ2 = lat2 * toRad;
+    const dφ = (lat2 - lat1) * toRad;
+    const dλ = (lng2 - lng1) * toRad;
+    const a = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
@@ -37,15 +36,14 @@
       #btnGroupMST svg path{ stroke:#555;stroke-width:2.4;fill:none;transition:all .2s ease; }
       #btnGroupMST.active{ border-color:#db4040;background:#fff !important; }
       #btnGroupMST.active svg path{ stroke:#db4040;stroke-width:3; }
-      /* fallback 배치용 (거리재기 버튼이 없을 때만 아래 규칙 적용) */
-      #btnGroupMST.__fallback{
-        position:fixed; top:200px; left:10px; z-index:350;
-      }
+
+      /* 거리재기 버튼을 못 찾을 때만 고정 배치 */
+      #btnGroupMST.__fallback{ position:fixed; top:200px; left:10px; z-index:340; }
     `;
     document.head.appendChild(st);
   }
 
-  // ===== 버튼 생성 & 배치 (거리재기 버튼 바로 아래) =====
+  // ===== 버튼 생성 & 배치 (btnDistance 바로 아래) =====
   let btn = document.getElementById("btnGroupMST");
   if (!btn) {
     btn = document.createElement("button");
@@ -53,17 +51,13 @@
     btn.title = "그룹 최소거리 연결";
     btn.innerHTML = `
       <svg viewBox="0 0 36 36" aria-hidden="true">
-        <!-- 간단한 트리형 아이콘 -->
         <path d="M8 26 L18 10 L28 26 M18 10 L18 26" />
       </svg>
     `;
-
-    // 거리재기 버튼 바로 뒤에 꽂기 (같은 컨테이너 내)
     const distBtn = document.getElementById("btnDistance");
     if (distBtn && distBtn.parentElement) {
       distBtn.parentElement.insertBefore(btn, distBtn.nextSibling);
     } else {
-      // 컨테이너를 못 찾으면 안전한 fallback: 화면 고정
       btn.classList.add("__fallback");
       document.body.appendChild(btn);
     }
@@ -76,41 +70,42 @@
   function buildGroups(markers) {
     const groups = {};
     for (const m of markers) {
-      // kakao.maps.Marker 여야 함 (getPosition 존재)
-      if (!m || typeof m.getPosition !== "function") continue;
+      // 숫자 좌표 필수
+      const lat = m.__lat ?? (typeof m.getPosition === "function" ? m.getPosition().getLat?.() : undefined);
+      const lng = m.__lng ?? (typeof m.getPosition === "function" ? m.getPosition().getLng?.() : undefined);
+      if (typeof lat !== "number" || typeof lng !== "number") continue;
 
       let g = null;
-      // 커스텀 핸들러에서 marker.group을 세팅한 경우
       if (m.group != null) g = String(m.group);
-      // 백업: line 속성을 그룹으로 쓸 수 있게
       else if (m.line != null) g = String(m.line);
-
       if (!g || !g.trim()) continue;
 
-      const key = g.replace(/[-\s]/g, ""); // 하이픈/공백 제거 동일화
+      const key = g.replace(/[-\s]/g, "");
       if (!groups[key]) groups[key] = [];
+      // 최소 정보 캐시 (숫자만 사용)
+      if (m.__lat === undefined) m.__lat = lat;
+      if (m.__lng === undefined) m.__lng = lng;
       groups[key].push(m);
     }
     return groups;
   }
 
-  // ===== MST 생성 (Prim) =====
-  function createMSTLinesForGroup(map, groupMarkers) {
-    // n 개면 n-1개 선
-    const n = groupMarkers.length;
+  // ===== MST 생성 (Prim, 숫자좌표 기반) =====
+  function createMSTLinesForGroup(map, list) {
+    const n = list.length;
     if (n < 2) return 0;
 
-    // 방문 집합 (연결된 마커)
-    const connected = [groupMarkers[0]];
+    const connected = [list[0]];
     let created = 0;
 
     while (connected.length < n) {
       let minEdge = null;
 
       for (const cm of connected) {
-        for (const tm of groupMarkers) {
+        for (const tm of list) {
           if (connected.includes(tm)) continue;
-const d = getDistance(cm.__pos || cm.getPosition(), tm.__pos || tm.getPosition());
+
+          const d = getDistanceLL(cm.__lat, cm.__lng, tm.__lat, tm.__lng);
           if (!minEdge || d < minEdge.dist) {
             minEdge = { from: cm, to: tm, dist: d };
           }
@@ -119,9 +114,12 @@ const d = getDistance(cm.__pos || cm.getPosition(), tm.__pos || tm.getPosition()
 
       if (!minEdge) break;
 
+      const p1 = new kakao.maps.LatLng(minEdge.from.__lat, minEdge.from.__lng);
+      const p2 = new kakao.maps.LatLng(minEdge.to.__lat, minEdge.to.__lng);
+
       const line = new kakao.maps.Polyline({
         map,
-        path: [minEdge.from.getPosition(), minEdge.to.getPosition()],
+        path: [p1, p2],
         strokeWeight: 4,
         strokeColor: "#db4040",
         strokeOpacity: 0.9,
@@ -156,7 +154,7 @@ const d = getDistance(cm.__pos || cm.getPosition(), tm.__pos || tm.getPosition()
     const groups = buildGroups(markers);
     const keys = Object.keys(groups);
     if (keys.length === 0) {
-      console.warn("[MST] no groups found on markers (need marker.group or marker.line)");
+      console.warn("[MST] no groups found on markers (need marker.group or marker.line, plus __lat/__lng)");
       return;
     }
 
@@ -167,16 +165,13 @@ const d = getDistance(cm.__pos || cm.getPosition(), tm.__pos || tm.getPosition()
       totalLines += createMSTLinesForGroup(map, arr);
     }
     console.log(`[MST] groups: ${keys.length}, lines created: ${totalLines}`);
-    if (totalLines === 0) {
-      console.warn("[MST] no MST lines created (check group sizes)");
-    }
+    if (totalLines === 0) console.warn("[MST] no MST lines created (check group sizes and __lat/__lng)");
   }
 
   // ===== 버튼 토글 =====
   btn.addEventListener("click", () => {
-    if (!mapReady()) return;
+    if (!mapReady()) { console.warn("[MST] map not ready"); return; }
     const on = btn.classList.toggle("active");
-    // on이면 그리기, off면 제거
     if (on) drawMSTAllGroups();
     else {
       for (const ln of window.groupLines) { try { ln.setMap(null); } catch(e){} }
@@ -185,5 +180,5 @@ const d = getDistance(cm.__pos || cm.getPosition(), tm.__pos || tm.getPosition()
     }
   });
 
-  console.log("[MST] ready");
+  console.log("[MST] ready (numeric)");
 })();
