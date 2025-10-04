@@ -1,4 +1,6 @@
-/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 대응 + Enter/Click 이동 & 원 표시 + Lightweight TAB Trap) ===== */
+/* ===== search-suggest.js (DOM + CSS 자동 생성, Safari 대응 + Enter/Click 이동 & 원 표시) =====
+   ※ TAB 트랩(포커스 제어) 전부 제거한 버전
+*/
 (function () {
   /* ---------- 유틸 ---------- */
   function normalizeText(s) { return (s || '').toString().trim(); }
@@ -39,6 +41,7 @@
   border-color:#4a90e2; box-shadow:0 0 0 2px rgba(74,144,226,0.2);
 }
 .gx-suggest-search .gx-btn{ display:none; }
+
 .gx-suggest-box{
   position:absolute; top:52px; left:0; width:100%;
   max-height:45vh; overflow:auto; -webkit-overflow-scrolling:touch;
@@ -47,14 +50,17 @@
   transition:opacity .25s ease, transform .25s ease;
 }
 .gx-suggest-box.open{ opacity:1; pointer-events:auto; transform:translateY(0); }
+
 .gx-suggest-item{ padding:12px 16px; cursor:pointer; display:flex; flex-direction:column;
   align-items:flex-start; gap:4px; border-bottom:1px solid #f0f0f0; transition:background .2s ease; }
 .gx-suggest-item:last-child{ border-bottom:none; }
 .gx-suggest-item:hover, .gx-suggest-item.active{ background:#d9e9ff; }
+
 .gx-suggest-title{ font-weight:600; font-size:15px; color:#222; line-height:1.3;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .gx-suggest-sub{ font-size:13px; color:#666; line-height:1.4; display:flex; flex-wrap:wrap; gap:6px; }
 .gx-suggest-sub span{ white-space:nowrap; }
+
 .gx-suggest-root.is-hidden{ display:none !important; }
     `.trim();
     const tag = document.createElement('style');
@@ -303,49 +309,5 @@
       const update=()=>{const on=container.classList.contains('view_roadview'); if(on){root.classList.add('is-hidden');closeBox();}else root.classList.remove('is-hidden');};
       update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
     }
-
-    /* ===== Lightweight TAB Trap =====
-       - DOM을 건드리지 않고 keydown만 가로채서 토글
-       - 기본: 차단(on). Tab을 누르면 허용(off). 다시 누르면 차단(on).
-       - 차단 상태에선 검색 input에서만 Tab 허용, 그 외는 블록 */
-    (function setupTabTrap(){
-      const container = parent.closest('#container') || document.getElementById('container') || document.body;
-      if (!container) return;
-
-      let trapOn = true; // 기본 차단
-
-      document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Tab') return;
-        if (!container.contains(e.target)) return;
-
-        // 매번 Tab 누를 때마다 토글
-        trapOn = !trapOn;
-
-        if (trapOn) {
-          // 이제 차단 모드: 인풋 외에는 Tab 이동 막고, 포커스 인풋으로
-          if (e.target !== input) {
-            e.preventDefault();
-            try { input.focus(); } catch(_) {}
-          } else {
-            // 인풋에서 Tab 눌러도 차단 전환 직후엔 머무르게
-            e.preventDefault();
-          }
-        } else {
-          // 허용 모드: 기본 동작 그대로(포커스 자연 이동)
-          // nothing
-        }
-      }, true);
-
-      // 차단 모드일 땐 인풋 외 요소에서 Tab을 아예 못 나가게 보조 가드
-      document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Tab') return;
-        if (!container.contains(e.target)) return;
-        if (!trapOn) return;         // 허용 모드면 패스
-        if (e.target === input) return; // 인풋이면 허용(위 토글 로직이 이미 막음)
-        e.preventDefault();
-        try { input.focus(); } catch(_) {}
-      }, true);
-    })();
-
   };
 })();
