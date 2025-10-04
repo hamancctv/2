@@ -291,4 +291,262 @@ MapWalker.prototype.setAngle = function(angle){
   const a = ((angle % 360) + 360) % 360;
   const idx = Math.floor(((a + 11.25) % 360) / 22.5); // 0..15
   // pick 클래스 유지
-  this.content.className = 'MapWalker
+  this.content.className = 'MapWalker m' + idx + (this.content.classList.contains('pick') ? ' pick' : '');
+};
+MapWalker.prototype.setPosition = function(position){
+  this.position = position;
+  this.walker.setPosition(position);
+};
+MapWalker.prototype.setMap = function(theMap){
+  this.walker.setMap(theMap);
+};
+
+/* 🔎 가장 가까운 로드뷰 panoId 찾기 */
+function findNearestPanoId(position, cb, radii=[50,100,200,400,800,1600,3000]) {
+  let i = 0;
+  (function tryNext(){
+    if (i >= radii.length) return cb(null);
+    rvClient.getNearestPanoId(position, radii[i], function(panoId){
+      if (panoId) return cb(panoId);
+      i++; tryNext();
+    });
+  })();
+}
+
+/* 🔔 토스트 */
+function flash(msg) {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText =
+    'position:fixed;left:50%;top:14px;transform:translateX(-50%);' +
+    'background:rgba(0,0,0,.85);color:#fff;padding:8px 12px;border-radius:8px;' +
+    'font-size:13px;z-index:9999;pointer-events:none';
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; }, 1100);
+  setTimeout(()=> el.remove(), 1500);
+}
+
+/* ✅ 로드뷰 위치 세팅 */
+function setRoadviewAt(position){
+  const container = document.getElementById('container');
+  findNearestPanoId(position, function(panoId){
+    if (!panoId) {
+      flash('근처에 로드뷰가 없어요');
+      try { map.setCenter(position); } catch(e){}
+      try { if (mapWalker) mapWalker.setPosition(position); } catch(e){}
+      return;
+    }
+    if (!container.classList.contains('view_roadview')) {
+      container.classList.add('view_roadview');
+      map.relayout();
+    }
+    try { map.setCenter(position); } catch(e){}
+    try { if (mapWalker) mapWalker.setPosition(position); } catch(e){}
+    rv.setPanoId(panoId, position);
+  });
+}
+
+/* 로드뷰 오버레이 토글 */
+function toggleOverlay(active){
+  const btn = document.getElementById('roadviewControl');
+  if(active){
+    overlayOn = true;
+    btn.classList.add('active');
+    map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+
+    if (!mapWalker){
+      mapWalker = new MapWalker(map.getCenter());
+      mapWalker.setMap(map);
+    } else {
+      mapWalker.setPosition(map.getCenter());
+      mapWalker.setMap(map);
+    }
+    setRoadviewAt(map.getCenter());
+  }else{
+    overlayOn = false;
+    pickMode  = false;
+    btn.classList.remove('active');
+    map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+    if(mapWalker) { mapWalker.content.classList.remove('pick'); mapWalker.setMap(null); }
+    document.getElementById('container').classList.remove('view_roadview');
+    map.relayout();
+  }
+}
+
+/* 초기화 */
+kakao.maps.load(function(){
+  const center = new kakao.maps.LatLng(35.2725308711779, 128.406307024695);
+  map = new kakao.maps.Map(document.getElementById('map'), { center, level:4 });
+  map.setMaxLevel(9);
+
+  geocoder = new kakao.maps.services.Geocoder();
+  places   = new kakao.maps.services.Places();
+  rvClient = new kakao.maps.RoadviewClient();
+  rv       = new kakao.maps.Roadview(document.getElementById('roadview'));
+
+  // 로드뷰 시선(회전) → 동동이 프레임 반영
+  kakao.maps.event.addListener(rv, 'viewpoint_changed', function(){
+    if(!overlayOn || !mapWalker) return;
+    const vp = rv.getViewpoint(); // {pan,tilt,zoom}
+    mapWalker.setAngle(vp.pan);
+  });
+  // 로드뷰 위치 ↔ 지도/동동이 싱크
+  kakao.maps.event.addListener(rv, 'position_changed', function(){
+    if(!overlayOn) return;
+    const pos = rv.getPosition();
+    map.setCenter(pos);
+    if(mapWalker) mapWalker.setPosition(pos);
+  });
+
+  // 지도 클릭 → (이동 모드면 그 위치로) 로드뷰 이동
+  kakao.maps.event.addListener(map, 'click', function(e){
+    if(!overlayOn) return;
+    const pos = e.latLng;
+    if (pickMode && mapWalker) {
+      mapWalker.setPosition(pos);
+      mapWalker.content.classList.remove('pick');
+      pickMode = false;
+    }
+    setRoadviewAt(pos);
+  });
+
+  // 로드뷰 버튼
+  document.getElementById('roadviewControl').addEventListener('click', ()=> toggleOverlay(!overlayOn));
+  // 닫기 버튼
+  document.getElementById('close').addEventListener('click', ()=> toggleOverlay(false));
+
+  // 위성뷰 토글
+  const btnSat = document.getElementById('btnSatellite');
+  btnSat.addEventListener('click', ()=>{
+    if(map.getMapTypeId() === kakao.maps.MapTypeId.ROADMAP){
+      map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+      btnSat.classList.add('selected');
+    }else{
+      map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
+      btnSat.classList.remove('selected');
+    }
+  });
+
+  /* ===== 기존 외부 스크립트 연동 ===== */
+  if (window.SEL_SUGGEST && typeof initMarkers === 'function') {
+    const unique = new Map();
+    const positionsLike = [];
+    for (const it of window.SEL_SUGGEST) {
+      const lat = parseFloat(it.lat), lng = parseFloat(it.lng);
+      if (!isFinite(lat) || !isFinite(lng)) continue;
+      const key = lat + ',' + lng;
+      if (unique.has(key)) continue;
+      unique.set(key, true);
+      positionsLike.push({
+        latlng: new kakao.maps.LatLng(lat, lng),
+        content: it.name1 || it.name || '',
+        searchName: it.name2 || it.name || '',
+        group: it.line || null
+      });
+    }
+    initMarkers(map, positionsLike);
+  }
+
+  if (typeof initSuggestUI === 'function') {
+    initSuggestUI({
+      map,
+      data: window.SEL_SUGGEST || [],
+      parent: document.getElementById('mapWrapper'),
+      getMarkers: () => window.markers,
+      badges: ['line','encloser','addr','ip'],
+      maxItems: 30,
+      chooseOnEnter: true,
+      openOnFocus: true
+    });
+  }
+
+  /* ===== 미니맵(로드뷰시) 크기 조절: 위/오른쪽으로 끌수록 커짐 ===== */
+  (function setupMiniMapResizer(){
+    const container = document.getElementById('container');
+    const wrapper   = document.getElementById('mapWrapper');
+    const handle    = wrapper.querySelector('.rv-resizer');
+
+    const MIN_W = 200, MIN_H = 150;
+    const clamp = (v,min,max)=>Math.max(min,Math.min(v,max));
+    function maxW(){ return Math.min(window.innerWidth*0.9, 900); }
+    function maxH(){ return Math.min(window.innerHeight*0.9,700); }
+
+    function loadSize(){
+      try{
+        const saved = JSON.parse(localStorage.getItem('rvMiniSize')||'{}');
+        if (saved && saved.w && saved.h) {
+          wrapper.style.width  = saved.w + 'px';
+          wrapper.style.height = saved.h + 'px';
+          map.relayout();
+        }
+      }catch(e){}
+    }
+    function saveSize(w,h){
+      try{ localStorage.setItem('rvMiniSize', JSON.stringify({w:Math.round(w), h:Math.round(h)})); }catch(e){}
+    }
+
+    let startX, startY, startW, startH, curW, curH, active=false, rafId=null;
+
+    function applySize(){
+      rafId = null;
+      if (curW && curH){
+        wrapper.style.width  = curW + 'px';
+        wrapper.style.height = curH + 'px';
+        map.relayout();
+      }
+    }
+    function onDown(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      const t = ev.touches ? ev.touches[0] : ev;
+      startX = t.clientX; startY = t.clientY;
+      const r = wrapper.getBoundingClientRect();
+      startW = r.width; startH = r.height;
+      active = true;
+      document.addEventListener('mousemove', onMove, {passive:false});
+      document.addEventListener('mouseup',   onUp,   {passive:false});
+      document.addEventListener('touchmove', onMove, {passive:false});
+      document.addEventListener('touchend',  onUp,   {passive:false});
+    }
+    function onMove(ev){
+      if (!active) return;
+      ev.preventDefault();
+      const t = ev.touches ? ev.touches[0] : ev;
+      const dx = (t.clientX - startX);
+      const dy = (t.clientY - startY);
+      // bottom-left 고정: 오른쪽(+dx) & 위쪽(-dy)로 키움
+      curW = clamp(startW + dx, MIN_W, maxW());
+      curH = clamp(startH - dy, MIN_H, maxH());
+      if (!rafId) rafId = requestAnimationFrame(applySize);
+    }
+    function onUp(ev){
+      if(!active) return;
+      ev.preventDefault();
+      active=false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend',  onUp);
+      if (curW && curH) saveSize(curW, curH);
+    }
+    handle.addEventListener('mousedown',  onDown, {passive:false});
+    handle.addEventListener('touchstart', onDown, {passive:false});
+
+    // 로드뷰 진입/종료에 따라 크기 적용/복원
+    const mo = new MutationObserver(() => {
+      const rvOn = container.classList.contains('view_roadview');
+      if (rvOn) loadSize();
+      else {
+        wrapper.style.width  = '100%';
+        wrapper.style.height = '100%';
+        map.relayout();
+      }
+    });
+    mo.observe(container, { attributes:true, attributeFilter:['class'] });
+
+    if (container.classList.contains('view_roadview')) loadSize();
+  })();
+
+});
+</script>
+</body>
+</html>
