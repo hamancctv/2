@@ -10,51 +10,55 @@
     typeof kakao.maps.Polyline === "function";
 
   // --- 버튼 스타일 ---
-  if (!document.getElementById("btnDistance-style-main")) {
-    const st = document.createElement("style");
-    st.id = "btnDistance-style-main";
-    st.textContent = `
-      #btnDistance {
-        position: fixed;
-        top: 156px;
-        left: 10px;
-        z-index: 1000;
-        width: 40px; height: 40px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        background: #fff;
-        color: #555;
-        cursor: pointer;
-        transition: all .2s ease;
-        box-sizing: border-box;
-      }
-      #btnDistance:hover {
-        box-shadow: 0 3px 12px rgba(0,0,0,.12);
-      }
-      /* ✅ 활성화 시: 테두리와 아이콘 윤곽만 빨간색 */
-      #btnDistance.active {
-        border-color: #db4040;
-        color: inherit; /* 전체 글자색 변경 방지 */
-      }
-      #btnDistance svg {
-        width: 26px; height: 26px; display: block;
-      }
-      #btnDistance svg rect {
-        fill: currentColor;
-        stroke: currentColor;
-        stroke-width: 2.2;
-      }
-      #btnDistance.active svg rect {
-        fill: none;           /* 내부 비움 */
-        stroke: #db4040;      /* 테두리 빨강 */
-        stroke-width: 3;
-      }
-    `;
-    document.head.appendChild(st);
-  }
+if (!document.getElementById("btnDistance-style-main")) {
+  const st = document.createElement("style");
+  st.id = "btnDistance-style-main";
+  st.textContent = `
+    #btnDistance {
+      position: fixed;
+      top: 156px;
+      left: 10px;
+      z-index: 1000;
+      width: 40px; height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      color: #555; /* ✅ 항상 회색 유지 */
+      cursor: pointer;
+      transition: all .2s ease;
+      box-sizing: border-box;
+    }
+    #btnDistance:hover {
+      box-shadow: 0 3px 12px rgba(0,0,0,.12);
+    }
+    /* ✅ 활성화 시: 버튼 테두리만 빨강 */
+    #btnDistance.active {
+      border-color: #db4040;
+    }
+    /* ✅ SVG (가운데 막대) 기본 상태 */
+    #btnDistance svg {
+      width: 26px;
+      height: 26px;
+      display: block;
+    }
+    #btnDistance svg rect {
+      fill: currentColor;          /* 회색 내부 */
+      stroke: currentColor;
+      stroke-width: 2.2;
+      color: #555;                 /* ✅ 버튼 색상 상속 차단 */
+    }
+    /* ✅ 활성화 시: 막대 윤곽만 빨강 */
+    #btnDistance.active svg rect {
+      fill: none;                  /* 내부 비움 */
+      stroke: #db4040;             /* 윤곽 빨강 */
+      stroke-width: 3;
+    }
+  `;
+  document.head.appendChild(st);
+}
 
   // --- 버튼 생성 ---
   let btn = document.getElementById("btnDistance");
