@@ -1,6 +1,6 @@
-// btnDistance-fixed.js — 거리재기(픽스형, 막대·테두리만 빨강, 점·구간·총거리 정상)
+// btnDistance-fixed.js — 거리재기(픽스형, 막대·테두리만 빨강, 점·구간·총거리 정상, 제안창 아래)
 (function () {
-  console.log("[btnDistance] loaded v2025-10-FINAL-PERFECT");
+  console.log("[btnDistance] loaded v2025-10-FINAL-PERFECT-FIXED-Z");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -14,11 +14,14 @@
     const st = document.createElement("style");
     st.id = "btnDistance-style-main";
     st.textContent = `
+      /* 지도 컨테이너 z-index 낮춤 (제안창보다 아래로) */
+      #map, #mapWrapper { position: relative; z-index: 200 !important; }
+
       #btnDistance {
         position: fixed;
         top: 156px;
         left: 10px;
-        z-index: 550;
+        z-index: 400; /* 🔽 제안창(600~700)보다 아래 */
         width: 40px; height: 40px;
         display: inline-flex;
         align-items: center;
@@ -68,7 +71,7 @@
         <rect x="2" y="5" width="32" height="14" rx="3" ry="3"></rect>
       </svg>
     `;
-    document.body.appendChild(btn);
+    document.body.appendChild(btn); // ✅ body에 직접 추가
   }
 
   // --- 거리 UI 스타일 ---
