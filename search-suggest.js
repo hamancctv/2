@@ -173,23 +173,22 @@
       return {lat, lng};
     }
 
-// search-suggest.js 안의 centerWithEffect를 이걸로 교체
+// === replace: centerWithEffect (instant pulse, no idle wait) ===
 function centerWithEffect(lat, lng){
   const pt = new kakao.maps.LatLng(lat, lng);
 
-  // 1) 전역 setCenter가 있으면 애니메이션/원 표시 전부 위임하고 종료 → 중복 방지
+  // 전역 setCenter가 있으면 거기로 위임 (중복 방지)
   if (typeof window.setCenter === 'function') {
     try { window.setCenter(lat, lng); } catch(_) {}
-    return; // ← 이 한 줄이 핵심!
+    return;
   }
 
-  // 2) 전역 setCenter가 없을 때만 폴백 (빠른 펄스 포함)
+  // 부드러운 줌 + 팬 시작
   try { map.setLevel(1, { animate: true }); } catch(_) { try { map.setLevel(1); } catch(_) {} }
-  try { map.panTo(pt); } catch(_) {}
 
-  let shown = false;
-  const drawPulse = () => {
-    if (shown) return; shown = true;
+  let drawn = false;
+  function drawPulse() {
+    if (drawn) return; drawn = true;
     try {
       const circle = new kakao.maps.Circle({
         center: pt,
@@ -203,20 +202,29 @@ function centerWithEffect(lat, lng){
         zIndex: 9999
       });
       circle.setMap(map);
-      setTimeout(() => { try { circle.setMap(null); } catch(_) {} }, 1000);
+      setTimeout(()=>{ try { circle.setMap(null); } catch(_) {} }, 1000);
     } catch(_) {}
-  };
+  }
 
-  setTimeout(drawPulse, 80);
+  // 팬과 펄스 타이밍: rAF → rAF 로 다음 페인트 직후 즉시 느낌
   try {
-    const once = function () {
-      try { kakao.maps.event.removeListener(map, 'idle', once); } catch(_) {}
-      drawPulse();
-    };
-    kakao.maps.event.addListener(map, 'idle', once);
-    setTimeout(once, 500);
-  } catch(_) {}
+    if (window.requestAnimationFrame) {
+      requestAnimationFrame(() => {
+        try { map.panTo(pt); } catch(_) {}
+        requestAnimationFrame(drawPulse);   // 다음 프레임에 바로 원
+      });
+    } else {
+      setTimeout(() => { try { map.panTo(pt); } catch(_) {} ; setTimeout(drawPulse, 50); }, 16);
+    }
+  } catch(_) {
+    try { map.panTo(pt); } catch(_) {}
+    setTimeout(drawPulse, 60);
+  }
+
+  // 백업 보장 (혹시 위 타이밍이 씹히면 180ms에 1회 더 시도)
+  setTimeout(drawPulse, 180);
 }
+
 
 
     function pick(idx){
