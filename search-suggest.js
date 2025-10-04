@@ -1,9 +1,10 @@
 /* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전)
    - Safari 대응 (핀치줌 차단)
-   - 제안/키보드 내비/엔터 이동 + 펄스
+   - 제안/키보드 내비/엔터 이동 + 즉시 펄스
    - "/" 핫키: 슬래시 입력 방지 + 마지막 검색어 복원 + 제안 열기 + 전체선택
    - 입력창 클릭 시에도 제안 열기 + 전체선택
    - 선택 텍스트: name에서 "-문자/숫자/한글-" 다음 ~ 한글이 끝날 때까지 추출
+   - 🆕 마커 클릭 시 입력창 자동 채움(제안창 열지 않음), 로드뷰 모드면 무시
 ===== */
 (function () {
   /* ---------- 유틸 ---------- */
@@ -12,7 +13,7 @@
   function escapeHTML(s) {
     return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
-  // name에서 "-문자/숫자/한글-" 다음부터 '한글 연속 구간' 추출
+  // name에서 "-문자/숫자/한글-" 다음부터 '한글/공백 연속' 추출
   function extractKoreanTail(name, fallback) {
     const src = normalizeText(name);
     // -[A-Za-z0-9가-힣]+- 이후의 한글/공백 연속
@@ -33,18 +34,14 @@
   width:min(520px,90vw); z-index:600;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
 }
-/* 제안창: 세로 스크롤 허용 + 핀치/더블탭 확대 차단 */
-.gx-suggest-box {
+.gx-suggest-box { /* 세로 스크롤 허용 + 핀치 차단 */
   touch-action: pan-y;
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
   overscroll-behavior: contain;
 }
-/* 검색창은 정상 입력되도록 허용 */
 .gx-suggest-search,
-.gx-suggest-search .gx-input {
-  touch-action:auto !important;
-}
+.gx-suggest-search .gx-input { touch-action:auto !important; }
 
 .gx-suggest-search{ display:flex; align-items:center; gap:8px; }
 .gx-suggest-search .gx-input{
@@ -214,11 +211,9 @@
       return spans.length ? `<div class="gx-suggest-sub">${spans.join(' ')}</div>` : '';
     }
     function titleOf(o) {
-      // 화면에 보이는 타이틀 (원본 name2/name/name1 등)
       return normalizeText(o.name2 || o.name || o.name1 || o.searchName || '');
     }
     function inputTitleOf(o) {
-      // 입력창에 넣을 텍스트: name의 규칙 추출 우선, 없으면 name1 → 그 외
       const fallback = normalizeText(o.name1 || o.name2 || o.name || o.searchName || '');
       return extractKoreanTail(o.name, fallback);
     }
@@ -257,7 +252,6 @@
       return out;
     }
     function getLatLngFromItem(o) {
-      // lat/lng → kakao LatLng
       const lat = Number(o.lat || (o.latlng && o.latlng.getLat && o.latlng.getLat()));
       const lng = Number(o.lng || (o.latlng && o.latlng.getLng && o.latlng.getLng()));
       return { lat, lng };
@@ -319,7 +313,7 @@
     function pick(idx) {
       if (idx < 0 || idx >= current.length) return;
       const o = current[idx];
-      const t = inputTitleOf(o); // ← 규칙 기반 텍스트
+      const t = inputTitleOf(o);
       if (t) input.value = t;
 
       const { lat, lng } = getLatLngFromItem(o);
@@ -438,8 +432,6 @@
       const q = (input.value || '').trim();
       if (q) __lastPickedQuery = q;
     }
-    // 기존 input 이벤트에서 __lastTypedQuery 갱신(위에 구현됨)
-
     // 비어있으면 마지막 검색어 복원 + 제안 열기 + 전체 선택
     function __showLastQueryIfEmpty() {
       if ((input.value || '').trim() !== '') return;
@@ -452,7 +444,7 @@
       } catch(_) {}
       try { input.focus(); input.setSelectionRange(0, input.value.length); } catch(_) {}
     }
-    // 현재 내용으로도 제안 열기 + 전체선택
+    // 현재 내용으로 제안 열기 + 전체선택 (비어있으면 위와 동일)
     function __openWithCurrent() {
       const q = (input.value || '').trim();
       if (q) {
@@ -465,7 +457,7 @@
       try { input.setSelectionRange(0, input.value.length); } catch(_) {}
     }
 
-    // 전역 "/" 핫키: 슬래시 입력 자체를 차단하고 포커스/제안만
+    // 전역 "/" 핫키
     function __onSlashHotkey(e) {
       const isSlash = (e.key === '/' || e.code === 'Slash' || e.keyCode === 191);
       if (!isSlash) return;
@@ -487,12 +479,88 @@
     }
     window.addEventListener('keydown', __onSlashHotkey, true);
 
-    // 입력창 클릭해도 제안 열기 + 전체 선택 (포커스 유무 상관없이)
+    // 입력창 클릭해도 제안 열기 + 전체 선택
     input.addEventListener('mousedown', function () {
       setTimeout(() => {
         __openWithCurrent();
         try { input.setSelectionRange(0, input.value.length); } catch(_) {}
       }, 0);
     });
+
+    /* ===== 🆕 마커 클릭 → 입력창 자동 채움(제안창 X) ===== */
+    // data 배열에서 (lat,lng)와 가장 가까운 항목 찾기
+    function findDataByLatLng(lat, lng) {
+      if (!data || !data.length) return null;
+      let best = null, bestD = Infinity;
+      for (const o of data) {
+        const { lat: la, lng: ln } = getLatLngFromItem(o);
+        if (!isFinite(la) || !isFinite(ln)) continue;
+        const d = (la - lat) * (la - lat) + (ln - lng) * (ln - lng);
+        if (d < bestD) { bestD = d; best = o; }
+      }
+      // 약 1e-6(위도기준 수십 cm) ~ 1e-5(수 m) 사이 임계값 사용
+      return (bestD <= 1e-5 * 1e-5) ? best : best; // 데이터가 동일 좌표면 바로 매칭
+    }
+
+    const patched = new WeakSet();
+    function attachMarkerHandlersOnce() {
+      const container = parent.closest('#container') || document.getElementById('container') || document.body;
+      const rvOn = container && container.classList.contains('view_roadview');
+
+      const getList = typeof getMarkers === 'function' ? getMarkers() : (Array.isArray(window.markers) ? window.markers : []);
+      if (!Array.isArray(getList)) return;
+
+      getList.forEach(mk => {
+        if (!mk || patched.has(mk)) return;
+        // kakao marker만 처리 (getPosition 존재)
+        if (typeof mk.getPosition !== 'function') { patched.add(mk); return; }
+
+        kakao.maps.event.addListener(mk, 'click', function () {
+          // 로드뷰 모드에서는 마커 클릭 무시(요청사항)
+          const rvOnNow = container && container.classList.contains('view_roadview');
+          if (rvOnNow) return;
+
+          try {
+            const pos = mk.getPosition();
+            const lat = pos.getLat ? pos.getLat() : (pos.La || pos.y || pos.latitude || pos.lat);
+            const lng = pos.getLng ? pos.getLng() : (pos.Ma || pos.x || pos.longitude || pos.lng);
+            let o = null;
+
+            // 1) 데이터에서 좌표로 매칭
+            if (isFinite(lat) && isFinite(lng)) {
+              o = findDataByLatLng(Number(lat), Number(lng));
+            }
+            // 2) 마커 타이틀이 있으면 그걸로 추출
+            let text = '';
+            if (o) {
+              text = inputTitleOf(o);
+            } else if (typeof mk.getTitle === 'function') {
+              text = extractKoreanTail(mk.getTitle(), mk.getTitle());
+            }
+
+            if (text) {
+              input.value = text;
+              __lastPickedQuery = text; // 다음 "/" 복원에도 쓰이도록
+              // 제안창은 열지 말 것
+              closeBox();
+              try { input.focus(); input.setSelectionRange(0, input.value.length); } catch(_) {}
+            }
+          } catch(_) {}
+        });
+
+        patched.add(mk);
+      });
+    }
+
+    // 초기 30초간(0.5초 간격) 폴링으로 신규 마커도 붙임 + 커스텀 이벤트 훅
+    attachMarkerHandlersOnce();
+    let tries = 0;
+    const iv = setInterval(() => {
+      attachMarkerHandlersOnce();
+      if (++tries > 60) clearInterval(iv);
+    }, 500);
+    // 외부에서 window.markers 갱신 시 다음 이벤트를 디스패치해주면 즉시 재부착:
+    //   document.dispatchEvent(new Event('markers:updated'));
+    document.addEventListener('markers:updated', attachMarkerHandlersOnce);
   };
 })();
