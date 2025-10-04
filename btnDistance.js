@@ -13,7 +13,7 @@
     st.textContent = `
       /* 버튼(40x40) 화면 고정 */
       #btnDistance {
-        position:fixed; top:58px; left:10px;       /* ← 고정형으로 변경 */
+        position:fixed; top:68px; left:10px;       /* ← 고정형으로 변경 */
         width:40px; height:40px;
         display:inline-flex; align-items:center; justify-content:center;
         border:1px solid #ccc; border-radius:8px; background:#fff; color:#555;
