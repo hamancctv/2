@@ -1,4 +1,4 @@
-/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v2)
+/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v3 - Option A)
    ✅ 통합/요구사항
    - sel_suggest.js 1회 로더(loadSelSuggestScriptOnce) + 정규화/인덱싱(_needle)
    - 제안 UI(initSuggestUI): 슬래시 핫키, 키보드 내비(↑↓EnterEsc), 비활성 상태에서 ←/→/↓ 동작
@@ -9,6 +9,7 @@
    - 로드뷰 모드 시 자동 숨김(옵션)
    - CSS: position:fixed + 높은 z-index로 스태킹 이슈 회피, 제안창 간격 2px
    - 글로벌 핫키/윈도 이벤트 중복 바인딩 가드
+   - ▶︎ Option A: 제안창 내부의 빈 영역을 클릭하면 즉시 닫힘(다음 클릭부터 지도 클릭 가능)
 ===== */
 (function () {
   const G = (typeof window !== 'undefined' ? window : globalThis);
@@ -124,7 +125,7 @@
 .gx-suggest-root{
   position:fixed; top:12px; left:50%; transform:translateX(-50%);
   width:min(520px,90vw); z-index:999999;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun 고딕","맑은 고딕",sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
 }
 .gx-suggest-search{position:relative;display:flex;align-items:center;gap:8px;}
 .gx-suggest-search .gx-input{
@@ -136,10 +137,10 @@
   position:absolute;top:calc(100% + 2px);left:0;width:100%;
   max-height:45vh;overflow:auto;-webkit-overflow-scrolling:touch;
   background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);
-  opacity:0;pointer-events:none;transform:translateY(-8px);
+  opacity:0;pointer-events:auto;transform:translateY(-8px);
   transition:opacity .25s ease,transform .25s ease;
 }
-.gx-suggest-box.open{opacity:1;pointer-events:auto;transform:translateY(0);}
+.gx-suggest-box.open{opacity:1;transform:translateY(0);}
 .gx-suggest-item{padding:12px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:4px;border-bottom:1px solid #f0f0f0;transition:background .2s;}
 .gx-suggest-item:hover,.gx-suggest-item.active{background:#d9e9ff;}
 .gx-suggest-title{font-weight:600;font-size:15px;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -447,6 +448,15 @@
       },0);
     });
 
+    // ▶︎ Option A: 제안창 내부 빈 영역 클릭 시 즉시 닫기(다음 클릭부터 지도 클릭 가능)
+    box.addEventListener('mousedown', (e) => {
+      if (!e.target.closest('.gx-suggest-item')) {
+        // 항목이 아닌 영역을 눌렀다면 제안창만 닫고 이벤트는 소비
+        e.preventDefault();
+        closeBox();
+      }
+    });
+
     // 바깥 클릭 닫기
     document.addEventListener('mousedown',(e)=>{
       if(!box.classList.contains('open')) return;
@@ -478,24 +488,20 @@
 
         const ae = document.activeElement;
         const isOtherEditable = (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
-        // 다른 입력 요소 사용 중이면 개입 X (우리 입력창은 focus로 덮어쓸 거라 예외 없음)
         if(isOtherEditable && !ae.classList.contains('gx-input')) return;
 
         e.preventDefault();
         e.stopPropagation();
 
-        // 현재 인스턴스의 input에 포커스
         const el = document.querySelector('.gx-suggest-root .gx-input');
         if(el){ try{ el.focus(); }catch{} }
 
-        // 비어있으면 최근 질의 복원 후 제안 열기
         const inputEl = el || document.activeElement;
         if(!inputEl) return;
         let seed = (inputEl.value||'').trim();
         if(!seed) seed = G.__gxLastPickedQuery || G.__gxLastTypedQuery || '';
         if(seed){
           inputEl.value = seed;
-          // 렌더 트리거(현재 인스턴스에 위임)
           try{ inputEl.dispatchEvent(new Event('input', {bubbles:true})); }catch{}
         }
         try{ inputEl.setSelectionRange(0, inputEl.value.length); }catch{}
@@ -506,8 +512,8 @@
         const ae = document.activeElement;
         const isOurInput = (ae && ae.classList && ae.classList.contains('gx-input'));
         const isOtherEditable = !isOurInput && (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
-        if(isOtherEditable) return; // 다른 입력 요소 사용 중이면 개입 X
-        if(isOurInput) return;      // 이미 우리 입력창이면 이 핸들러는 패스
+        if(isOtherEditable) return;
+        if(isOurInput) return;
 
         const inputEl = document.querySelector('.gx-suggest-root .gx-input');
         if(!inputEl) return;
@@ -517,7 +523,6 @@
           try{ inputEl.focus(); }catch{}
           let seed = (inputEl.value||'').trim();
           if(!seed) seed = G.__gxLastPickedQuery || G.__gxLastTypedQuery || '';
-          // 렌더 트리거
           if(seed){
             inputEl.value = seed;
             try{ inputEl.dispatchEvent(new Event('input', {bubbles:true})); }catch{}
