@@ -1,4 +1,4 @@
-// btnDistance.js — 거리재기(점 위 구간박스 + 점 아래 총거리박스), 
+// btnDistance.js — 거리재기(점 위 구간박스 + 점 오른쪽-아래 총거리박스),
 // 툴바 정렬/토글 OFF 시 전부 초기화
 (function () {
   console.log("[btnDistance] loaded");
@@ -41,9 +41,10 @@
     if (document.querySelector(".btn-satellite")) btn.className = "btn-satellite";
     btn.title = "거리 재기";
     btn.setAttribute("aria-pressed", "false");
+    // ⬇️ 얇은 가로 직사각형 아이콘(라운드)
     btn.innerHTML =
       `<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;">
-         <path d="M3 17l1.5 1.5L7 16l-2-2-2 3zm3-3l3 3 8.5-8.5-3-3L6 11zm10-8l3 3 1-1a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-1 1z"/>
+         <rect x="4" y="10" width="16" height="4" rx="2" ry="2"></rect>
        </svg>`;
     toolbar.appendChild(btn);
   }
@@ -70,7 +71,7 @@
         border-radius: 50%;
         box-shadow: 0 0 0 1px rgba(0,0,0,.06);
       }
-      /* 구간 박스(점 위로, 간섭 최소) */
+      /* 구간 박스(점 '위'로 14px 띄우기) */
       .km-seg {
         background:#fff;
         color:#e53935;
@@ -83,7 +84,7 @@
         box-shadow:0 2px 6px rgba(0,0,0,.12);
         margin-bottom: 14px; /* 점과의 간격 */
       }
-      /* 총거리 박스(점 아래로, 구간 박스와 동일 간격) */
+      /* 총거리 박스(점 '오른쪽-아래'로 14px/14px) */
       .km-total-box {
         background: #ffeb3b;
         color: #222;
@@ -93,8 +94,9 @@
         font-size: 13px; font-weight: 700;
         box-shadow: 0 2px 8px rgba(0,0,0,.15);
         pointer-events: none; /* 클릭 간섭 방지 */
-        margin-top: 14px;     /* 점과의 간격(구간 박스와 동일) */
         white-space:nowrap;
+        margin-top: 14px;     /* 아래로 14px */
+        margin-left: 14px;    /* 오른쪽으로 14px */
       }
       #btnDistance.active {
         border-color:#007aff;
@@ -110,7 +112,7 @@
   let clickLine = null;        // 확정 경로 polyline
   let dots = [];               // 분기점 점(CustomOverlay) 목록
   let segOverlays = [];        // 구간 박스(CustomOverlay) 목록
-  let totalOverlay = null;     // 총거리 박스(CustomOverlay, 마지막 점 아래)
+  let totalOverlay = null;     // 총거리 박스(CustomOverlay, 마지막 점 오른쪽-아래)
   let segCount = 0;
 
   const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -124,8 +126,8 @@
       totalOverlay = new kakao.maps.CustomOverlay({
         position,
         content: el,
-        xAnchor: 0.5,
-        yAnchor: 0,   // 점 ‘아래’에 붙음
+        xAnchor: 0, // 점의 좌측-상단에 붙이고
+        yAnchor: 0, // ↘ 여백으로 대각선 아래로 밀어낸다
         zIndex: 5300
       });
     } else {
@@ -213,7 +215,7 @@
       addDot(pos);
     }
 
-    // 총거리 박스: 마지막 점 ‘바로 아래’에 표시
+    // 총거리 박스: 마지막 점 ‘오른쪽-아래’에 표시(↘ 14px/14px 오프셋)
     ensureTotalOverlay(pos);
     updateTotalOverlayText();
   }
