@@ -1,6 +1,6 @@
-// markers-handler.js (v2025-09-30-FINAL-6CUT-NO-SEARCH)
+// markers-handler.js (v2025-09-30-FINAL-6CUT-NO-SEARCH + INTERLOCK)
 (function () {
-  console.log("[markers-handler] loaded v2025-09-30-FINAL-6CUT-NO-SEARCH");
+  console.log("[markers-handler] loaded v2025-09-30-FINAL-6CUT-NO-SEARCH + INTERLOCK");
 
   // === 오버레이 기본 스타일 ===
   const style = document.createElement("style");
@@ -128,12 +128,15 @@
 
           // === Hover in ===
           function onOver(){
+            if (window.isInteractionLocked && window.isInteractionLocked()) return; // ✅ 거리재기/로드뷰 시 무시
             marker.setImage(hoverImage);
             bringToFront(map, marker, overlay, 'hover');
             el.style.transform = (marker===selectedMarker) ? `translateY(${hoverY-2}px)` : `translateY(${hoverY}px)`;
           }
+
           // === Hover out ===
           function onOut(){
+            if (window.isInteractionLocked && window.isInteractionLocked()) return; // ✅ 거리재기/로드뷰 시 무시
             marker.setImage(normalImage);
             const wasHoverFront = (frontMarker===marker && frontOverlay===overlay && frontReason==='hover');
             if (wasHoverFront){
@@ -165,6 +168,7 @@
 
           // === Marker mousedown ===
           kakao.maps.event.addListener(marker, "mousedown", function(){
+            if (window.isInteractionLocked && window.isInteractionLocked()) return; // ✅ 거리재기/로드뷰 시 무시
             marker.setImage(jumpImage); clickStartTime=Date.now();
             if (selectedOverlayEl) selectedOverlayEl.style.border="1px solid #ccc";
             selectedMarker=marker; selectedOverlayEl=el; selectedOverlayObj=overlay;
@@ -174,6 +178,7 @@
 
           // === Marker mouseup ===
           kakao.maps.event.addListener(marker, "mouseup", function(){
+            if (window.isInteractionLocked && window.isInteractionLocked()) return; // ✅ 거리재기/로드뷰 시 무시
             const elapsed=Date.now()-clickStartTime; const delay=Math.max(0,100-elapsed);
             setTimeout(function(){
               marker.setImage(normalImage);
@@ -181,19 +186,15 @@
               el.style.transition="transform .2s ease, border .2s ease";
               el.style.transform=`translateY(${baseY-2}px)`;
               bringToFront(map, marker, overlay, 'clickMarker');
-
-              // 좌표 input 업데이트
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
-
-              // ✅ 검색창 자동입력 제거됨
-
               setTimeout(()=>{ el.style.transition="transform .15s ease, border .15s ease"; }, 200);
             }, delay);
           });
 
           // === Overlay click ===
           el.addEventListener("click", function(){
+            if (window.isInteractionLocked && window.isInteractionLocked()) return; // ✅ 거리재기/로드뷰 시 무시
             if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
             selectedMarker = marker;
             selectedOverlayEl = el;
@@ -202,18 +203,14 @@
             bringToFront(map, marker, overlay, 'clickOverlay');
 
             el.style.border = "2px solid blue";
-            // hover 상태인지 체크
             if (marker.getImage() === hoverImage) {
               el.style.transform = `translateY(${hoverY-2}px)`;
             } else {
               el.style.transform = `translateY(${baseY-2}px)`;
             }
 
-            // 좌표 input 업데이트
             const g = document.getElementById("gpsyx");
             if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
-
-            // ✅ 검색창 자동입력 제거됨
           });
 
           markers.push(marker); overlays.push(overlay);
