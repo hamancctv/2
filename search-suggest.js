@@ -173,55 +173,51 @@
       return {lat, lng};
     }
 
-    // ✅ centerWithEffect: 전역 setCenter가 있으면 거기에 완전 위임(중복 대기 제거).
-    // 없으면 폴백으로 빠른 펄스(80ms) + idle 백업만 수행해 이동/표시 지연 최소화.
-    function centerWithEffect(lat, lng){
-      const pt = new kakao.maps.LatLng(lat, lng);
+// search-suggest.js 안의 centerWithEffect를 이걸로 교체
+function centerWithEffect(lat, lng){
+  const pt = new kakao.maps.LatLng(lat, lng);
 
-      // 1) 전역 setCenter가 있으면 애니메이션/펄스를 모두 위임하고 종료
-      if (typeof window.setCenter === 'function') {
-        try { window.setCenter(lat, lng); } catch(_) {}
-        return;
-      }
+  // 1) 전역 setCenter가 있으면 애니메이션/원 표시 전부 위임하고 종료 → 중복 방지
+  if (typeof window.setCenter === 'function') {
+    try { window.setCenter(lat, lng); } catch(_) {}
+    return; // ← 이 한 줄이 핵심!
+  }
 
-      // 2) 폴백: 줌 애니메이션 + pan, 펄스는 빠르게
-      try { map.setLevel(1, { animate: true }); } catch(_) { try { map.setLevel(1); } catch(_) {} }
-      try { map.panTo(pt); } catch(_) {}
+  // 2) 전역 setCenter가 없을 때만 폴백 (빠른 펄스 포함)
+  try { map.setLevel(1, { animate: true }); } catch(_) { try { map.setLevel(1); } catch(_) {} }
+  try { map.panTo(pt); } catch(_) {}
 
-      let shown = false;
-      const drawPulse = () => {
-        if (shown) return; shown = true;
-        try {
-          const circle = new kakao.maps.Circle({
-            center: pt,
-            radius: 50,
-            strokeWeight: 1,
-            strokeColor: '#ffa500',
-            strokeOpacity: 1,
-            strokeStyle: 'dashed',
-            fillColor: '#FF1000',
-            fillOpacity: 0.3,
-            zIndex: 9999
-          });
-          circle.setMap(map);
-          setTimeout(() => { try { circle.setMap(null); } catch(_) {} }, 1000);
-        } catch(_) {}
-      };
+  let shown = false;
+  const drawPulse = () => {
+    if (shown) return; shown = true;
+    try {
+      const circle = new kakao.maps.Circle({
+        center: pt,
+        radius: 50,
+        strokeWeight: 1,
+        strokeColor: '#ffa500',
+        strokeOpacity: 1,
+        strokeStyle: 'dashed',
+        fillColor: '#FF1000',
+        fillOpacity: 0.3,
+        zIndex: 9999
+      });
+      circle.setMap(map);
+      setTimeout(() => { try { circle.setMap(null); } catch(_) {} }, 1000);
+    } catch(_) {}
+  };
 
-      // 시작 직후 살짝 빠르게 한 번
-      setTimeout(drawPulse, 80);
+  setTimeout(drawPulse, 80);
+  try {
+    const once = function () {
+      try { kakao.maps.event.removeListener(map, 'idle', once); } catch(_) {}
+      drawPulse();
+    };
+    kakao.maps.event.addListener(map, 'idle', once);
+    setTimeout(once, 500);
+  } catch(_) {}
+}
 
-      // 이동 종료(idle) 시 한 번 더(이미 그렸으면 무시)
-      try {
-        const once = function () {
-          try { kakao.maps.event.removeListener(map, 'idle', once); } catch(_) {}
-          drawPulse();
-        };
-        kakao.maps.event.addListener(map, 'idle', once);
-        // 혹시 idle 안 오면 백업
-        setTimeout(once, 500);
-      } catch(_) {}
-    }
 
     function pick(idx){
       if(idx<0||idx>=current.length) return;
