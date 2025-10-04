@@ -83,7 +83,7 @@
     const getLatLng=o=>({lat:Number(o.lat||o.latlng?.getLat?.()),lng:Number(o.lng||o.latlng?.getLng?.())});
 
     function centerWithEffect(lat,lng){if(isPanning)return;isPanning=true;const pt=new kakao.maps.LatLng(lat,lng);try{map.panTo(pt);}catch{}try{const c=new kakao.maps.Circle({center:pt,radius:50,strokeWeight:1,strokeColor:'#ffa500',strokeStyle:'dashed',fillColor:'#FF1000',fillOpacity:.3,zIndex:9999});c.setMap(map);setTimeout(()=>c.setMap(null),800);}catch{}setTimeout(()=>isPanning=false,400);}
-    function pick(i){if(i<0||i>=current.length)return;const o=current[i];const t=extractKoreanTail(o.name1||o.name||o.searchName);if(t)input.value=t;const {lat,lng}=getLatLng(o);if(isFinite(lat)&&isFinite(lng))centerWithEffect(lat,lng);__lastPickedQuery=input.value.trim();closeBox();input.blur();}
+    function pick(i){if(i<0||i>=current.length)return;const o=current[i];const t=extractKoreanTail(o.name1||o.name||o.searchName);if(t)input.value=t;const {lat,lng}=getLatLng(o);if(isFinite(lat)&&isFinite(lng))centerWithEffect(lat,lng);__lastPickedQuery=input.value.trim();closeBox();}
 
     input.addEventListener('input',()=>{const q=input.value.trim();if(q)__lastTypedQuery=q;if(!q){closeBox();box.innerHTML='';return;}const list=filterData(q);current=list;if(!list.length){closeBox();return;}render(list);openBox();});
     input.addEventListener('focus',()=>{const q=input.value.trim();if(!q)return;const list=filterData(q);current=list;if(list.length){render(list);openBox();}});
