@@ -1,79 +1,112 @@
-/* ===== search-suggest.js (이 파일 하나로 교체) ===== */
+/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전) ===== */
 (function () {
-  /* ---------- CSS 한 번만 주입 ---------- */
-  function injectStylesOnce() {
+  /* ---------- 유틸 ---------- */
+  function normalizeText(s) { return (s || '').toString().trim(); }
+  function toLowerNoSpace(s) { return normalizeText(s).replace(/\s+/g, '').toLowerCase(); }
+  function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  /* ---------- 스타일 주입(중복 방지) ---------- */
+  function injectCSS() {
     if (document.getElementById('gx-suggest-style')) return;
     const css = `
-/* 컨테이너(검색창은 오빠 HTML의 .search-wrap 그대로 사용) */
-.gx-input { outline: none; }
+/* ====== 검색 UI 루트 (mapWrapper 기준 절대배치) ====== */
+.gx-suggest-root{
+  position:absolute; top:12px; left:50%; transform:translateX(-50%);
+  width:min(520px,90vw); z-index:600;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
+}
 
-/* 제안 박스 */
+/* ====== 검색바 ====== */
+.gx-suggest-search{ display:flex; align-items:center; gap:8px; }
+.gx-suggest-search .gx-input{
+  flex:1; height:42px; padding:0 14px; border:1px solid #ccc; border-radius:12px; outline:none;
+  background:#fff; font-size:15px; box-sizing:border-box;
+  transition:border .2s ease, box-shadow .2s ease;
+}
+.gx-suggest-search .gx-input:focus{
+  border-color:#4a90e2; box-shadow:0 0 0 2px rgba(74,144,226,0.2);
+}
+.gx-suggest-search .gx-btn{ display:none; }
+
+/* ====== 제안창 ====== */
 .gx-suggest-box{
-  position:absolute; top:52px; left:50%;
-  transform:translateX(-50%) translateY(-8px);
-  width:min(520px,90vw); max-height:45vh; overflow:auto; -webkit-overflow-scrolling:touch;
+  position:absolute; top:52px; left:0; width:100%;
+  max-height:45vh; overflow:auto; -webkit-overflow-scrolling:touch;
   background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.15);
-  z-index:610; opacity:0; pointer-events:none;
+  opacity:0; pointer-events:none; transform:translateY(-8px);
   transition:opacity .25s ease, transform .25s ease;
 }
-.gx-suggest-box.open{ opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+.gx-suggest-box.open{ opacity:1; pointer-events:auto; transform:translateY(0); }
 
-/* 제안 아이템 */
 .gx-suggest-item{
-  padding:12px 16px; cursor:pointer; display:flex; flex-direction:column; gap:6px;
-  border-bottom:1px solid #f0f0f0; transition:background .18s ease;
+  padding:12px 16px; cursor:pointer; display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  border-bottom:1px solid #f0f0f0; transition:background .2s ease;
 }
 .gx-suggest-item:last-child{ border-bottom:none; }
-.gx-suggest-item:hover, .gx-suggest-item.active{ background:#eaf2ff; }
+.gx-suggest-item:hover, .gx-suggest-item.active{ background:#d9e9ff; }
 
-/* 타이틀/서브 */
-.gx-suggest-title{ font-weight:600; font-size:15px; color:#222; line-height:1.34; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.gx-suggest-sub{ font-size:12.5px; color:#666; line-height:1.34; display:flex; flex-wrap:wrap; gap:6px; min-height:18px; }
+.gx-suggest-title{
+  font-weight:600; font-size:15px; color:#222; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.gx-suggest-sub{
+  font-size:13px; color:#666; line-height:1.4; display:flex; flex-wrap:wrap; gap:6px; min-height:18px;
+}
 .gx-suggest-sub span{ white-space:nowrap; }
 
-/* 키워드 하이라이트 */
-.gx-hl{ background:#fff3bf; padding:0 .06em; border-radius:3px; }
-
-/* 스크롤바(옵션) */
-.gx-suggest-box::-webkit-scrollbar{ width:10px; }
-.gx-suggest-box::-webkit-scrollbar-thumb{ background:#d0d0d0; border-radius:8px; border:2px solid #fff; }
-.gx-suggest-box::-webkit-scrollbar-track{ background:transparent; }
+/* ====== 로드뷰 중일 때 자동 숨김 ====== */
+.gx-suggest-root.is-hidden{ display:none !important; }
     `.trim();
-    const style = document.createElement('style');
-    style.id = 'gx-suggest-style';
-    style.textContent = css;
-    document.head.appendChild(style);
+    const tag = document.createElement('style');
+    tag.id = 'gx-suggest-style';
+    tag.textContent = css;
+    document.head.appendChild(tag);
   }
 
-  /* ---------- 유틸 ---------- */
-  function normalizeText(s) {
-    return (s || '').toString().trim();
-  }
-  function toLowerNoSpace(s) {
-    return normalizeText(s).replace(/\s+/g, '').toLowerCase();
-  }
-  function escapeHTML(s) {
-    return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-  function escReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-  function highlight(title, q){
-    const t = normalizeText(title);
-    const raw = normalizeText(q);
-    if (!t || !raw) return escapeHTML(t);
-    const words = raw.split(/\s+/).filter(w => w.length >= 2);
-    if (!words.length) return escapeHTML(t);
-    let html = escapeHTML(t);
-    for (const w of words) {
-      const re = new RegExp(`(${escReg(w)})`, 'ig');
-      html = html.replace(re, '<span class="gx-hl">$1</span>');
+  /* ---------- DOM 생성 ---------- */
+  function createDOM(parent) {
+    // 이미 있으면 재사용
+    let root = parent.querySelector('.gx-suggest-root');
+    if (root) {
+      const input = root.querySelector('.gx-input');
+      const box   = root.querySelector('.gx-suggest-box');
+      return { root, input, box };
     }
-    return html;
+
+    root = document.createElement('div');
+    root.className = 'gx-suggest-root';
+
+    const search = document.createElement('div');
+    search.className = 'gx-suggest-search';
+
+    const input = document.createElement('input');
+    input.className = 'gx-input';
+    input.type = 'search';
+    input.placeholder = '예) 시설명, 주소…';
+    input.autocomplete = 'off';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'gx-btn';
+    btn.textContent = '검색';
+
+    search.appendChild(input);
+    search.appendChild(btn);
+
+    const box = document.createElement('div');
+    box.className = 'gx-suggest-box';
+    box.setAttribute('role','listbox');
+
+    root.appendChild(search);
+    root.appendChild(box);
+    parent.appendChild(root);
+
+    return { root, input, box };
   }
 
-  /* ---------- 본체 ---------- */
+  /* ---------- 메인 ---------- */
   window.initSuggestUI = function initSuggestUI(opts) {
-    injectStylesOnce();
-
     const {
       map,
       data = [],
@@ -82,23 +115,23 @@
       badges = [],
       maxItems = 30,
       chooseOnEnter = true,
-      openOnFocus = true
+      openOnFocus = true,
+      hideOnRoadview = true,   // 로드뷰 시 자동 숨김
     } = opts || {};
+    if (!parent || !map) return;
 
-    const input = parent.querySelector('.gx-input');
-    const box   = parent.querySelector('.gx-suggest-box');
-    if (!input || !box) return;
+    injectCSS();
+    const { root, input, box } = createDOM(parent);
 
     // 접근성
     input.setAttribute('role', 'combobox');
     input.setAttribute('aria-autocomplete', 'list');
     input.setAttribute('aria-expanded', 'false');
-    box.setAttribute('role', 'listbox');
     box.id = box.id || 'gx-suggest-list';
     input.setAttribute('aria-controls', box.id);
 
     let activeIdx = -1;
-    let current = []; // 렌더 데이터 보관
+    let current = [];
     const items = () => Array.from(box.querySelectorAll('.gx-suggest-item'));
 
     function openBox() {
@@ -130,49 +163,46 @@
     }
     function moveActive(delta) {
       const list = items();
-      if (!list.length) return;
+      if (list.length === 0) return;
       const next = (activeIdx + delta + list.length) % list.length;
       setActive(next);
     }
 
     function badgeLine(obj) {
-      if (!badges || !badges.length) return '';
+      if (!badges || badges.length === 0) return '';
       const spans = [];
       for (const key of badges) {
-        const raw = obj && obj[key];
+        if (!obj) continue;
+        const raw = obj[key];
         if (!raw) continue;
         const t = normalizeText(String(raw).replace(/^ip\s*:\s*/i, ''));
         if (t) spans.push(`<span>${escapeHTML(t)}</span>`);
       }
       return spans.length ? `<div class="gx-suggest-sub">${spans.join(' ')}</div>` : '';
     }
-
     function titleOf(o) {
       return normalizeText(o.name2 || o.name || o.name1 || o.searchName || '');
     }
-
-    function makeItemHTML(o, q) {
+    function makeItemHTML(o) {
       const title = titleOf(o);
       const sub = badgeLine(o);
       return `
         <div class="gx-suggest-item" role="option" aria-selected="false">
-          <div class="gx-suggest-title">${highlight(title, q)}</div>
+          <div class="gx-suggest-title">${escapeHTML(title)}</div>
           ${sub}
         </div>
       `;
     }
-
-    function render(list, q) {
-      box.innerHTML = list.map(o => makeItemHTML(o, q)).join('');
+    function render(list) {
+      box.innerHTML = list.map(makeItemHTML).join('');
       box.querySelectorAll('.gx-suggest-item').forEach((el, idx) => {
         el.addEventListener('mouseenter', () => setActive(idx));
         el.addEventListener('mouseleave', () => setActive(-1));
-        el.addEventListener('mousedown', (e) => e.preventDefault()); // pick 이전 blur 방지
+        el.addEventListener('mousedown', (e) => e.preventDefault()); // blur 전에 클릭 처리
         el.addEventListener('click', () => pick(idx));
       });
       setActive(-1);
     }
-
     function filterData(q) {
       const needle = toLowerNoSpace(q);
       if (!needle) return [];
@@ -191,12 +221,9 @@
     function pick(idx) {
       if (idx < 0 || idx >= current.length) return;
       const o = current[idx];
-
-      // 입력 반영
       const t = titleOf(o);
       if (t) input.value = t;
 
-      // 지도 이동
       const lat = parseFloat(o.lat || (o.latlng && o.latlng.getLat && o.latlng.getLat()));
       const lng = parseFloat(o.lng || (o.latlng && o.latlng.getLng && o.latlng.getLng()));
       if (isFinite(lat) && isFinite(lng) && map) {
@@ -204,13 +231,9 @@
         try { map.setLevel(3); } catch(_) {}
         try { map.panTo(ll); } catch(_) {}
         if (typeof getMarkers === 'function') {
-          try {
-            const ev = new CustomEvent('suggest:pick', { detail: o });
-            document.dispatchEvent(ev);
-          } catch(_) {}
+          try { document.dispatchEvent(new CustomEvent('suggest:pick', { detail: o })); } catch(_) {}
         }
       }
-
       closeBox();
       input.blur();
     }
@@ -222,22 +245,23 @@
       if (q.trim() === '') { closeBox(); box.innerHTML=''; last = ''; return; }
       if (q === last && box.classList.contains('open')) return;
       last = q;
-      current = filterData(q);
-      if (!current.length) { closeBox(); box.innerHTML=''; return; }
-      render(current, q);
-      openBox();
+      const list = filterData(q);
+      current = list;
+      if (list.length === 0) { closeBox(); box.innerHTML=''; return; }
+      render(list); openBox();
     });
 
-    // 포커스 시 열기
+    // 포커스 시 열기(글자 있을 때만)
     input.addEventListener('focus', () => {
       if (!openOnFocus) return;
       const q = input.value || '';
       if (q.trim() === '') return;
-      current = filterData(q);
-      if (current.length > 0) { render(current, q); openBox(); }
+      const list = filterData(q);
+      current = list;
+      if (list.length > 0) { render(list); openBox(); }
     });
 
-    // 키보드 내비
+    // 키보드 내비게이션
     input.addEventListener('keydown', (e) => {
       const list = items();
       const open = box.classList.contains('open') && list.length > 0;
@@ -245,14 +269,19 @@
       if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         const q = input.value || '';
         if (q.trim() !== '') {
-          current = filterData(q);
-          if (current.length > 0) { render(current, q); openBox(); }
+          const l = filterData(q);
+          current = l;
+          if (l.length > 0) { render(l); openBox(); }
         }
       }
       if (e.key === 'ArrowDown' && open) { e.preventDefault(); moveActive(1); }
       else if (e.key === 'ArrowUp' && open) { e.preventDefault(); moveActive(-1); }
-      else if (e.key === 'Enter' && chooseOnEnter && open) {
-        if (activeIdx > -1) { e.preventDefault(); pick(activeIdx); }
+      else if (e.key === 'Enter' && open && chooseOnEnter) {
+        if (list.length && document.activeElement === input) {
+          e.preventDefault();
+          const idx = list.findIndex(el => el.classList.contains('active'));
+          if (idx > -1) pick(idx);
+        }
       } else if (e.key === 'Escape') {
         closeBox();
       } else if (e.key === 'Home' && open) {
@@ -262,14 +291,27 @@
       }
     });
 
-    // 바깥 클릭 시 닫기
+    // 바깥 클릭으로 닫기
     document.addEventListener('mousedown', (e) => {
       if (!box.classList.contains('open')) return;
       if (e.target === input || box.contains(e.target)) return;
       closeBox();
     });
 
-    // 리사이즈 시 닫기(선택)
+    // 리사이즈 시 닫기
     window.addEventListener('resize', closeBox);
+
+    /* ----- 로드뷰 활성화 시 자동 숨김 ----- */
+    if (hideOnRoadview) {
+      const container = parent.closest('#container') || document.getElementById('container') || document.body;
+      const update = () => {
+        const on = container.classList.contains('view_roadview');
+        if (on) { root.classList.add('is-hidden'); closeBox(); }
+        else    { root.classList.remove('is-hidden'); }
+      };
+      update(); // 최초 1회
+      const mo = new MutationObserver(update);
+      mo.observe(container, { attributes:true, attributeFilter:['class'] });
+    }
   };
 })();
