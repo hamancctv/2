@@ -1,6 +1,6 @@
-// btnDistance-fixed.js — 거리재기(PC=지도컨트롤, 모바일=fixed, 막대·테두리만 빨강)
+// btnDistance.js — 지도 컨트롤 통합형 (제안창 아래, 버튼 정상 표시)
 (function () {
-  console.log("[btnDistance] loaded v2025-10-MOBILE-STABLE");
+  console.log("[btnDistance] loaded v2025-10-STABLE-FIXEDLAYER");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -9,13 +9,12 @@
     kakao.maps &&
     typeof kakao.maps.Polyline === "function";
 
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   // --- 버튼 스타일 ---
   if (!document.getElementById("btnDistance-style-main")) {
     const st = document.createElement("style");
     st.id = "btnDistance-style-main";
     st.textContent = `
+      /* 거리재기 버튼 */
       #btnDistance {
         width: 40px; height: 40px;
         display: inline-flex;
@@ -31,23 +30,22 @@
       #btnDistance:hover { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
       #btnDistance svg { width: 26px; height: 26px; display: block; }
       #btnDistance svg rect { fill: #555; stroke: #555; stroke-width: 2.4; transition: all .2s ease; }
-      #btnDistance.active { border-color: #db4040; background: #fff !important; }
-      #btnDistance.active svg rect { fill: #db4040; stroke: #db4040; stroke-width: 3; }
 
-      /* ✅ 모바일 전용 위치 */
-      @media (max-width: 768px) {
-        #btnDistance.mobile-fixed {
-          position: fixed;
-          bottom: 80px;  /* 지도 하단 여백 */
-          left: 12px;
-          z-index: 300;  /* 제안창 아래 */
-        }
+      /* 활성화 시 */
+      #btnDistance.active {
+        border-color: #db4040;
+        background: #fff !important;
+      }
+      #btnDistance.active svg rect {
+        fill: #db4040;
+        stroke: #db4040;
+        stroke-width: 3;
       }
     `;
     document.head.appendChild(st);
   }
 
-  // --- 버튼 생성 ---
+  // --- 버튼 생성 및 삽입 ---
   let btn = document.getElementById("btnDistance");
   if (!btn) {
     btn = document.createElement("button");
@@ -59,29 +57,26 @@
       </svg>
     `;
 
-    // ✅ PC는 kakao control layer, 모바일은 fixed
-    if (!isMobile) {
-      const ctrlLayer = document.querySelector(".map_controls, .custom_typecontrol");
-      if (ctrlLayer) {
-        const rvBtn = ctrlLayer.querySelector(".btn_roadview");
-        if (rvBtn && rvBtn.parentElement)
-          rvBtn.parentElement.insertBefore(btn, rvBtn.nextSibling);
-        else ctrlLayer.appendChild(btn);
-      } else {
-        btn.style.position = "fixed";
-        btn.style.top = "156px";
-        btn.style.left = "10px";
-        btn.style.zIndex = 300;
-        document.body.appendChild(btn);
-      }
+    // ✅ Kakao map control 내부에 삽입
+    const ctrlLayer =
+      document.querySelector(".map_controls") ||
+      document.querySelector(".custom_typecontrol");
+    if (ctrlLayer) {
+      const rvBtn = ctrlLayer.querySelector(".btn_roadview");
+      if (rvBtn) rvBtn.parentNode.insertBefore(btn, rvBtn.nextSibling);
+      else ctrlLayer.appendChild(btn);
+      btn.style.zIndex = "350"; // 🔧 로드뷰보다 살짝 낮게
     } else {
-      // ✅ 모바일
-      btn.classList.add("mobile-fixed");
+      // fallback (지도가 완전히 로드되기 전)
+      btn.style.position = "absolute";
+      btn.style.top = "156px";
+      btn.style.left = "10px";
+      btn.style.zIndex = "300";
       document.body.appendChild(btn);
     }
   }
 
-  // --- 거리재기 스타일 (점, 구간, 총거리) ---
+  // --- 거리 UI 스타일 ---
   if (!document.getElementById("btnDistance-style")) {
     const style = document.createElement("style");
     style.id = "btnDistance-style";
@@ -118,7 +113,7 @@
   const formatDist = m =>
     m >= 1000 ? (m / 1000).toFixed(2) + " km" : fmt(m) + " m";
 
-  // --- 총거리 박스 (오른쪽 아래 8px) ---
+  // --- 총거리 박스 ---
   function ensureTotalOverlay(position) {
     const xOffset = 8, yOffset = -8;
     if (!totalOverlay) {
@@ -148,9 +143,7 @@
     const el = document.createElement("div");
     el.className = "km-dot";
     const dot = new kakao.maps.CustomOverlay({
-      position: pos,
-      content: el,
-      xAnchor: 0.5, yAnchor: 0.5, zIndex: 5000
+      position: pos, content: el, xAnchor: 0.5, yAnchor: 0.5, zIndex: 5000
     });
     dot.setMap(map);
     dots.push(dot);
@@ -161,10 +154,7 @@
     el.className = "km-seg";
     el.textContent = distText;
     const seg = new kakao.maps.CustomOverlay({
-      position: pos,
-      content: el,
-      yAnchor: 1,
-      zIndex: 5200
+      position: pos, content: el, yAnchor: 1, zIndex: 5200
     });
     seg.setMap(map);
     segOverlays.push(seg);
@@ -185,12 +175,9 @@
 
     if (!clickLine) {
       clickLine = new kakao.maps.Polyline({
-        map,
-        path: [pos],
-        strokeWeight: 3,
-        strokeColor: "#db4040",
-        strokeOpacity: 1,
-        strokeStyle: "solid"
+        map, path: [pos],
+        strokeWeight: 3, strokeColor: "#db4040",
+        strokeOpacity: 1, strokeStyle: "solid"
       });
       addDot(pos);
     } else {
