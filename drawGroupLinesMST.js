@@ -1,8 +1,7 @@
-// drawGroupLinesMST.js — MST 그룹 연결선 토글 버튼 (거리재기 버튼 아래 자동 생성)
+// drawGroupLinesMSTButton.js — MST 토글 버튼 (거리재기 아래)
 (function () {
-  console.log("[drawGroupLinesMST] loaded v2025-10-FINAL");
+  console.log("[drawGroupLinesMSTButton] loaded v2025-10-FINAL");
 
-  // --- 지도 존재 확인 ---
   const mapExists = () =>
     typeof window !== "undefined" &&
     window.map &&
@@ -11,15 +10,15 @@
     typeof kakao.maps.Polyline === "function";
 
   // --- 버튼 스타일 ---
-  if (!document.getElementById("btnMST-style")) {
+  if (!document.getElementById("btnGroupMST-style")) {
     const st = document.createElement("style");
-    st.id = "btnMST-style";
+    st.id = "btnGroupMST-style";
     st.textContent = `
-      #btnMST {
+      #btnGroupMST {
         position: fixed;
-        top: 200px;   /* 거리재기 버튼(156px) 바로 아래 */
+        top: 200px;   /* 거리재기(156px) 아래 */
         left: 10px;
-        z-index: 350;
+        z-index: 350; /* 제안창보다 낮게 */
         width: 40px; height: 40px;
         display: inline-flex;
         align-items: center;
@@ -31,25 +30,25 @@
         transition: all .2s ease;
         box-sizing: border-box;
       }
-      #btnMST:hover { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
-      #btnMST svg { width: 26px; height: 26px; display: block; }
-      #btnMST svg path { stroke: #555; stroke-width: 2.5; fill: none; transition: all .2s ease; }
-      #btnMST.active { border-color: #db4040; background: #fff !important; }
-      #btnMST.active svg path { stroke: #db4040; stroke-width: 3; }
+      #btnGroupMST:hover { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
+      #btnGroupMST svg { width: 26px; height: 26px; display: block; }
+      #btnGroupMST svg path { stroke: #555; stroke-width: 2.4; fill: none; transition: all .2s ease; }
+      #btnGroupMST.active { border-color: #db4040; background: #fff !important; }
+      #btnGroupMST.active svg path { stroke: #db4040; stroke-width: 3; }
     `;
     document.head.appendChild(st);
   }
 
   // --- 버튼 생성 ---
-  let btn = document.getElementById("btnMST");
+  let btn = document.getElementById("btnGroupMST");
   if (!btn) {
     btn = document.createElement("button");
-    btn.id = "btnMST";
-    btn.title = "그룹 연결선 (MST)";
+    btn.id = "btnGroupMST";
+    btn.title = "그룹 최소거리 연결";
     btn.innerHTML = `
       <svg viewBox="0 0 36 36" aria-hidden="true">
-        <!-- 세 점을 연결한 트리형 아이콘 -->
-        <path d="M10 26 L18 10 L26 26 M18 10 L18 26" />
+        <!-- 세 점이 연결된 MST 형태 -->
+        <path d="M8 26 L18 10 L28 26 L18 10 L18 26" />
       </svg>
     `;
     document.body.appendChild(btn);
@@ -58,7 +57,7 @@
   // --- 전역 저장소 ---
   window.groupLines = window.groupLines || [];
 
-  // --- 내부 함수: 그룹별 MST 선 그리기 ---
+  // --- MST 연결 함수 ---
   function drawGroupLinesMST() {
     const map = window.map;
     if (!mapExists() || !map) {
@@ -97,7 +96,6 @@
         connected.forEach(cm => {
           group.forEach(tm => {
             if (connected.includes(tm)) return;
-
             const dist = cm.getPosition().distance(tm.getPosition());
             if (!minEdge || dist < minEdge.dist) {
               minEdge = { from: cm, to: tm, dist };
@@ -110,20 +108,18 @@
             map,
             path: [minEdge.from.getPosition(), minEdge.to.getPosition()],
             strokeWeight: 4,
-            strokeColor: "#0077FF",
+            strokeColor: "#db4040",
             strokeOpacity: 0.9,
-            strokeStyle: "solid",
+            strokeStyle: "solid"
           });
           window.groupLines.push(polyline);
           connected.push(minEdge.to);
-        } else {
-          break;
-        }
+        } else break;
       }
     });
   }
 
-  // --- 토글 제어 ---
+  // --- 토글 ---
   btn.addEventListener("click", () => {
     if (!mapExists()) return;
 
