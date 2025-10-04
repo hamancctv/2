@@ -70,53 +70,50 @@ if (!document.getElementById("btnDistance-style-main")) {
     btn = document.createElement("button");
     btn.id = "btnDistance";
     btn.title = "거리 재기";
-    btn.innerHTML = `
-      <svg viewBox="0 0 36 24" aria-hidden="true">
-        <rect x="2" y="5" width="32" height="14" rx="3" ry="3"></rect>
-      </svg>
+btn.innerHTML = `
+  <svg viewBox="0 0 36 24" aria-hidden="true">
+    <rect x="2" y="5" width="32" height="14" rx="3" ry="3"
+      style="fill:#555;stroke:#555;stroke-width:2.2;transition:all .2s ease"></rect>
+  </svg>
     `;
     document.body.appendChild(btn);
   }
 
   // --- 측정 관련 스타일 ---
-  if (!document.getElementById("btnDistance-style")) {
-    const style = document.createElement("style");
-    style.id = "btnDistance-style";
-    style.textContent = `
-      .km-dot {
-        width: 12px; height: 12px;
-        border: 2px solid #e53935;
-        background: #fff;
-        border-radius: 50%;
-        box-shadow: 0 0 0 1px rgba(0,0,0,.06);
-      }
-      .km-seg {
-        background:#fff;
-        color:#e53935;
-        border:1px solid #e53935;
-        border-radius:8px;
-        padding:2px 6px;
-        font-size:12px;
-        font-weight:600;
-        white-space:nowrap;
-        box-shadow:0 2px 6px rgba(0,0,0,.12);
-        margin-bottom:14px;
-      }
-      .km-total-box {
-        background:#ffeb3b;
-        color:#222;
-        border:1px solid #e0c200;
-        border-radius:10px;
-        padding:6px 10px;
-        font-size:13px;
-        font-weight:700;
-        box-shadow:0 2px 8px rgba(0,0,0,.15);
-        pointer-events:none;
-        white-space:nowrap;
-      }
-    `;
-    document.head.appendChild(style);
-  }
+ if (!document.getElementById("btnDistance-style-main")) {
+  const st = document.createElement("style");
+  st.id = "btnDistance-style-main";
+  st.textContent = `
+    #btnDistance {
+      position: fixed;
+      top: 156px;
+      left: 10px;
+      z-index: 1000;
+      width: 40px; height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      transition: all .2s ease;
+      box-sizing: border-box;
+    }
+    #btnDistance:hover {
+      box-shadow: 0 3px 12px rgba(0,0,0,.12);
+    }
+    #btnDistance.active {
+      border-color: #db4040;
+    }
+    #btnDistance.active svg rect {
+      fill: none !important;
+      stroke: #db4040 !important;
+      stroke-width: 3 !important;
+    }
+  `;
+  document.head.appendChild(st);
+}
 
   // --- 내부 상태 ---
   let drawing = false;
