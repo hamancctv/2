@@ -173,22 +173,24 @@
       return {lat, lng};
     }
 
-    // ✅ 지도가 멈춘 뒤 원(펄스) 그리기: 전역 setCenter가 있으면 먼저 호출 + idle에 안전하게 한 번 더 표시
+    // ✅ centerWithEffect: 전역 setCenter가 있으면 거기에 완전 위임(중복 대기 제거).
+    // 없으면 폴백으로 빠른 펄스(80ms) + idle 백업만 수행해 이동/표시 지연 최소화.
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
 
-      // 1) 전역 setCenter 우선 사용 (오빠 함수)
-      try {
-        if (typeof window.setCenter === 'function') {
-          window.setCenter(lat, lng);
-        } else {
-          try { map.setLevel(1); } catch(_) {}
-          try { map.panTo(pt); } catch(_) {}
-        }
-      } catch(_) {}
+      // 1) 전역 setCenter가 있으면 애니메이션/펄스를 모두 위임하고 종료
+      if (typeof window.setCenter === 'function') {
+        try { window.setCenter(lat, lng); } catch(_) {}
+        return;
+      }
 
-      // 2) idle 이후 안전하게 원 표시 (중복이어도 1초라 부담 거의 없음)
+      // 2) 폴백: 줌 애니메이션 + pan, 펄스는 빠르게
+      try { map.setLevel(1, { animate: true }); } catch(_) { try { map.setLevel(1); } catch(_) {} }
+      try { map.panTo(pt); } catch(_) {}
+
+      let shown = false;
       const drawPulse = () => {
+        if (shown) return; shown = true;
         try {
           const circle = new kakao.maps.Circle({
             center: pt,
@@ -206,20 +208,19 @@
         } catch(_) {}
       };
 
+      // 시작 직후 살짝 빠르게 한 번
+      setTimeout(drawPulse, 80);
+
+      // 이동 종료(idle) 시 한 번 더(이미 그렸으면 무시)
       try {
-        const handler = function () {
-          try { kakao.maps.event.removeListener(map, 'idle', handler); } catch(_) {}
+        const once = function () {
+          try { kakao.maps.event.removeListener(map, 'idle', once); } catch(_) {}
           drawPulse();
         };
-        kakao.maps.event.addListener(map, 'idle', handler);
-        // idle이 혹시 안 들어오면 백업 타임아웃
-        setTimeout(() => {
-          try { kakao.maps.event.removeListener(map, 'idle', handler); } catch(_) {}
-          drawPulse();
-        }, 250);
-      } catch(_) {
-        drawPulse();
-      }
+        kakao.maps.event.addListener(map, 'idle', once);
+        // 혹시 idle 안 오면 백업
+        setTimeout(once, 500);
+      } catch(_) {}
     }
 
     function pick(idx){
@@ -227,7 +228,6 @@
       const o=current[idx]; const t=titleOf(o); if(t) input.value=t;
       const {lat, lng} = getLatLngFromItem(o);
       if (isFinite(lat) && isFinite(lng) && map) {
-        // ✅ 클릭 선택도 동일 효과 적용
         centerWithEffect(lat, lng);
       }
       closeBox(); input.blur();
