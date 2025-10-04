@@ -78,21 +78,20 @@
     display:block;
     background: radial-gradient(#fff 0 28%, currentColor 29% 100%);
   }
-  /* 미니맵 크기조절 핸들 */
+/* 미니맵 크기조절 핸들 (↘︎ 드래그) */
 #mapWrapper .rv-resizer{
-  position:absolute; right:6px; bottom:6px;
+  position:absolute; right:6px; top:6px;   /* ← bottom:6px; 에서 top:6px; 로 변경 */
   width:16px; height:16px;
   border:1px solid #bbb; border-radius:4px; background:#fff;
   box-shadow:0 1px 3px rgba(0,0,0,.2);
-  cursor:nwse-resize; z-index:650; display:none;
+  cursor: nesw-resize;  /* ← 코너에 맞는 커서 */
+  z-index:650; display:none;
 }
 #mapWrapper .rv-resizer::before{
   content:""; position:absolute; inset:2px;
-  background:
-    linear-gradient(135deg, transparent 50%, #888 0) no-repeat;
+  background: linear-gradient(135deg, transparent 50%, #888 0) no-repeat;
   opacity:.7;
 }
-/* 로드뷰일 때만 핸들 보이기 */
 .view_roadview #mapWrapper .rv-resizer{ display:block; }
 
 </style>
