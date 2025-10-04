@@ -1,4 +1,4 @@
-/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 대응 + Enter/Click 이동 & 원 표시) ===== */
+/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 대응 + Enter/Click 이동 & 원 표시 + TAB Trap) ===== */
 (function () {
   /* ---------- 유틸 ---------- */
   function normalizeText(s) { return (s || '').toString().trim(); }
@@ -173,17 +173,16 @@
       return {lat, lng};
     }
 
-    // === replace: centerWithEffect (instant pulse, no idle wait) ===
+    // === centerWithEffect (instant pulse, no idle wait) ===
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
 
-      // 전역 setCenter가 있으면 거기로 위임 (중복 방지)
+      // 전역 setCenter가 있으면 위임 (중복 방지)
       if (typeof window.setCenter === 'function') {
         try { window.setCenter(lat, lng); } catch(_) {}
         return;
       }
 
-      // 부드러운 줌 + 팬 시작
       try { map.setLevel(1, { animate: true }); } catch(_) { try { map.setLevel(1); } catch(_) {} }
 
       let drawn = false;
@@ -206,7 +205,6 @@
         } catch(_) {}
       }
 
-      // 팬과 펄스 타이밍: rAF → rAF 로 다음 페인트 직후 즉시 느낌
       try {
         if (window.requestAnimationFrame) {
           requestAnimationFrame(() => {
@@ -220,8 +218,6 @@
         try { map.panTo(pt); } catch(_) {}
         setTimeout(drawPulse, 60);
       }
-
-      // 백업 보장 (혹시 위 타이밍이 씹히면 180ms에 1회 더 시도)
       setTimeout(drawPulse, 180);
     }
 
@@ -263,7 +259,6 @@
       else if(e.key==='ArrowUp'&&isOpen){ e.preventDefault(); setActive((activeIdx-1+els.length)%els.length); }
       else if(e.key==='Enter'){
         e.preventDefault();
-        // ✅ 제안창 열려있으면 활성 항목, 아니면 현재 쿼리로 재검색하여 맨 위
         let useList = current;
         if (!isOpen) {
           const q = (input.value||'').trim();
@@ -294,10 +289,7 @@
 
     // === 지도 이벤트 ===
     if (map) {
-      // 지도 클릭 → 제안창만 닫기 (blur는 DOM touchend에서 처리)
       kakao.maps.event.addListener(map, 'click', () => { closeBox(); });
-
-      // 지도 드래그 → blur (키보드만 내리기)
       kakao.maps.event.addListener(map, 'dragstart', () => { input.blur(); });
       kakao.maps.event.addListener(map, 'drag',      () => { input.blur(); });
       kakao.maps.event.addListener(map, 'dragend',   () => { input.blur(); });
@@ -319,77 +311,76 @@
       update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
     }
 
-    /* === (추가) TAB 제어: 인풋 제외 전체 탭 차단 + Tab으로 토글 ===
-       - HTML 수정 불필요
-       - 기본값: 탭 차단 ON (검색 인풋만 탭 허용)
-       - 검색 인풋이 아닌 곳에서 Tab 누르면 토글(활성화<->비활성화) */
-    if (!window.__gxTabTrapInstalled) {
-      window.__gxTabTrapInstalled = true;
+    /* ===== TAB Trap (지도 컨테이너 한정, 검색 인풋만 Tab 허용, Tab=토글) ===== */
+    (function setupTabTrap(){
+      const container = parent.closest('#container') || document.getElementById('container') || document.body;
+      if (!container) return;
 
-      (function tabTrapSetup(){
-        let tabTrapEnabled = true; // 기본: 차단 ON
+      let tabTrapOn = true;                 // 기본 차단 ON
+      const savedTab = new WeakMap();
 
-        const focusSelector = 'a, button, input, select, textarea, [tabindex]';
-        const mapWrapper = document.getElementById('mapWrapper');
-        const rvWrapper  = document.getElementById('rvWrapper');
-        const container  = document.getElementById('container');
+      const focusableSel = [
+        'a[href]','area[href]',
+        'button','input','select','textarea',
+        'iframe','summary',
+        '[contenteditable="true"]',
+        '[tabindex]'
+      ].join(',');
 
-        function isSearchInput(el){
-          return !!(el && el.classList && el.classList.contains('gx-input'));
+      const isVisible = (el) => {
+        const s = window.getComputedStyle(el);
+        return s.visibility !== 'hidden' && s.display !== 'none';
+      };
+
+      function listTargets(){
+        return Array.from(container.querySelectorAll(focusableSel))
+          .filter(el => el !== document.body && !el.disabled && isVisible(el));
+      }
+
+      function applyTrap(on){
+        const targets = listTargets();
+        for (const el of targets){
+          if (el === input) { el.setAttribute('tabindex', '0'); continue; }
+          if (on){
+            if (!savedTab.has(el)) {
+              const prev = el.getAttribute('tabindex');
+              savedTab.set(el, prev === null ? undefined : prev);
+            }
+            el.setAttribute('tabindex', '-1');
+          }else{
+            if (savedTab.has(el)) {
+              const prev = savedTab.get(el);
+              if (prev === undefined) el.removeAttribute('tabindex');
+              else el.setAttribute('tabindex', prev);
+            }else{
+              el.removeAttribute('tabindex');
+            }
+          }
         }
+      }
 
-        function setTrap(enabled){
-          tabTrapEnabled = enabled;
+      // 초기 적용(차단)
+      applyTrap(true);
 
-          [mapWrapper, rvWrapper].forEach(scope=>{
-            if (!scope) return;
-            scope.querySelectorAll(focusSelector).forEach(el=>{
-              // 검색 인풋은 항상 허용
-              if (isSearchInput(el)) return;
+      // 지도 컨테이너 내부에서만 Tab 토글
+      document.addEventListener('keydown', (e)=>{
+        if (e.key !== 'Tab') return;
+        if (!container.contains(e.target)) return;
 
-              if (enabled){
-                // 차단: 기존 tabindex 저장 후 -1
-                if (!el.dataset._origTabIndexCaptured) {
-                  el.dataset._origTabIndexCaptured = '1';
-                  el.dataset._origTabIndex = el.hasAttribute('tabindex')
-                    ? el.getAttribute('tabindex')
-                    : '';
-                }
-                el.setAttribute('tabindex','-1');
-              }else{
-                // 해제: 원복
-                if (el.dataset._origTabIndexCaptured){
-                  if (el.dataset._origTabIndex === '') el.removeAttribute('tabindex');
-                  else el.setAttribute('tabindex', el.dataset._origTabIndex);
-                }
-              }
-            });
-          });
+        if (!tabTrapOn) {
+          // 현재 허용 → 차단으로 전환, 인풋에 고정
+          tabTrapOn = true;
+          applyTrap(true);
+          try{ input.focus(); }catch(_){}
+          e.preventDefault(); // 포커스가 밖으로 튀지 않게
+        } else {
+          // 현재 차단 → 허용으로 전환 (자연스러운 Tab 이동 허용)
+          tabTrapOn = false;
+          applyTrap(false);
+          // e.preventDefault() 하지 않음: 다음 포커스로 자연 이동
         }
+      }, true);
+    })();
 
-        // 초기 상태 적용
-        setTrap(true);
-
-        // Tab키로 토글 (검색 인풋 포커스일 땐 기본 동작 유지)
-        document.addEventListener('keydown', function(e){
-          if (e.key !== 'Tab') return;
-
-          if (isSearchInput(e.target)) return; // 인풋이면 기본 탭 허용
-
-          // 그 외는 토글용으로만 사용
-          e.preventDefault();
-          const next = !tabTrapEnabled;
-          setTrap(next);
-          try { (typeof flash==='function') && flash('탭 이동 ' + (next ? '비활성화' : '활성화')); } catch(_) {}
-        }, true);
-
-        // 로드뷰 온/오프나 DOM 변화에도 현재 상태 재적용
-        if (container) {
-          const mo = new MutationObserver(()=> setTrap(tabTrapEnabled));
-          mo.observe(container, { attributes:true, childList:true, subtree:true });
-        }
-        window.addEventListener('resize', ()=> setTrap(tabTrapEnabled));
-      })();
-    }
   };
 })();
