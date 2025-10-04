@@ -8,7 +8,7 @@
 <!-- Kakao Maps SDK (services + 수동 로드) -->
 <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services&autoload=false"></script>
 
-<!-- 오빠 기존 스타일 (필요시) -->
+<!-- 기존 스타일 -->
 <link rel="stylesheet" href="https://hamancctv.github.io/2/style.css" />
 
 <style>
@@ -40,9 +40,6 @@
     background:url(https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/rv_close.png) no-repeat;
   }
 
-  /* 검색창 & 제안창(마크업 훅) */
-
-
   /* 좌측 툴바 */
   .toolbar { position:absolute; top:60px; left:10px; display:flex; flex-direction:column; gap:8px; z-index:620; }
 
@@ -58,7 +55,7 @@
   .btn-satellite svg { width:18px; height:18px; display:block; }
   .btn-satellite svg circle { fill:currentColor; }
 
-  /* 로드뷰 버튼(40×40, CSS 아이콘) — 스프라이트 완전 제거 */
+  /* 로드뷰 버튼(40×40, CSS 아이콘) */
   #roadviewControl{
     width:40px; height:40px;
     display:inline-flex; align-items:center; justify-content:center;
@@ -71,29 +68,28 @@
   #roadviewControl.active{
     border-color:#007aff; box-shadow:0 0 0 2px rgba(0,122,255,.15) inset; color:#007aff;
   }
-  /* 아이콘: 파란 원 + 가운데 흰 점(라디얼 그라디언트) */
   #roadviewControl::before{
     content:"";
     width:18px; height:18px; border-radius:50%;
     display:block;
     background: radial-gradient(#fff 0 28%, currentColor 29% 100%);
   }
-/* 미니맵 크기조절 핸들 (↘︎ 드래그) */
-#mapWrapper .rv-resizer{
-  position:absolute; right:6px; top:6px;   /* ← bottom:6px; 에서 top:6px; 로 변경 */
-  width:16px; height:16px;
-  border:1px solid #bbb; border-radius:4px; background:#fff;
-  box-shadow:0 1px 3px rgba(0,0,0,.2);
-  cursor: nesw-resize;  /* ← 코너에 맞는 커서 */
-  z-index:650; display:none;
-}
-#mapWrapper .rv-resizer::before{
-  content:""; position:absolute; inset:2px;
-  background: linear-gradient(135deg, transparent 50%, #888 0) no-repeat;
-  opacity:.7;
-}
-.view_roadview #mapWrapper .rv-resizer{ display:block; }
 
+  /* 미니맵 크기조절 핸들 (오른쪽 위, 위로/오른쪽으로 끌면 커짐) */
+  #mapWrapper .rv-resizer{
+    position:absolute; right:6px; top:6px;
+    width:16px; height:16px;
+    border:1px solid #bbb; border-radius:4px; background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.2);
+    cursor: nesw-resize;
+    z-index:650; display:none;
+  }
+  #mapWrapper .rv-resizer::before{
+    content:""; position:absolute; inset:2px;
+    background: linear-gradient(135deg, transparent 50%, #888 0) no-repeat;
+    opacity:.7;
+  }
+  .view_roadview #mapWrapper .rv-resizer{ display:block; }
 </style>
 </head>
 <body>
@@ -111,8 +107,7 @@
       </div>
 
       <!-- 검색 -->
-  </div> <!-- 🔒 여기서 mapWrapper 닫기 -->
-
+    </div> <!-- 🔒 mapWrapper 닫기 -->
 
     <!-- 로드뷰(전체화면) -->
     <div id="rvWrapper">
@@ -121,7 +116,7 @@
     </div>
   </div>
 
-  <!-- 오빠 기존 스크립트들 그대로 호출 -->
+  <!-- 기존 스크립트들 -->
   <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
   <script src="https://hamancctv.github.io/2/sel_suggest.js"></script>
   <script src="https://hamancctv.github.io/2/drawGroupLinesMST.js"></script>
@@ -181,7 +176,6 @@ function setRoadviewAt(position){
 
   findNearestPanoId(position, function(panoId){
     if (!panoId) {
-      // 빠져나가지 않고 유지만
       flash('근처에 로드뷰가 없어요');
       try { map.setCenter(position); } catch(e){}
       try { if (rvMarker) rvMarker.setPosition(position); } catch(e){}
@@ -219,6 +213,9 @@ function toggleOverlay(active){
     rvMarker.setMap(map);
     rvMarker.setPosition(map.getCenter());
     setRoadviewAt(map.getCenter());
+
+    // ✅ 로드뷰 처음 켰을 때 동동이 각도 초기화
+    setTimeout(syncRvMarkerAngle, 80);
   }else{
     overlayOn = false;
     btn.classList.remove('active');
@@ -240,7 +237,26 @@ kakao.maps.load(function(){
   rvClient = new kakao.maps.RoadviewClient();
   rv       = new kakao.maps.Roadview(document.getElementById('roadview'));
 
-  // 로드뷰 ↔ 지도 싱크
+  /* === 동동이(로드뷰 마커) 회전 동기화 === */
+  function syncRvMarkerAngle(){
+    try {
+      if (!rv || !rvMarker) return;
+      const vp = rv.getViewpoint();             // { pan, tilt, zoom }
+      if (typeof rvMarker.setAngle === 'function') {
+        rvMarker.setAngle(vp.pan);              // 로드뷰 시선 방향으로 회전
+      }
+    } catch (e) {}
+  }
+  kakao.maps.event.addListener(rv, 'viewpoint_changed', function(){
+    if (!overlayOn || !rvMarker) return;
+    syncRvMarkerAngle();
+  });
+  kakao.maps.event.addListener(rv, 'panoid_changed', function(){
+    if (!overlayOn || !rvMarker) return;
+    syncRvMarkerAngle();
+  });
+
+  // 로드뷰 ↔ 지도 싱크(위치)
   kakao.maps.event.addListener(rv, 'position_changed', function(){
     if(!overlayOn) return;
     const pos = rv.getPosition();
@@ -276,7 +292,7 @@ kakao.maps.load(function(){
     }
   });
 
-  /* ====== 오빠 기존 외부 스크립트와의 연동 ====== */
+  /* ====== 기존 외부 스크립트와의 연동 ====== */
 
   // 1) 마커 생성(외부 handlers)
   if (window.SEL_SUGGEST && typeof initMarkers === 'function') {
@@ -310,7 +326,8 @@ kakao.maps.load(function(){
       chooseOnEnter: true,
       openOnFocus: true
     });
-  }  
+  }
+
   /* ===== 미니맵(로드뷰시) 크기 조절 ===== */
   (function setupMiniMapResizer(){
     const container = document.getElementById('container');
@@ -325,7 +342,6 @@ kakao.maps.load(function(){
     const MAX_W = Math.min(window.innerWidth  * 0.9, 900);
     const MAX_H = Math.min(window.innerHeight * 0.9, 700);
 
-    // 저장된 크기 적용
     function loadSize(){
       try{
         const saved = JSON.parse(localStorage.getItem('rvMiniSize')||'{}');
@@ -363,13 +379,11 @@ kakao.maps.load(function(){
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
 
-      // wrapper는 bottom-left 고정이라 가로는 +dx, 세로는 -dy 방향으로 증가
+      // 오른쪽 위 핸들: 오른쪽(→)으로, 위(↑)로 드래그할수록 커짐
       curW = Math.max(MIN_W, Math.min(startW + dx, MAX_W));
       curH = Math.max(MIN_H, Math.min(startH - dy, MAX_H));
 
-      if (!rafId) {
-        rafId = requestAnimationFrame(applySize);
-      }
+      if (!rafId) rafId = requestAnimationFrame(applySize);
     }
 
     function applySize(){
@@ -395,37 +409,12 @@ kakao.maps.load(function(){
     handle.addEventListener('mousedown',  onDown, {passive:false});
     handle.addEventListener('touchstart', onDown, {passive:false});
 
-// 로드뷰 시선(pan) → 동동이 각도 동기화
-function syncRvMarkerAngle(){
-  try {
-    if (!rv || !rvMarker) return;
-    const vp = rv.getViewpoint();         // { pan, tilt, zoom }
-    if (typeof rvMarker.setAngle === 'function') {
-      rvMarker.setAngle(vp.pan);          // ← 동동이 회전!
-    }
-  } catch (e) {}
-}
-// 로드뷰의 시선이 바뀔 때마다(드래그로 회전 등) 동동이 각도 동기화
-kakao.maps.event.addListener(rv, 'viewpoint_changed', function () {
-  if (!overlayOn || !rvMarker) return;
-  syncRvMarkerAngle();
-});
-
-// 로드뷰 파노라마가 바뀔 때(장소 이동 등)도 한 번 각도 동기화
-kakao.maps.event.addListener(rv, 'panoid_changed', function () {
-  if (!overlayOn || !rvMarker) return;
-  syncRvMarkerAngle();
-});
-
-    
     // 로드뷰 진입/종료에 따라 크기 적용/복원
     const mo = new MutationObserver(() => {
       const rvOn = container.classList.contains('view_roadview');
       if (rvOn) {
-        // 진입 시 저장된 크기 적용(없으면 기본 26%)
         loadSize();
       } else {
-        // 종료 시 전체 화면으로 복귀
         wrapper.style.width  = '100%';
         wrapper.style.height = '100%';
         try { map && map.relayout(); } catch(e){}
@@ -433,7 +422,6 @@ kakao.maps.event.addListener(rv, 'panoid_changed', function () {
     });
     mo.observe(container, { attributes:true, attributeFilter:['class'] });
 
-    // 혹시 처음부터 로드뷰면 한 번 적용
     if (container.classList.contains('view_roadview')) {
       loadSize();
     }
