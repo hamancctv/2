@@ -1,6 +1,6 @@
-// drawGroupLinesMSTButton.js — MST 토글 버튼 (거리재기 아래)
+// drawGroupLinesMSTButton.js — MST 토글 버튼 (거리재기 아래, LatLng.distance 수정)
 (function () {
-  console.log("[drawGroupLinesMSTButton] loaded v2025-10-FINAL");
+  console.log("[drawGroupLinesMSTButton] loaded v2025-10-FIXED-DIST");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -9,6 +9,19 @@
     kakao.maps &&
     typeof kakao.maps.Polyline === "function";
 
+  // === 거리 계산 함수 (두 LatLng 간 거리, 단위: m) ===
+  function getDistance(latlng1, latlng2) {
+    const R = 6371000; // 지구 반지름 (m)
+    const rad = Math.PI / 180;
+    const lat1 = latlng1.getLat() * rad;
+    const lat2 = latlng2.getLat() * rad;
+    const dLat = (lat2 - lat1);
+    const dLng = (latlng2.getLng() - latlng1.getLng()) * rad;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
   // --- 버튼 스타일 ---
   if (!document.getElementById("btnGroupMST-style")) {
     const st = document.createElement("style");
@@ -16,9 +29,9 @@
     st.textContent = `
       #btnGroupMST {
         position: fixed;
-        top: 200px;   /* 거리재기(156px) 아래 */
+        top: 200px;
         left: 10px;
-        z-index: 350; /* 제안창보다 낮게 */
+        z-index: 350;
         width: 40px; height: 40px;
         display: inline-flex;
         align-items: center;
@@ -47,7 +60,6 @@
     btn.title = "그룹 최소거리 연결";
     btn.innerHTML = `
       <svg viewBox="0 0 36 36" aria-hidden="true">
-        <!-- 세 점이 연결된 MST 형태 -->
         <path d="M8 26 L18 10 L28 26 L18 10 L18 26" />
       </svg>
     `;
@@ -57,7 +69,7 @@
   // --- 전역 저장소 ---
   window.groupLines = window.groupLines || [];
 
-  // --- MST 연결 함수 ---
+  // --- MST 그리기 ---
   function drawGroupLinesMST() {
     const map = window.map;
     if (!mapExists() || !map) {
@@ -65,7 +77,7 @@
       return;
     }
 
-    // 🔹 이미 선이 있으면 모두 제거 (토글 Off)
+    // 이미 선이 있으면 제거 (토글 Off)
     if (window.groupLines.length > 0) {
       window.groupLines.forEach(line => line.setMap(null));
       window.groupLines = [];
@@ -75,7 +87,7 @@
     if (!window.markers || window.markers.length === 0) return;
     const markers = window.markers;
 
-    // === 그룹별 마커 묶기 ===
+    // === 그룹별 묶기 ===
     const groups = {};
     markers.forEach(m => {
       if (!m.group) return;
@@ -96,7 +108,8 @@
         connected.forEach(cm => {
           group.forEach(tm => {
             if (connected.includes(tm)) return;
-            const dist = cm.getPosition().distance(tm.getPosition());
+
+            const dist = getDistance(cm.getPosition(), tm.getPosition());
             if (!minEdge || dist < minEdge.dist) {
               minEdge = { from: cm, to: tm, dist };
             }
@@ -122,16 +135,12 @@
   // --- 토글 ---
   btn.addEventListener("click", () => {
     if (!mapExists()) return;
-
     const active = btn.classList.toggle("active");
 
-    if (active) {
-      drawGroupLinesMST();
-    } else {
-      if (window.groupLines.length > 0) {
-        window.groupLines.forEach(line => line.setMap(null));
-        window.groupLines = [];
-      }
+    if (active) drawGroupLinesMST();
+    else {
+      window.groupLines.forEach(line => line.setMap(null));
+      window.groupLines = [];
     }
   });
 })();
