@@ -1,4 +1,4 @@
-// btnDistance.js — 거리재기(픽스형 버튼)
+// btnDistance-fixed.js — 거리재기(픽스형, 두껍고 긴 사각형 + 테두리/윤곽 빨강)
 (function () {
   console.log("[btnDistance] loaded");
 
@@ -16,9 +16,9 @@
     st.textContent = `
       #btnDistance {
         position: fixed;
-        top: 70px;           /* 원하는 위치 */
-        left: 10px;          /* 왼쪽 여백 */
-        z-index: 1000;       /* 지도 위 표시 */
+        top: 156px;         /* ✅ 오빠 지정 위치 */
+        left: 10px;
+        z-index: 1000;
         width: 40px; height: 40px;
         display: inline-flex;
         align-items: center;
@@ -31,14 +31,26 @@
         transition: all .2s ease;
         box-sizing: border-box;
       }
-      #btnDistance:hover { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
+      #btnDistance:hover {
+        box-shadow: 0 3px 12px rgba(0,0,0,.12);
+      }
+      /* ✅ 활성화 시: 테두리 + 사각형 윤곽선만 빨강 */
       #btnDistance.active {
         border-color: #db4040;
-        color: #db4040;
-        box-shadow: 0 0 0 2px rgba(219,64,64,.15) inset;
       }
-      #btnDistance svg { width: 18px; height: 18px; display: block; }
-      #btnDistance svg rect { fill: currentColor; stroke: currentColor; stroke-width: 1.6; }
+      #btnDistance svg {
+        width: 26px; height: 26px; display: block;
+      }
+      #btnDistance svg rect {
+        fill: currentColor;
+        stroke: currentColor;
+        stroke-width: 2.2;
+      }
+      #btnDistance.active svg rect {
+        fill: none;
+        stroke: #db4040;
+        stroke-width: 3;
+      }
     `;
     document.head.appendChild(st);
   }
@@ -50,14 +62,14 @@
     btn.id = "btnDistance";
     btn.title = "거리 재기";
     btn.innerHTML = `
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="1" y="7" width="22" height="10" rx="3" ry="3"></rect>
+      <svg viewBox="0 0 36 24" aria-hidden="true">
+        <rect x="2" y="5" width="32" height="14" rx="3" ry="3"></rect>
       </svg>
     `;
-    document.body.appendChild(btn); // ✅ 픽스형으로 body에 바로 추가
+    document.body.appendChild(btn);
   }
 
-  // --- 측정 UI 스타일 ---
+  // --- 측정 관련 스타일 ---
   if (!document.getElementById("btnDistance-style")) {
     const style = document.createElement("style");
     style.id = "btnDistance-style";
@@ -82,17 +94,18 @@
         margin-bottom:14px;
       }
       .km-total-box {
-        background: #ffeb3b;
-        color: #222;
-        border: 1px solid #e0c200;
-        border-radius: 10px;
-        padding: 6px 10px;
-        font-size: 13px; font-weight: 700;
-        box-shadow: 0 2px 8px rgba(0,0,0,.15);
-        pointer-events: none;
+        background:#ffeb3b;
+        color:#222;
+        border:1px solid #e0c200;
+        border-radius:10px;
+        padding:6px 10px;
+        font-size:13px;
+        font-weight:700;
+        box-shadow:0 2px 8px rgba(0,0,0,.15);
+        pointer-events:none;
         white-space:nowrap;
-        margin-top: 28px;
-        margin-left: 18px;
+        margin-top:28px;
+        margin-left:18px;
       }
     `;
     document.head.appendChild(style);
@@ -169,12 +182,13 @@
     removeTotalOverlay();
   }
 
-  // --- 지도 클릭 ---
+  // --- 지도 클릭 (거리 계산 순서 수정) ---
   function onMapClick(e) {
     if (!drawing || !mapExists()) return;
     const pos = e.latLng;
 
     if (!clickLine) {
+      // 첫 점
       clickLine = new kakao.maps.Polyline({
         map,
         path: [pos],
@@ -187,12 +201,19 @@
     } else {
       const path = clickLine.getPath();
       const prev = path[path.length - 1];
+
+      // ✅ 거리 먼저 계산
+      const segLine = new kakao.maps.Polyline({ path: [prev, pos] });
+      const dist = Math.round(segLine.getLength());
+
+      // ✅ 그 다음 경로 갱신
       path.push(pos);
       clickLine.setPath(path);
-      const segLine = new kakao.maps.Polyline({ path: [prev, pos] });
-      addSegmentBox(pos, formatDist(segLine.getLength()));
+
+      addSegmentBox(pos, formatDist(dist));
       addDot(pos);
     }
+
     ensureTotalOverlay(pos);
     updateTotalOverlayText();
   }
