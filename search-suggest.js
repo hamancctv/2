@@ -1,4 +1,4 @@
-/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 대응) ===== */
+/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 완전 대응) ===== */
 (function () {
   /* ---------- 유틸 ---------- */
   function normalizeText(s) { return (s || '').toString().trim(); }
@@ -16,15 +16,18 @@
   width:min(520px,90vw); z-index:600;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
 }
-.gx-suggest-search,
+/* ✅ 제안창만 터치제스처 차단 */
 .gx-suggest-box {
   touch-action: none;
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
 }
+/* ✅ 검색창은 정상 입력되도록 허용 */
+.gx-suggest-search,
 .gx-suggest-search .gx-input {
-  touch-action: auto; /* ✅ 입력창은 키보드 정상 작동 */
+  touch-action:auto !important;
 }
+
 .gx-suggest-search{ display:flex; align-items:center; gap:8px; }
 .gx-suggest-search .gx-input{
   flex:1; height:42px; padding:0 14px; border:1px solid #ccc; border-radius:12px;
@@ -98,8 +101,8 @@
     root.appendChild(box);
     parent.appendChild(root);
 
-    /* ✅ 핀치줌 차단 */
-    [input, box].forEach(el => {
+    /* ✅ 핀치줌 차단 (입력창 제외) */
+    [box].forEach(el => {
       el.addEventListener('touchstart', e => {
         if (e.touches.length > 1) e.preventDefault();
       }, { passive:false });
@@ -119,7 +122,7 @@
     injectCSS();
     const { root, input, box } = createDOM(parent);
 
-    // === 기존 검색/렌더링 로직 (전부 그대로) ===
+    // === 기존 검색/렌더링 로직 (전부 유지) ===
     function openBox() { if (!box.classList.contains('open')) { box.classList.add('open'); input.setAttribute('aria-expanded', 'true'); } }
     function closeBox() { if (box.classList.contains('open')) { box.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); } setActive(-1); }
     function setActive(i) {
@@ -200,7 +203,7 @@
     });
     window.addEventListener('resize',closeBox);
 
-    // === 지도 이벤트 (역할 분리) ===
+    // === 지도 이벤트 ===
     if (map) {
       // 지도 클릭 → 제안창만 닫기
       kakao.maps.event.addListener(map, 'click', () => { closeBox(); });
@@ -211,10 +214,10 @@
       kakao.maps.event.addListener(map, 'dragend',   () => { input.blur(); });
     }
 
-    // ✅ Safari 대응: 지도 DOM touchend → blur
+    // ✅ Safari 대응: 지도 DOM touchend → blur (지연)
     const mapEl=document.getElementById('map');
     if(mapEl){
-      mapEl.addEventListener('touchend',()=>{ input.blur(); },{passive:true});
+      mapEl.addEventListener('touchend',()=>{ setTimeout(()=>input.blur(),100); },{passive:true});
       mapEl.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
     }
     box.addEventListener('touchmove',()=>{ input.blur(); },{passive:true});
