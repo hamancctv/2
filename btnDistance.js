@@ -1,25 +1,71 @@
-// btnDistance.js — 거리재기(분기점 흰원/빨간테두리 + 구간 박스 + 우상단 총거리), 토글 OFF 시 모두 초기화
+// btnDistance.js — 거리재기(분기점 흰원/빨간테두리 + 구간 박스 + 우상단 총거리),
+// 툴바에 자동 삽입(로드뷰 버튼 바로 아래), 토글 OFF 시 모두 초기화
 (function () {
   console.log("[btnDistance] loaded");
 
-  // --- 버튼 삽입(없으면 생성) ---
+  // --- 안전 가드 ---
+  const mapExists = () =>
+    typeof window !== "undefined" &&
+    window.map &&
+    window.kakao &&
+    kakao.maps &&
+    typeof kakao.maps.Polyline === "function";
+
+  // --- 툴바/버튼 준비(없으면 생성 + 스타일 주입) ---
   const toolbar = document.querySelector(".toolbar");
   if (!toolbar) {
     console.log("[btnDistance] no .toolbar found, disabled");
     return;
   }
+
+  // 기본 버튼 스타일이 없을 경우를 대비해 최소 스타일 주입
+  if (!document.getElementById("btnDistance-fallback-style")) {
+    const st = document.createElement("style");
+    st.id = "btnDistance-fallback-style";
+    st.textContent = `
+      /* 툴바 버튼 공통(없을 때용 최소치) */
+      .toolbar { display:flex; flex-direction:column; gap:8px; }
+      #btnDistance {
+        width:40px; height:40px;
+        display:inline-flex; align-items:center; justify-content:center;
+        border:1px solid #ccc; border-radius:8px; background:#fff; color:#555;
+        cursor:pointer; transition:all .2s ease; box-sizing:border-box;
+      }
+      #btnDistance:hover { box-shadow:0 3px 12px rgba(0,0,0,.12); }
+      #btnDistance.active{
+        border-color:#007aff; box-shadow:0 0 0 2px rgba(0,122,255,.15) inset; color:#007aff;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  // 버튼 DOM 확보/생성
   let btn = document.getElementById("btnDistance");
   if (!btn) {
     btn = document.createElement("button");
     btn.id = "btnDistance";
-    btn.className = "btn-satellite"; // 기존 버튼 스타일 재사용(크기/간격 동일)
+    // 페이지에 .btn-satellite가 있다면 재사용(크기/간격 동일), 없으면 fallback 스타일이 적용됨
+    btn.className = (document.querySelector(".btn-satellite") ? "btn-satellite" : "");
     btn.title = "거리 재기";
     btn.setAttribute("aria-pressed", "false");
-    btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;"><path d="M3 17l1.5 1.5L7 16l-2-2-2 3zm3-3l3 3 8.5-8.5-3-3L6 11zm10-8l3 3 1-1a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-1 1z"/></svg>`;
-    toolbar.appendChild(btn);
+    btn.innerHTML =
+      `<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;">
+         <path d="M3 17l1.5 1.5L7 16l-2-2-2 3zm3-3l3 3 8.5-8.5-3-3L6 11zm10-8l3 3 1-1a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-1 1z"/>
+       </svg>`;
+
+    // 로드뷰 버튼 바로 아래에 삽입 (일렬, 동일 간격)
+    const rvBtn = toolbar.querySelector("#roadviewControl");
+    if (rvBtn && rvBtn.nextSibling) {
+      toolbar.insertBefore(btn, rvBtn.nextSibling);
+    } else if (rvBtn) {
+      toolbar.appendChild(btn);
+    } else {
+      // 로드뷰 버튼이 없으면 맨 끝
+      toolbar.appendChild(btn);
+    }
   }
 
-  // --- 스타일 주입(한 번만) ---
+  // --- 측정 UI 스타일(점/구간/총거리) 주입(한 번만) ---
   if (!document.getElementById("btnDistance-style")) {
     const style = document.createElement("style");
     style.id = "btnDistance-style";
@@ -32,7 +78,7 @@
         border-radius: 50%;
         box-shadow: 0 0 0 1px rgba(0,0,0,.06);
       }
-      /* 구간 박스(클릭한 지점에 표시) */
+      /* 구간 박스(각 클릭 지점) */
       .km-seg {
         background:#fff;
         color:#e53935;
@@ -57,7 +103,7 @@
         box-shadow: 0 2px 8px rgba(0,0,0,.15);
         pointer-events: none; /* 간섭 방지 */
       }
-      /* 버튼 토글 비주얼 */
+      /* 버튼 토글 비주얼(클래스 직접 지정 케이스용) */
       #btnDistance.active {
         border-color:#007aff;
         box-shadow:0 0 0 2px rgba(0,122,255,.15) inset;
@@ -75,9 +121,7 @@
   let totalBoxEl = null;              // 총거리 고정 박스(우상단)
   let segCount = 0;
 
-  // 지도/래퍼 참조
   const mapWrapper = document.getElementById("mapWrapper");
-  const mapExists = () => (typeof window !== "undefined" && window.map && window.kakao && kakao.maps);
   const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
   // --- 총거리 박스 생성/업데이트/숨김 ---
@@ -143,7 +187,7 @@
     hideTotalBox();
   }
 
-  // --- 클릭 처리 ---
+  // --- 지도 클릭 처리(분기점 생성/선연장/표시) ---
   function onMapClick(mouseEvent) {
     if (!drawing || !mapExists()) return;
     const pos = mouseEvent.latLng;
@@ -195,7 +239,7 @@
     } else {
       kakao.maps.event.removeListener(map, 'click', onMapClick);
       map.setCursor('');
-      resetMeasure();                 // ← 구간 박스/점/선/총거리 전부 제거
+      resetMeasure();                 // 선/점/구간/총거리 모두 제거
     }
   });
 
