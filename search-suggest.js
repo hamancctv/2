@@ -1,4 +1,4 @@
-/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 완전 대응 + Enter 이동) ===== */
+/* ===== search-suggest.js (DOM + CSS 자동 생성 통합 버전, Safari 대응 + Enter/Click 이동 & 원 표시) ===== */
 (function () {
   /* ---------- 유틸 ---------- */
   function normalizeText(s) { return (s || '').toString().trim(); }
@@ -156,7 +156,7 @@
     function titleOf(o){ return normalizeText(o.name2||o.name||o.name1||o.searchName||''); }
     function makeItemHTML(o){
       const title=titleOf(o);
-      const sub=badges.map(k=>o[k]?`<span>${escapeHTML(String(o[k]).replace(/^ip\s*:\s*/i,''))}</span>`:'').filter(Boolean).join(' ');
+      const sub=badges.map(k=>o[k]?`<span>${escapeHTML(String(o[k]).replace(/^ip\\s*:\\s*/i,''))}</span>`:'').filter(Boolean).join(' ');
       return `<div class="gx-suggest-item" role="option" aria-selected="false"><div class="gx-suggest-title">${escapeHTML(title)}</div>${sub?`<div class="gx-suggest-sub">${sub}</div>`:''}</div>`;
     }
     function render(list){ box.innerHTML=list.map(makeItemHTML).join('');
@@ -172,28 +172,54 @@
       const lng = parseFloat(o.lng || (o.latlng && o.latlng.getLng && o.latlng.getLng()));
       return {lat, lng};
     }
-    // ✅ setCenter 효과 호출 (전역 setCenter 있으면 사용, 없으면 동일 효과 폴백)
+
+    // ✅ 지도가 멈춘 뒤 원(펄스) 그리기: 전역 setCenter가 있으면 먼저 호출 + idle에 안전하게 한 번 더 표시
     function centerWithEffect(lat, lng){
-      if (typeof window.setCenter === 'function') {
-        try { window.setCenter(lat, lng); return; } catch(_) {}
-      }
-      const moveLatLon = new kakao.maps.LatLng(lat, lng);
-      try { map.setLevel(1); } catch(_) {}
-      try { map.panTo(moveLatLon); } catch(_) {}
+      const pt = new kakao.maps.LatLng(lat, lng);
+
+      // 1) 전역 setCenter 우선 사용 (오빠 함수)
       try {
-        const circle = new kakao.maps.Circle({
-          center: moveLatLon,
-          radius: 50,
-          strokeWeight: 1,
-          strokeColor: '#ffa500',
-          strokeOpacity: 1,
-          strokeStyle: 'dashed',
-          fillColor: '#FF1000',
-          fillOpacity: 0.3
-        });
-        circle.setMap(map);
-        setTimeout(()=>{ try { circle.setMap(null); } catch(_) {} }, 1000);
+        if (typeof window.setCenter === 'function') {
+          window.setCenter(lat, lng);
+        } else {
+          try { map.setLevel(1); } catch(_) {}
+          try { map.panTo(pt); } catch(_) {}
+        }
       } catch(_) {}
+
+      // 2) idle 이후 안전하게 원 표시 (중복이어도 1초라 부담 거의 없음)
+      const drawPulse = () => {
+        try {
+          const circle = new kakao.maps.Circle({
+            center: pt,
+            radius: 50,
+            strokeWeight: 1,
+            strokeColor: '#ffa500',
+            strokeOpacity: 1,
+            strokeStyle: 'dashed',
+            fillColor: '#FF1000',
+            fillOpacity: 0.3,
+            zIndex: 9999
+          });
+          circle.setMap(map);
+          setTimeout(() => { try { circle.setMap(null); } catch(_) {} }, 1000);
+        } catch(_) {}
+      };
+
+      try {
+        const handler = function () {
+          try { kakao.maps.event.removeListener(map, 'idle', handler); } catch(_) {}
+          drawPulse();
+        };
+        kakao.maps.event.addListener(map, 'idle', handler);
+        // idle이 혹시 안 들어오면 백업 타임아웃
+        setTimeout(() => {
+          try { kakao.maps.event.removeListener(map, 'idle', handler); } catch(_) {}
+          drawPulse();
+        }, 250);
+      } catch(_) {
+        drawPulse();
+      }
     }
 
     function pick(idx){
@@ -201,9 +227,8 @@
       const o=current[idx]; const t=titleOf(o); if(t) input.value=t;
       const {lat, lng} = getLatLngFromItem(o);
       if (isFinite(lat) && isFinite(lng) && map) {
-        // 기존 pick은 Level 3 + panTo였지만, 마우스 선택은 기존 유지
-        const ll=new kakao.maps.LatLng(lat,lng);
-        try{map.setLevel(3);}catch(_){} try{map.panTo(ll);}catch(_){} 
+        // ✅ 클릭 선택도 동일 효과 적용
+        centerWithEffect(lat, lng);
       }
       closeBox(); input.blur();
     }
@@ -226,27 +251,31 @@
 
     // === 키보드 내비게이션 & Enter 동작 ===
     input.addEventListener('keydown',(e)=>{
-      const els=items(); const open=box.classList.contains('open')&&els.length>0;
+      const els=items(); const isOpen=box.classList.contains('open')&&els.length>0;
 
-      if(!open&&(e.key==='ArrowDown'||e.key==='ArrowUp')){
+      if(!isOpen&&(e.key==='ArrowDown'||e.key==='ArrowUp')){
         const q=input.value||''; if(q.trim()!==''){const l=filterData(q); current=l; if(l.length>0){render(l);openBox();}}
       }
 
-      if(e.key==='ArrowDown'&&open){ e.preventDefault(); setActive((activeIdx+1)%els.length); }
-      else if(e.key==='ArrowUp'&&open){ e.preventDefault(); setActive((activeIdx-1+els.length)%els.length); }
+      if(e.key==='ArrowDown'&&isOpen){ e.preventDefault(); setActive((activeIdx+1)%els.length); }
+      else if(e.key==='ArrowUp'&&isOpen){ e.preventDefault(); setActive((activeIdx-1+els.length)%els.length); }
       else if(e.key==='Enter'){
-        if(open && chooseOnEnter){
-          e.preventDefault();
-          // ✅ 활성 항목이 있으면 그걸, 없으면 맨 위(0)로 이동 + setCenter 효과
-          const useIdx = (activeIdx>=0 && activeIdx<current.length) ? activeIdx : 0;
-          if (current.length > 0) {
-            const {lat, lng} = getLatLngFromItem(current[useIdx]);
-            if (isFinite(lat) && isFinite(lng)) {
-              centerWithEffect(lat, lng);
-            }
-            closeBox();
-            input.blur();
+        e.preventDefault();
+        // ✅ 제안창 열려있으면 활성 항목, 아니면 현재 쿼리로 재검색하여 맨 위
+        let useList = current;
+        if (!isOpen) {
+          const q = (input.value||'').trim();
+          useList = q ? filterData(q) : [];
+          current = useList;
+          if (useList.length) { render(useList); openBox(); }
+        }
+        if (useList.length) {
+          const idx = (activeIdx>=0 && activeIdx<useList.length) ? activeIdx : 0;
+          const {lat, lng} = getLatLngFromItem(useList[idx]);
+          if (isFinite(lat) && isFinite(lng)) {
+            centerWithEffect(lat, lng);
           }
+          closeBox(); input.blur();
         }
       } else if(e.key==='Escape'){
         closeBox();
@@ -263,7 +292,7 @@
 
     // === 지도 이벤트 ===
     if (map) {
-      // 지도 클릭 → 제안창만 닫기
+      // 지도 클릭 → 제안창만 닫기 (blur는 DOM touchend에서 처리)
       kakao.maps.event.addListener(map, 'click', () => { closeBox(); });
 
       // 지도 드래그 → blur (키보드만 내리기)
