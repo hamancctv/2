@@ -1,11 +1,11 @@
-/* ===== search-suggest.js (FULL-STABLE-LAST-HYPHEN-NOFREEZE, 2025-10-05)
+/* ===== search-suggest.js (FULL-STABLE-LAST-HYPHEN-NOFREEZE-KUP, 2025-10-05)
    - Safari 대응 / 핀치줌 차단
    - 제안창 자동 생성 + 입력창과 2px 간격
-   - Enter키로 입력창 활성화(비포커스) / 활성 상태에서는 본래 Enter 동작
+   - Enter 포커싱(비포커스) → keydown, 선택 확정은 keyup에서 1회만
    - 마지막 하이픈(-) 이후 텍스트만 표시 ("도-002-마산고등학교" → "마산고등학교")
    - 마커 클릭 시 입력창만 갱신(로드뷰 시 무시)
    - 로드뷰 모드 시 자동 숨김
-   - 프리징 최소화: Circle "재사용", pick 스로틀, 동일좌표/오토리핏 가드, blur 제거
+   - 프리징 최소화: Circle 재사용, pick 스로틀, 동일좌표/오토리핏/IME 가드, blur 제거
 ===== */
 (function () {
   /* ---------- 유틸 ---------- */
@@ -77,27 +77,55 @@
     // 상태
     let activeIdx=-1,current=[],__lastTypedQuery='',__lastPickedQuery='';
     // 프리징 방지 상태
-    let pickBlockUntil=0;            // pick 연타 방지
-    let pulseCircle=null;            // Circle 재사용
+    let pickBlockUntil=0;            // pick 연타 방지 (ms 기준)
+    let pulseCircle=null;            // Circle 재사용 인스턴스
     let pulseHideTimer=null;         // Circle 숨김 타이머
     let lastPan={t:0,lat:null,lng:null}; // 동일 좌표/빈도 가드
 
     const items=()=>Array.from(box.querySelectorAll('.gx-suggest-item'));
     const openBox=()=>{if(!box.classList.contains('open'))box.classList.add('open');};
     const closeBox=()=>{if(box.classList.contains('open'))box.classList.remove('open');setActive(-1);};
-    function setActive(i){const list=items();list.forEach(el=>{el.classList.remove('active');el.setAttribute('aria-selected','false');});activeIdx=i;if(i>=0&&i<list.length){const el=list[i];el.classList.add('active');el.setAttribute('aria-selected','true');try{el.scrollIntoView({block:'nearest'});}catch{}};}
+    function setActive(i){
+      const list=items();
+      list.forEach(el=>{el.classList.remove('active');el.setAttribute('aria-selected','false');});
+      activeIdx=i;
+      if(i>=0&&i<list.length){
+        const el=list[i];
+        el.classList.add('active');el.setAttribute('aria-selected','true');
+        try{el.scrollIntoView({block:'nearest'});}catch{}
+      }
+    }
 
-    function badgeLine(o){if(!badges.length)return'';const spans=[];for(const k of badges){if(o[k])spans.push(`<span>${escapeHTML(String(o[k]).replace(/^ip\s*:\s*/i,''))}</span>`);}return spans.length?`<div class="gx-suggest-sub">${spans.join(' ')}</div>`:'';}
-    function makeItemHTML(o){const title=normalizeText(o.name2||o.name||o.name1||o.searchName||'');return`<div class="gx-suggest-item" role="option" aria-selected="false"><div class="gx-suggest-title">${escapeHTML(title)}</div>${badgeLine(o)}</div>`;}
-    function render(list){box.innerHTML=list.map(makeItemHTML).join('');box.querySelectorAll('.gx-suggest-item').forEach((el,i)=>{el.addEventListener('mouseenter',()=>setActive(i));el.addEventListener('mouseleave',()=>setActive(-1));el.addEventListener('mousedown',e=>e.preventDefault());el.addEventListener('click',()=>pick(i));});setActive(-1);}
+    function badgeLine(o){
+      if(!badges.length)return'';
+      const spans=[];
+      for(const k of badges){ if(o[k]) spans.push(`<span>${escapeHTML(String(o[k]).replace(/^ip\s*:\s*/i,''))}</span>`); }
+      return spans.length?`<div class="gx-suggest-sub">${spans.join(' ')}</div>`:'';
+    }
+    function makeItemHTML(o){
+      const title=normalizeText(o.name2||o.name||o.name1||o.searchName||'');
+      return `<div class="gx-suggest-item" role="option" aria-selected="false">
+        <div class="gx-suggest-title">${escapeHTML(title)}</div>${badgeLine(o)}
+      </div>`;
+    }
+    function render(list){
+      box.innerHTML=list.map(makeItemHTML).join('');
+      box.querySelectorAll('.gx-suggest-item').forEach((el,i)=>{
+        el.addEventListener('mouseenter',()=>setActive(i));
+        el.addEventListener('mouseleave',()=>setActive(-1));
+        el.addEventListener('mousedown',e=>e.preventDefault()); // blur 전에 클릭 처리
+        el.addEventListener('click',()=>pick(i));
+      });
+      setActive(-1);
+    }
 
     function filterData(q){
-      const n=toLowerNoSpace(q);if(!n)return[];
+      const n=toLowerNoSpace(q); if(!n) return [];
       const out=[];
       for(const o of data){
         const hay=toLowerNoSpace([o.name,o.name1,o.name2,o.searchName,o.addr,o.line,o.encloser].filter(Boolean).join(' '));
-        if(hay.includes(n))out.push(o);
-        if(out.length>=maxItems)break;
+        if(hay.includes(n)) out.push(o);
+        if(out.length>=maxItems) break;
       }
       return out;
     }
@@ -110,8 +138,7 @@
       if(same && now-lastPan.t<300) return; // 300ms 내 동일 좌표 스킵
 
       const pt=new kakao.maps.LatLng(lat,lng);
-      try{map.panTo(pt);}catch{}
-
+      try{ map.panTo(pt); }catch{}
       lastPan={t:now,lat,lng};
 
       try{
@@ -125,11 +152,11 @@
         }
         pulseCircle.setMap(map);
         if(pulseHideTimer) clearTimeout(pulseHideTimer);
-        pulseHideTimer=setTimeout(()=>{try{pulseCircle.setMap(null);}catch{}},600);
+        pulseHideTimer=setTimeout(()=>{ try{pulseCircle.setMap(null);}catch{} },600);
       }catch{}
     }
 
-    function __rememberPicked(){const q=(input.value||'').trim();if(q)__lastPickedQuery=q;}
+    function __rememberPicked(){ const q=(input.value||'').trim(); if(q) __lastPickedQuery=q; }
 
     function pick(i){
       if(i<0||i>=current.length) return;
@@ -154,40 +181,51 @@
     input.addEventListener('input',()=>{
       const q=(input.value||'').trim();
       if(q) __lastTypedQuery=q;
-      if(!q){closeBox();box.innerHTML='';return;}
-      const list=filterData(q);current=list;
-      if(!list.length){closeBox();box.innerHTML='';return;}
-      render(list);openBox();
+      if(!q){ closeBox(); box.innerHTML=''; return; }
+      const list=filterData(q); current=list;
+      if(!list.length){ closeBox(); box.innerHTML=''; return; }
+      render(list); openBox();
     });
 
     // 포커스 시 현재 값 기준으로 열기
     input.addEventListener('focus',()=>{
       const q=(input.value||'').trim(); if(!q) return;
       const list=filterData(q); current=list;
-      if(list.length){render(list);openBox();}
+      if(list.length){ render(list); openBox(); }
     });
 
-    // 키보드 내비 (↑/↓/Enter/Esc) + Enter 오토리핏 가드
+    // 키보드 내비: keydown에서는 ↑/↓/Esc만, IME 조합 중이면 무시
     input.addEventListener('keydown',(e)=>{
+      if(e.isComposing || e.keyCode===229) return; // IME 조합 입력 가드
+
       const listEls=items();
       const isOpen=box.classList.contains('open') && listEls.length>0;
 
       if(!isOpen && (e.key==='ArrowDown'||e.key==='ArrowUp')){
         const q=(input.value||'').trim();
-        if(q){const l=filterData(q);current=l;if(l.length){render(l);openBox();}}
+        if(q){ const l=filterData(q); current=l; if(l.length){ render(l); openBox(); } }
       }
 
-      if(e.key==='ArrowDown'&&isOpen){
+      if(e.key==='ArrowDown' && isOpen){
         e.preventDefault(); setActive((activeIdx+1)%listEls.length);
-      }else if(e.key==='ArrowUp'&&isOpen){
+      }else if(e.key==='ArrowUp' && isOpen){
         e.preventDefault(); setActive((activeIdx-1+listEls.length)%listEls.length);
-      }else if(e.key==='Enter'&&isOpen){
-        if(e.repeat){ e.preventDefault(); return; } // ✅ 오토리핏 방지
-        e.preventDefault();
-        pick(activeIdx>=0 && activeIdx<current.length ? activeIdx : 0);
       }else if(e.key==='Escape'){
         closeBox();
       }
+      // ❌ Enter 확정은 keyup에서 단 1회 처리
+    });
+
+    // ✅ Enter 확정은 keyup에서 1회만 (IME 가드)
+    input.addEventListener('keyup',(e)=>{
+      if(e.isComposing || e.keyCode===229) return;
+      if(e.key!=='Enter') return;
+
+      const listEls=items();
+      const isOpen=box.classList.contains('open') && listEls.length>0;
+      if(!isOpen) return;
+
+      pick(activeIdx>=0 && activeIdx<current.length ? activeIdx : 0);
     });
 
     // 입력창 클릭: 전체선택 없이 제안만 열기 (비어있으면 최근 질의 복원)
@@ -222,9 +260,11 @@
       },{passive:true});
     }
 
-    // ✅ 전역 Enter: 비포커스면 입력창 활성화 + 제안 열기
+    // ✅ 전역 Enter: 비포커스면 입력창 활성화 + 제안 열기 (autorepeat/IME 가드)
     window.addEventListener('keydown',(e)=>{
       if(e.key!=='Enter') return;
+      if(e.repeat || e.isComposing || e.keyCode===229) return; // autorepeat & IME 가드
+
       const ae=document.activeElement;
       const isOurInput=(ae===input);
       const typingElsewhere = !isOurInput && (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
@@ -239,11 +279,11 @@
           if(seed){
             input.value=seed;
             const list=filterData(seed); current=list;
-            if(list.length){render(list);openBox();}
+            if(list.length){ render(list); openBox(); }
           }
         },0);
       }
-      // 포커스 상태의 Enter는 위 keydown 분기에서 처리
+      // 포커스 상태 Enter는 keyup에서 확정
     },true);
 
     /* ===== 마커 클릭 → 입력창만 갱신 (로드뷰 모드면 무시) ===== */
