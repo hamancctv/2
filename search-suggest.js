@@ -1,5 +1,5 @@
 /* ===== search-suggest.js (DOM + CSS 자동 생성, Safari 대응 + Enter/Click 이동 & 원 표시)
-   추가: "/" 키를 누르면 입력창 포커스 (다른 입력 요소에 포커스 중·수정키 조합시 무시)
+   추가: "/" 또는 클릭 포커스 시 입력이 비어 있으면 "마지막 검색어의 제안 리스트" 즉시 표시
 */
 (function () {
   /* ---------- 유틸 ---------- */
@@ -132,6 +132,8 @@
 
     // === 상태 & 헬퍼 ===
     let activeIdx = -1, current = [];
+    let lastQuery = '';   // 마지막 비어있지 않은 검색어
+    let lastResults = []; // 마지막 검색 결과 리스트
     const items = () => Array.from(box.querySelectorAll('.gx-suggest-item'));
 
     function openBox() { if (!box.classList.contains('open')) { box.classList.add('open'); input.setAttribute('aria-expanded', 'true'); } }
@@ -217,25 +219,50 @@
     function pick(idx){
       if(idx<0||idx>=current.length) return;
       const o=current[idx]; const t=titleOf(o); if(t) input.value=t;
+
+      // 🔸 마지막 검색 상태 갱신
+      if (current.length) { lastResults = current.slice(0); }
+      if (t) lastQuery = t;
+
       const {lat, lng} = getLatLngFromItem(o);
       if (isFinite(lat) && isFinite(lng) && map) centerWithEffect(lat, lng);
       closeBox(); input.blur();
     }
 
     // === 입력 이벤트 ===
-    let last='';
+    let lastTyped = '';
     input.addEventListener('input',()=>{
       const q=input.value||'';
-      if(q.trim()===''){closeBox();box.innerHTML='';last='';return;}
-      if(q===last&&box.classList.contains('open'))return;
-      last=q; const list=filterData(q); current=list;
+      if(q.trim()===''){closeBox();box.innerHTML='';lastTyped='';return;}
+      if(q===lastTyped&&box.classList.contains('open'))return;
+      lastTyped=q;
+      const list=filterData(q); current=list;
+
+      // 🔸 마지막 검색 상태(비어있지 않을 때만 기록)
+      if (q.trim() && list.length) { lastQuery = q; lastResults = list.slice(0); }
+
       if(list.length===0){closeBox();box.innerHTML='';return;}
       render(list); openBox();
     });
+
+    // === 포커스 시: 비어 있으면 마지막 검색 제안 바로 표시 (클릭/키보드 동일) ===
     input.addEventListener('focus',()=>{
+      // 로드뷰로 숨긴 상태면 패스
+      if (root.classList.contains('is-hidden')) return;
+
+      const q = (input.value||'').trim();
+      if (q === '') {
+        if (lastResults && lastResults.length) {
+          // 입력칸도 마지막 검색어로 채워주고 리스트 즉시 오픈
+          try { input.value = lastQuery || ''; } catch(_) {}
+          current = lastResults.slice(0);
+          render(current); openBox(); setActive(0);
+        }
+        return;
+      }
       if(!openOnFocus) return;
-      const q=input.value||''; if(q.trim()==='') return;
-      const list=filterData(q); current=list; if(list.length>0){render(list);openBox();}
+      const list=filterData(q); current=list;
+      if(list.length>0){render(list);openBox();}
     });
 
     // === 키보드 내비게이션 & Enter 동작 ===
@@ -250,16 +277,25 @@
       else if(e.key==='ArrowUp'&&isOpen){ e.preventDefault(); setActive((activeIdx-1+els.length)%els.length); }
       else if(e.key==='Enter'){
         e.preventDefault();
+
+        // 제안창이 닫혀 있으면 현재 값으로 다시 검색
         let useList = current;
         if (!isOpen) {
           const q = (input.value||'').trim();
           useList = q ? filterData(q) : [];
           current = useList;
+
+          // 🔸 마지막 검색 상태 갱신
+          if (q && useList.length) { lastQuery = q; lastResults = useList.slice(0); }
+
           if (useList.length) { render(useList); openBox(); }
         }
         if (useList.length) {
           const idx = (activeIdx>=0 && activeIdx<useList.length) ? activeIdx : 0;
-          const {lat, lng} = getLatLngFromItem(useList[idx]);
+          const o = useList[idx];
+          const t = titleOf(o);
+          if (t) { input.value = t; lastQuery = t; lastResults = useList.slice(0); }
+          const {lat, lng} = getLatLngFromItem(o);
           if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
           closeBox(); input.blur();
         }
@@ -300,12 +336,7 @@
       update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
     }
 
-    /* === "/" 글로벌 단축키: 입력창 활성화 ===
-       - 다른 입력요소에 포커스 중이면 무시
-       - Ctrl/Meta/Alt 조합시 무시
-       - 로드뷰로 숨겨진 상태(is-hidden)면 무시
-       - 중복 바인딩 방지
-    */
+    /* === "/" 글로벌 단축키: 입력창 활성화 + 마지막 검색 제안 === */
     if (!root.__slashHandlerBound) {
       root.__slashHandlerBound = true;
       document.addEventListener('keydown', function onSlash(e){
@@ -315,16 +346,22 @@
 
         const ae = document.activeElement;
         const tag = (ae && ae.tagName) ? ae.tagName.toLowerCase() : '';
-        const isTyping =
-          tag === 'input' || tag === 'textarea' ||
-          (ae && ae.isContentEditable === true);
+        const isTyping = tag === 'input' || tag === 'textarea' || (ae && ae.isContentEditable === true);
+        if (isTyping) return;
+        if (root.classList.contains('is-hidden')) return;
 
-        if (isTyping) return;               // 이미 다른 입력 중
-        if (root.classList.contains('is-hidden')) return; // 로드뷰로 숨김 중
+        e.preventDefault();
+        try { input.focus(); } catch(_) {}
 
-        e.preventDefault();                 // 페이지에 "/" 입력되는 것 방지
-        try { input.focus(); input.select(); } catch(_) {}
-        // 포커스 시 자동열기 옵션이 있고 값이 있으면 기존 로직이 열어줌
+        // 입력창이 비어있고, 이전 검색 히스토리가 있으면 즉시 제안 표시
+        const emptyNow = !(input.value||'').trim();
+        if (emptyNow && lastQuery && lastResults && lastResults.length) {
+          try { input.value = lastQuery; } catch(_) {}
+          current = lastResults.slice(0);
+          render(current);
+          openBox();
+          setActive(0);
+        }
       }, { passive:false });
     }
   };
