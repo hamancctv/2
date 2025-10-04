@@ -101,8 +101,8 @@
         box-shadow: 0 2px 8px rgba(0,0,0,.15);
         pointer-events: none;
         white-space:nowrap;
-        margin-top: 8px;
-        margin-left: 8px;
+        margin-top: 28px;
+        margin-left: 18px;
       }
     `;
     document.head.appendChild(style);
