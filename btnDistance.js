@@ -1,6 +1,6 @@
-// btnDistance.js — 지도 컨트롤 통합형 (제안창 아래, 버튼 정상 표시)
+// btnDistance.js — 거리재기(지도컨트롤형, 제안창 항상 위)
 (function () {
-  console.log("[btnDistance] loaded v2025-10-STABLE-FIXEDLAYER");
+  console.log("[btnDistance] loaded v2025-10-STABLE-LAYERFIX-SUGGESTTOP");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -14,7 +14,6 @@
     const st = document.createElement("style");
     st.id = "btnDistance-style-main";
     st.textContent = `
-      /* 거리재기 버튼 */
       #btnDistance {
         width: 40px; height: 40px;
         display: inline-flex;
@@ -30,22 +29,13 @@
       #btnDistance:hover { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
       #btnDistance svg { width: 26px; height: 26px; display: block; }
       #btnDistance svg rect { fill: #555; stroke: #555; stroke-width: 2.4; transition: all .2s ease; }
-
-      /* 활성화 시 */
-      #btnDistance.active {
-        border-color: #db4040;
-        background: #fff !important;
-      }
-      #btnDistance.active svg rect {
-        fill: #db4040;
-        stroke: #db4040;
-        stroke-width: 3;
-      }
+      #btnDistance.active { border-color: #db4040; background: #fff !important; }
+      #btnDistance.active svg rect { fill: #db4040; stroke: #db4040; stroke-width: 3; }
     `;
     document.head.appendChild(st);
   }
 
-  // --- 버튼 생성 및 삽입 ---
+  // --- 버튼 생성 및 지도 컨트롤에 삽입 ---
   let btn = document.getElementById("btnDistance");
   if (!btn) {
     btn = document.createElement("button");
@@ -57,7 +47,6 @@
       </svg>
     `;
 
-    // ✅ Kakao map control 내부에 삽입
     const ctrlLayer =
       document.querySelector(".map_controls") ||
       document.querySelector(".custom_typecontrol");
@@ -65,9 +54,9 @@
       const rvBtn = ctrlLayer.querySelector(".btn_roadview");
       if (rvBtn) rvBtn.parentNode.insertBefore(btn, rvBtn.nextSibling);
       else ctrlLayer.appendChild(btn);
-      btn.style.zIndex = "350"; // 🔧 로드뷰보다 살짝 낮게
+      btn.style.zIndex = "350"; // 로드뷰보다 살짝 낮게
     } else {
-      // fallback (지도가 완전히 로드되기 전)
+      // fallback
       btn.style.position = "absolute";
       btn.style.top = "156px";
       btn.style.left = "10px";
@@ -113,7 +102,6 @@
   const formatDist = m =>
     m >= 1000 ? (m / 1000).toFixed(2) + " km" : fmt(m) + " m";
 
-  // --- 총거리 박스 ---
   function ensureTotalOverlay(position) {
     const xOffset = 8, yOffset = -8;
     if (!totalOverlay) {
@@ -206,4 +194,14 @@
       resetMeasure();
     }
   });
+
+  // --- 🔝 제안창 항상 최상단 유지 ---
+  const styleTop = document.createElement("style");
+  styleTop.textContent = `
+    .gx-suggest-box, .gx-suggest-search {
+      position: relative !important;
+      z-index: 9999 !important;
+    }
+  `;
+  document.head.appendChild(styleTop);
 })();
