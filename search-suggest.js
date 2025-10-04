@@ -258,7 +258,7 @@
       if(idx<0||idx>=current.length) return;
       const o=current[idx];
       const disp = displayTextOf(o);
-      if(disp) input.value=disp, lastQuery=disp;
+      if(disp){ input.value=disp; lastQuery=disp; }
 
       const {lat, lng} = getLatLngFromItem(o);
       if (isFinite(lat) && isFinite(lng) && map) {
@@ -344,7 +344,7 @@
           const idx = (activeIdx>=0 && activeIdx<useList.length) ? activeIdx : 0;
           const o = useList[idx];
           const disp = displayTextOf(o);
-          if (disp) input.value = disp, lastQuery = disp;
+          if (disp) { input.value = disp; lastQuery = disp; }
 
           const {lat, lng} = getLatLngFromItem(o);
           if (isFinite(lat) && isFinite(lng)) {
@@ -391,25 +391,26 @@
       update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
     }
 
-    /* === NEW: 인풋에 커서가 있어도 클릭/터치하면 제안창 열기 === */
+    /* === NEW: 인풋 클릭/터치 시에도 제안 창 열고 전체 선택 === */
     function openSuggestionsOnDemand() {
       let q = input.value || '';
       if (q.trim() === '' && lastQuery) {
-        // 포커스 때와 동일하게 lastQuery 사용 (입력창도 채움)
         input.value = lastQuery;
         q = lastQuery;
       }
       const list = q.trim() ? filterData(q) : [];
       current = list;
       if (list.length > 0) { render(list); openBox(); }
+      // 전체 선택(클릭/터치 후 다음 프레임에)
+      setTimeout(() => { try { input.select(); } catch(_) {} }, 0);
     }
     // 마우스
     input.addEventListener('mousedown', () => {
-      // 캐럿 이동/클릭 처리가 먼저 끝난 뒤 열리도록
       setTimeout(openSuggestionsOnDemand, 0);
     });
     input.addEventListener('click', () => {
       if (!box.classList.contains('open')) openSuggestionsOnDemand();
+      else setTimeout(()=>{ try{ input.select(); }catch(_){}} ,0);
     });
     // 터치
     input.addEventListener('touchend', () => {
