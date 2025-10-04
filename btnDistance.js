@@ -55,14 +55,26 @@
     toolbar.appendChild(btn);
   }
 
-  // 로드뷰 버튼 바로 아래에 위치 고정
-  (function placeButton() {
-    const rvBtn = toolbar.querySelector("#roadviewControl");
-    if (!rvBtn) return;
-    if (btn.previousElementSibling === rvBtn) return;
-    if (rvBtn.nextSibling) toolbar.insertBefore(btn, rvBtn.nextSibling);
-    else toolbar.appendChild(btn);
-  })();
+// --- 버튼 생성 ---
+let btn = document.getElementById("btnDistance");
+if (!btn) {
+  btn = document.createElement("button");
+  btn.id = "btnDistance";
+  btn.title = "거리 재기";
+  btn.setAttribute("aria-pressed", "false");
+  btn.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="1" y="7" width="22" height="10" rx="3" ry="3"></rect>
+    </svg>
+  `;
+  document.body.appendChild(btn); // ✅ 툴바 대신 body에 직접 추가
+}
+
+// --- 버튼 위치 고정 ---
+btn.style.position = "fixed";
+btn.style.top = "70px";      // 원하는 위치 (위쪽 기준)
+btn.style.left = "10px";    // 오른쪽에서 12px 떨어짐
+btn.style.zIndex = "1000";   // 지도 위에 항상 노출
 
   // --- 측정 UI 스타일 ---
   if (!document.getElementById("btnDistance-style")) {
