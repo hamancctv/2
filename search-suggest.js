@@ -1,5 +1,5 @@
-/* ===== search-suggest.js (DOM + CSS 자동 생성, Safari 대응 + Enter/Click 이동 & 원 표시) =====
-   ※ TAB 트랩(포커스 제어) 전부 제거한 버전
+/* ===== search-suggest.js (DOM + CSS 자동 생성, Safari 대응 + Enter/Click 이동 & 원 표시)
+   추가: "/" 키를 누르면 입력창 포커스 (다른 입력 요소에 포커스 중·수정키 조합시 무시)
 */
 (function () {
   /* ---------- 유틸 ---------- */
@@ -27,9 +27,7 @@
 }
 /* ✅ 검색창은 정상 입력되도록 허용 */
 .gx-suggest-search,
-.gx-suggest-search .gx-input {
-  touch-action:auto !important;
-}
+.gx-suggest-search .gx-input { touch-action:auto !important; }
 
 .gx-suggest-search{ display:flex; align-items:center; gap:8px; }
 .gx-suggest-search .gx-input{
@@ -73,11 +71,7 @@
   function createDOM(parent) {
     let root = parent.querySelector('.gx-suggest-root');
     if (root) {
-      return {
-        root,
-        input: root.querySelector('.gx-input'),
-        box: root.querySelector('.gx-suggest-box')
-      };
+      return { root, input: root.querySelector('.gx-input'), box: root.querySelector('.gx-suggest-box') };
     }
 
     root = document.createElement('div');
@@ -224,9 +218,7 @@
       if(idx<0||idx>=current.length) return;
       const o=current[idx]; const t=titleOf(o); if(t) input.value=t;
       const {lat, lng} = getLatLngFromItem(o);
-      if (isFinite(lat) && isFinite(lng) && map) {
-        centerWithEffect(lat, lng);
-      }
+      if (isFinite(lat) && isFinite(lng) && map) centerWithEffect(lat, lng);
       closeBox(); input.blur();
     }
 
@@ -268,9 +260,7 @@
         if (useList.length) {
           const idx = (activeIdx>=0 && activeIdx<useList.length) ? activeIdx : 0;
           const {lat, lng} = getLatLngFromItem(useList[idx]);
-          if (isFinite(lat) && isFinite(lng)) {
-            centerWithEffect(lat, lng);
-          }
+          if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
           closeBox(); input.blur();
         }
       } else if(e.key==='Escape'){
@@ -308,6 +298,34 @@
       const container=parent.closest('#container')||document.getElementById('container')||document.body;
       const update=()=>{const on=container.classList.contains('view_roadview'); if(on){root.classList.add('is-hidden');closeBox();}else root.classList.remove('is-hidden');};
       update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
+    }
+
+    /* === "/" 글로벌 단축키: 입력창 활성화 ===
+       - 다른 입력요소에 포커스 중이면 무시
+       - Ctrl/Meta/Alt 조합시 무시
+       - 로드뷰로 숨겨진 상태(is-hidden)면 무시
+       - 중복 바인딩 방지
+    */
+    if (!root.__slashHandlerBound) {
+      root.__slashHandlerBound = true;
+      document.addEventListener('keydown', function onSlash(e){
+        const keyIsSlash = (e.key === '/' || e.code === 'Slash');
+        if (!keyIsSlash) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        const ae = document.activeElement;
+        const tag = (ae && ae.tagName) ? ae.tagName.toLowerCase() : '';
+        const isTyping =
+          tag === 'input' || tag === 'textarea' ||
+          (ae && ae.isContentEditable === true);
+
+        if (isTyping) return;               // 이미 다른 입력 중
+        if (root.classList.contains('is-hidden')) return; // 로드뷰로 숨김 중
+
+        e.preventDefault();                 // 페이지에 "/" 입력되는 것 방지
+        try { input.focus(); input.select(); } catch(_) {}
+        // 포커스 시 자동열기 옵션이 있고 값이 있으면 기존 로직이 열어줌
+      }, { passive:false });
     }
   };
 })();
