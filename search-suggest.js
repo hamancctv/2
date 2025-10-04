@@ -173,59 +173,57 @@
       return {lat, lng};
     }
 
-// === replace: centerWithEffect (instant pulse, no idle wait) ===
-function centerWithEffect(lat, lng){
-  const pt = new kakao.maps.LatLng(lat, lng);
+    // === replace: centerWithEffect (instant pulse, no idle wait) ===
+    function centerWithEffect(lat, lng){
+      const pt = new kakao.maps.LatLng(lat, lng);
 
-  // 전역 setCenter가 있으면 거기로 위임 (중복 방지)
-  if (typeof window.setCenter === 'function') {
-    try { window.setCenter(lat, lng); } catch(_) {}
-    return;
-  }
+      // 전역 setCenter가 있으면 거기로 위임 (중복 방지)
+      if (typeof window.setCenter === 'function') {
+        try { window.setCenter(lat, lng); } catch(_) {}
+        return;
+      }
 
-  // 부드러운 줌 + 팬 시작
-  try { map.setLevel(1, { animate: true }); } catch(_) { try { map.setLevel(1); } catch(_) {} }
+      // 부드러운 줌 + 팬 시작
+      try { map.setLevel(1, { animate: true }); } catch(_) { try { map.setLevel(1); } catch(_) {} }
 
-  let drawn = false;
-  function drawPulse() {
-    if (drawn) return; drawn = true;
-    try {
-      const circle = new kakao.maps.Circle({
-        center: pt,
-        radius: 50,
-        strokeWeight: 1,
-        strokeColor: '#ffa500',
-        strokeOpacity: 1,
-        strokeStyle: 'dashed',
-        fillColor: '#FF1000',
-        fillOpacity: 0.3,
-        zIndex: 9999
-      });
-      circle.setMap(map);
-      setTimeout(()=>{ try { circle.setMap(null); } catch(_) {} }, 1000);
-    } catch(_) {}
-  }
+      let drawn = false;
+      function drawPulse() {
+        if (drawn) return; drawn = true;
+        try {
+          const circle = new kakao.maps.Circle({
+            center: pt,
+            radius: 50,
+            strokeWeight: 1,
+            strokeColor: '#ffa500',
+            strokeOpacity: 1,
+            strokeStyle: 'dashed',
+            fillColor: '#FF1000',
+            fillOpacity: 0.3,
+            zIndex: 9999
+          });
+          circle.setMap(map);
+          setTimeout(()=>{ try { circle.setMap(null); } catch(_) {} }, 1000);
+        } catch(_) {}
+      }
 
-  // 팬과 펄스 타이밍: rAF → rAF 로 다음 페인트 직후 즉시 느낌
-  try {
-    if (window.requestAnimationFrame) {
-      requestAnimationFrame(() => {
+      // 팬과 펄스 타이밍: rAF → rAF 로 다음 페인트 직후 즉시 느낌
+      try {
+        if (window.requestAnimationFrame) {
+          requestAnimationFrame(() => {
+            try { map.panTo(pt); } catch(_) {}
+            requestAnimationFrame(drawPulse);   // 다음 프레임에 바로 원
+          });
+        } else {
+          setTimeout(() => { try { map.panTo(pt); } catch(_) {} ; setTimeout(drawPulse, 50); }, 16);
+        }
+      } catch(_) {
         try { map.panTo(pt); } catch(_) {}
-        requestAnimationFrame(drawPulse);   // 다음 프레임에 바로 원
-      });
-    } else {
-      setTimeout(() => { try { map.panTo(pt); } catch(_) {} ; setTimeout(drawPulse, 50); }, 16);
+        setTimeout(drawPulse, 60);
+      }
+
+      // 백업 보장 (혹시 위 타이밍이 씹히면 180ms에 1회 더 시도)
+      setTimeout(drawPulse, 180);
     }
-  } catch(_) {
-    try { map.panTo(pt); } catch(_) {}
-    setTimeout(drawPulse, 60);
-  }
-
-  // 백업 보장 (혹시 위 타이밍이 씹히면 180ms에 1회 더 시도)
-  setTimeout(drawPulse, 180);
-}
-
-
 
     function pick(idx){
       if(idx<0||idx>=current.length) return;
@@ -319,6 +317,79 @@ function centerWithEffect(lat, lng){
       const container=parent.closest('#container')||document.getElementById('container')||document.body;
       const update=()=>{const on=container.classList.contains('view_roadview'); if(on){root.classList.add('is-hidden');closeBox();}else root.classList.remove('is-hidden');};
       update(); const mo=new MutationObserver(update); mo.observe(container,{attributes:true,attributeFilter:['class']});
+    }
+
+    /* === (추가) TAB 제어: 인풋 제외 전체 탭 차단 + Tab으로 토글 ===
+       - HTML 수정 불필요
+       - 기본값: 탭 차단 ON (검색 인풋만 탭 허용)
+       - 검색 인풋이 아닌 곳에서 Tab 누르면 토글(활성화<->비활성화) */
+    if (!window.__gxTabTrapInstalled) {
+      window.__gxTabTrapInstalled = true;
+
+      (function tabTrapSetup(){
+        let tabTrapEnabled = true; // 기본: 차단 ON
+
+        const focusSelector = 'a, button, input, select, textarea, [tabindex]';
+        const mapWrapper = document.getElementById('mapWrapper');
+        const rvWrapper  = document.getElementById('rvWrapper');
+        const container  = document.getElementById('container');
+
+        function isSearchInput(el){
+          return !!(el && el.classList && el.classList.contains('gx-input'));
+        }
+
+        function setTrap(enabled){
+          tabTrapEnabled = enabled;
+
+          [mapWrapper, rvWrapper].forEach(scope=>{
+            if (!scope) return;
+            scope.querySelectorAll(focusSelector).forEach(el=>{
+              // 검색 인풋은 항상 허용
+              if (isSearchInput(el)) return;
+
+              if (enabled){
+                // 차단: 기존 tabindex 저장 후 -1
+                if (!el.dataset._origTabIndexCaptured) {
+                  el.dataset._origTabIndexCaptured = '1';
+                  el.dataset._origTabIndex = el.hasAttribute('tabindex')
+                    ? el.getAttribute('tabindex')
+                    : '';
+                }
+                el.setAttribute('tabindex','-1');
+              }else{
+                // 해제: 원복
+                if (el.dataset._origTabIndexCaptured){
+                  if (el.dataset._origTabIndex === '') el.removeAttribute('tabindex');
+                  else el.setAttribute('tabindex', el.dataset._origTabIndex);
+                }
+              }
+            });
+          });
+        }
+
+        // 초기 상태 적용
+        setTrap(true);
+
+        // Tab키로 토글 (검색 인풋 포커스일 땐 기본 동작 유지)
+        document.addEventListener('keydown', function(e){
+          if (e.key !== 'Tab') return;
+
+          if (isSearchInput(e.target)) return; // 인풋이면 기본 탭 허용
+
+          // 그 외는 토글용으로만 사용
+          e.preventDefault();
+          const next = !tabTrapEnabled;
+          setTrap(next);
+          try { (typeof flash==='function') && flash('탭 이동 ' + (next ? '비활성화' : '활성화')); } catch(_) {}
+        }, true);
+
+        // 로드뷰 온/오프나 DOM 변화에도 현재 상태 재적용
+        if (container) {
+          const mo = new MutationObserver(()=> setTrap(tabTrapEnabled));
+          mo.observe(container, { attributes:true, childList:true, subtree:true });
+        }
+        window.addEventListener('resize', ()=> setTrap(tabTrapEnabled));
+      })();
     }
   };
 })();
