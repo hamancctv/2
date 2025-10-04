@@ -1,11 +1,11 @@
-/* ===== search-suggest.js (FULL-STABLE-LAST-HYPHEN-NOFREEZE-KUP, 2025-10-05)
-   - Safari 대응 / 핀치줌 차단
-   - 제안창 자동 생성 + 입력창과 2px 간격
-   - Enter 포커싱(비포커스) → keydown, 선택 확정은 keyup에서 1회만
-   - 마지막 하이픈(-) 이후 텍스트만 표시 ("도-002-마산고등학교" → "마산고등학교")
+/* ===== search-suggest.js (FULL-STABLE-LAST-HYPHEN-NOFREEZE-SLASH-L3-ARROWS, 2025-10-05)
+   - "/" 핫키로 활성화(입력 방지 + 최근 질의 복원 + 제안 열기 + 전체선택)
+   - 마지막 하이픈(-) 이후 텍스트만 표시
    - 마커 클릭 시 입력창만 갱신(로드뷰 시 무시)
    - 로드뷰 모드 시 자동 숨김
-   - 프리징 최소화: Circle 재사용, pick 스로틀, 동일좌표/오토리핏/IME 가드, blur 제거
+   - 프리징 최소화: Circle 재사용(이제 항상 표시), pick 스로틀, IME 가드, blur 제거
+   - 지도 이동 시 레벨 3로 고정
+   - 비활성 상태에서도 ArrowLeft/Right 커서 이동, ArrowDown 제안창 열기
 ===== */
 (function () {
   /* ---------- 유틸 ---------- */
@@ -13,7 +13,7 @@
   function toLowerNoSpace(s){return normalizeText(s).replace(/\s+/g,'').toLowerCase();}
   function escapeHTML(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
-  // ✅ 마지막 하이픈 이후 문자열만 사용
+  // 마지막 하이픈 이후 문자열만 사용
   function extractKoreanTail(name, fallback) {
     const src = normalizeText(name);
     let result = normalizeText(fallback || src);
@@ -28,7 +28,7 @@
 .gx-suggest-root{
   position:absolute; top:12px; left:50%; transform:translateX(-50%);
   width:min(520px,90vw); z-index:600;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun 고딕",sans-serif;
 }
 .gx-suggest-search{position:relative;display:flex;align-items:center;gap:8px;}
 .gx-suggest-search .gx-input{
@@ -76,11 +76,10 @@
 
     // 상태
     let activeIdx=-1,current=[],__lastTypedQuery='',__lastPickedQuery='';
-    // 프리징 방지 상태
-    let pickBlockUntil=0;            // pick 연타 방지 (ms 기준)
-    let pulseCircle=null;            // Circle 재사용 인스턴스
+    // 프리징 관련
+    let pickBlockUntil=0;            // pick 연타 방지
+    let pulseCircle=null;            // Circle 재사용
     let pulseHideTimer=null;         // Circle 숨김 타이머
-    let lastPan={t:0,lat:null,lng:null}; // 동일 좌표/빈도 가드
 
     const items=()=>Array.from(box.querySelectorAll('.gx-suggest-item'));
     const openBox=()=>{if(!box.classList.contains('open'))box.classList.add('open');};
@@ -131,16 +130,17 @@
     }
     const getLatLng=o=>({lat:Number(o.lat||o.latlng?.getLat?.()),lng:Number(o.lng||o.latlng?.getLng?.())});
 
-    // ✅ 써클 재사용 + 동일좌표/빈도 가드
+    // ✅ 지도 이동(레벨3 고정) + 써클 항상 표시 (재사용)
     function centerWithEffect(lat,lng){
-      const now=Date.now();
-      const same = lastPan.lat!==null && Math.abs(lastPan.lat-lat)<1e-7 && Math.abs(lastPan.lng-lng)<1e-7;
-      if(same && now-lastPan.t<300) return; // 300ms 내 동일 좌표 스킵
-
       const pt=new kakao.maps.LatLng(lat,lng);
-      try{ map.panTo(pt); }catch{}
-      lastPan={t:now,lat,lng};
 
+      // 항상 레벨 3
+      try{ map.setLevel(3); }catch{}
+
+      // 부드럽게 이동
+      try{ map.panTo(pt); }catch{}
+
+      // 써클은 매번 표시(인스턴스 재사용)
       try{
         if(!pulseCircle){
           pulseCircle=new kakao.maps.Circle({
@@ -161,7 +161,7 @@
     function pick(i){
       if(i<0||i>=current.length) return;
 
-      // ✅ 연타/오토리핏 스로틀 (0.45s)
+      // 연타 스로틀 (0.45s)
       const now=Date.now();
       if(now<pickBlockUntil) return;
       pickBlockUntil = now + 450;
@@ -174,7 +174,7 @@
       if(isFinite(lat)&&isFinite(lng)) centerWithEffect(lat,lng);
 
       __rememberPicked();
-      closeBox(); // 🔸 포커스는 유지 (blur 호출 안 함)
+      closeBox(); // 포커스 유지(blur 없음)
     }
 
     // 입력 이벤트
@@ -187,157 +187,20 @@
       render(list); openBox();
     });
 
-    // 포커스 시 현재 값 기준으로 열기
+    // 포커스 시 현재 값으로 열기
     input.addEventListener('focus',()=>{
       const q=(input.value||'').trim(); if(!q) return;
       const list=filterData(q); current=list;
       if(list.length){ render(list); openBox(); }
     });
 
-    // 키보드 내비: keydown에서는 ↑/↓/Esc만, IME 조합 중이면 무시
+    // 키보드 내비: ↑/↓/Esc만 가로채기 (IME 가드)
     input.addEventListener('keydown',(e)=>{
-      if(e.isComposing || e.keyCode===229) return; // IME 조합 입력 가드
+      if(e.isComposing || e.keyCode===229) return;
 
       const listEls=items();
       const isOpen=box.classList.contains('open') && listEls.length>0;
 
       if(!isOpen && (e.key==='ArrowDown'||e.key==='ArrowUp')){
         const q=(input.value||'').trim();
-        if(q){ const l=filterData(q); current=l; if(l.length){ render(l); openBox(); } }
-      }
-
-      if(e.key==='ArrowDown' && isOpen){
-        e.preventDefault(); setActive((activeIdx+1)%listEls.length);
-      }else if(e.key==='ArrowUp' && isOpen){
-        e.preventDefault(); setActive((activeIdx-1+listEls.length)%listEls.length);
-      }else if(e.key==='Escape'){
-        closeBox();
-      }
-      // ❌ Enter 확정은 keyup에서 단 1회 처리
-    });
-
-    // ✅ Enter 확정은 keyup에서 1회만 (IME 가드)
-    input.addEventListener('keyup',(e)=>{
-      if(e.isComposing || e.keyCode===229) return;
-      if(e.key!=='Enter') return;
-
-      const listEls=items();
-      const isOpen=box.classList.contains('open') && listEls.length>0;
-      if(!isOpen) return;
-
-      pick(activeIdx>=0 && activeIdx<current.length ? activeIdx : 0);
-    });
-
-    // 입력창 클릭: 전체선택 없이 제안만 열기 (비어있으면 최근 질의 복원)
-    input.addEventListener('mousedown',()=>{
-      setTimeout(()=>{
-        let q=(input.value||'').trim();
-        if(!q) q=__lastPickedQuery||__lastTypedQuery||'';
-        if(!q) return;
-        const list=filterData(q); current=list;
-        if(list.length){ render(list); openBox(); }
-      },0);
-    });
-
-    // 바깥 클릭 닫기
-    document.addEventListener('mousedown',(e)=>{
-      if(!box.classList.contains('open')) return;
-      if(e.target===input || box.contains(e.target)) return;
-      closeBox();
-    });
-
-    window.addEventListener('resize', closeBox);
-
-    // 지도 이벤트: blur는 안 걸고, 박스만 닫아 프리징 방지
-    kakao.maps.event.addListener(map,'click',()=>closeBox());
-    kakao.maps.event.addListener(map,'dragstart',()=>closeBox());
-
-    // Safari: touchend에서만 필요 시 blur
-    const mapEl=document.getElementById('map');
-    if(mapEl){
-      mapEl.addEventListener('touchend',()=>{
-        if(document.activeElement===input) input.blur();
-      },{passive:true});
-    }
-
-    // ✅ 전역 Enter: 비포커스면 입력창 활성화 + 제안 열기 (autorepeat/IME 가드)
-    window.addEventListener('keydown',(e)=>{
-      if(e.key!=='Enter') return;
-      if(e.repeat || e.isComposing || e.keyCode===229) return; // autorepeat & IME 가드
-
-      const ae=document.activeElement;
-      const isOurInput=(ae===input);
-      const typingElsewhere = !isOurInput && (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
-      if(typingElsewhere) return; // 다른 입력필드면 패스
-
-      if(!isOurInput){
-        e.preventDefault();
-        try{input.focus();}catch{}
-        setTimeout(()=>{
-          let seed=(input.value||'').trim();
-          if(!seed) seed=__lastPickedQuery||__lastTypedQuery||'';
-          if(seed){
-            input.value=seed;
-            const list=filterData(seed); current=list;
-            if(list.length){ render(list); openBox(); }
-          }
-        },0);
-      }
-      // 포커스 상태 Enter는 keyup에서 확정
-    },true);
-
-    /* ===== 마커 클릭 → 입력창만 갱신 (로드뷰 모드면 무시) ===== */
-    const patched=new WeakSet();
-    function attachMarkerHandlersOnce(){
-      const container=parent.closest('#container')||document.getElementById('container')||document.body;
-      const list=(typeof getMarkers==='function'?getMarkers(): (Array.isArray(window.markers)?window.markers:[]) )||[];
-      if(!Array.isArray(list)) return;
-
-      list.forEach(mk=>{
-        if(!mk||patched.has(mk)) return;
-        if(typeof mk.getPosition!=='function'){ patched.add(mk); return; }
-
-        kakao.maps.event.addListener(mk,'click',()=>{
-          if(container && container.classList.contains('view_roadview')) return;
-          try{
-            const pos=mk.getPosition();
-            const lat=pos.getLat?pos.getLat():pos.La;
-            const lng=pos.getLng?pos.getLng():pos.Ma;
-
-            let text='';
-            const found = Array.isArray(data) ? data.find(o=>{
-              const la=Number(o.lat), ln=Number(o.lng);
-              return isFinite(la)&&isFinite(ln)&&Math.abs(la-lat)<0.0001&&Math.abs(ln-lng)<0.0001;
-            }) : null;
-
-            if(found) text=extractKoreanTail(found.name1||found.name||found.searchName);
-            else if(typeof mk.getTitle==='function') text=extractKoreanTail(mk.getTitle(),mk.getTitle());
-
-            if(text){
-              input.value=text;
-              __lastPickedQuery=text;
-              closeBox(); // 제안창은 닫되 포커스는 유지
-            }
-          }catch{}
-        });
-
-        patched.add(mk);
-      });
-    }
-    attachMarkerHandlersOnce();
-    document.addEventListener('markers:updated', attachMarkerHandlersOnce);
-
-    // 로드뷰 모드 감시: 입력창 자동 숨김
-    if(hideOnRoadview){
-      const container=parent.closest('#container')||document.getElementById('container')||document.body;
-      const update=()=>{
-        const on=container.classList.contains('view_roadview');
-        if(on){ root.classList.add('is-hidden'); closeBox(); }
-        else  { root.classList.remove('is-hidden'); }
-      };
-      update();
-      const mo=new MutationObserver(update);
-      mo.observe(container,{attributes:true,attributeFilter:['class']});
-    }
-  };
-})();
+        if(q){ const l=filterData(q); current=l; if(l.length){ render(l); openBox();
