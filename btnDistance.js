@@ -16,7 +16,7 @@
     st.textContent = `
       #btnDistance {
         position: fixed;
-        top: 100px;           /* 원하는 위치 */
+        top: 156px;           /* 원하는 위치 */
         left: 10px;          /* 왼쪽 여백 */
         z-index: 1000;       /* 지도 위 표시 */
         width: 40px; height: 40px;
