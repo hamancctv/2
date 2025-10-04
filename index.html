@@ -113,6 +113,54 @@
   <script src="https://hamancctv.github.io/2/markers-handler.js"></script>
   <script src="https://hamancctv.github.io/2/search-suggest.js"></script>
 
+    <!-- ✅ 여기(바디 닫기 직전)에 setCenter 전역 함수 추가 -->
+  <script>
+  // 전역 setCenter: 줌/팬 애니메이션 + 이동 후 펄스(원) 표시
+  function setCenter(Lat, Lng) {
+    if (!window.kakao || !kakao.maps || !window.map) return;
+    var moveLatLon = new kakao.maps.LatLng(Lat, Lng);
+
+    try { map.setLevel(1, { animate: true }); } catch(e) { try{ map.setLevel(1); }catch(_){} }
+
+    setTimeout(function () {
+      try { map.panTo(moveLatLon); } catch (e) {}
+    }, 50);
+
+    var drew = false;
+    function drawPulse() {
+      if (drew) return; drew = true;
+      try {
+        var circle = new kakao.maps.Circle({
+          center: moveLatLon,
+          radius: 50,
+          strokeWeight: 1,
+          strokeColor: '#ffa500',
+          strokeOpacity: 1,
+          strokeStyle: 'dashed',
+          fillColor: '#FF1000',
+          fillOpacity: 0.3,
+          zIndex: 9999
+        });
+        circle.setMap(map);
+        setTimeout(function(){ try { circle.setMap(null); } catch(e){} }, 1000);
+      } catch(e){}
+    }
+
+    try {
+      var handler = function () {
+        try { kakao.maps.event.removeListener(map, 'idle', handler); } catch(e){}
+        drawPulse();
+      };
+      kakao.maps.event.addListener(map, 'idle', handler);
+      setTimeout(function(){
+        try { kakao.maps.event.removeListener(map, 'idle', handler); } catch(e){}
+        drawPulse();
+      }, 300);
+    } catch(e) {
+      drawPulse();
+    }
+  }
+  </script>
 <script>
 /* 짧은 헬퍼 */
 const $  = s => document.querySelector(s);
