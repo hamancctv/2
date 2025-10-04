@@ -111,6 +111,7 @@
             map, position: pos.latlng, image: normalImage, clickable:true, zIndex: Z.BASE+1
           });
           marker.group = pos.group ? String(pos.group) : (pos.line ? String(pos.line) : null);
+marker.__pos = pos.latlng; // ✅ MST 연동용 LatLng 직접 저장
 
           // --- Overlay ---
           const el = document.createElement("div");
