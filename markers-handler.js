@@ -1,11 +1,11 @@
-// markers-handler.js (v2025-10-05-RV-SAFE-FINAL)
-// ✅ 기존 기능 유지 + 로드뷰시 마커 클릭 비활성 + 동동이보다 항상 아래
+// markers-handler.js (v2025-10-05-STABLE-RV-STRICT)
+// ✅ 로드뷰시 마커 완전 비활성 + 커서 제거 + 오버레이 숨김
 (function () {
-  console.log("[markers-handler] loaded v2025-10-05-RV-SAFE-FINAL");
+  console.log("[markers-handler] loaded v2025-10-05-STABLE-RV-STRICT");
 
   const style = document.createElement("style");
   style.textContent = `
-    .overlay-hover{
+    .overlay-hover {
       padding:2px 6px;
       background:rgba(255,255,255,0.85);
       border:1px solid #ccc;
@@ -13,89 +13,50 @@
       font-size:14px;
       white-space:nowrap;
       user-select:none;
-      transition:transform .15s ease, border .15s ease, background .15s ease;
-      transform:translateZ(0);
-      will-change:transform, border;
+      transition:transform .15s ease, border .15s ease;
+      pointer-events:none; /* 커서통과 */
     }
   `;
   document.head.appendChild(style);
 
-  const Z = { BASE: 1, FRONT: 999999 }; // 기본 zIndex 낮춤 (동동이보다 항상 아래)
-  const Z_WALKER = 2147483647;
+  const Z = { BASE: 1, FRONT: 999999 };
+  const Z_WALKER = 2147483647; // 동동이보다 항상 아래
+  const baseY = -44, hoverY = -52.4, jumpY = -72;
 
   let selectedMarker = null;
   let selectedOverlay = null;
-  let hoverMarker = null;
-  let normalImage, hoverImage, jumpImage;
-  let clickStartTime = 0;
 
-  const normalH = 42, hoverH = 50.4, gap = 2;
-  const baseY = -(normalH + gap);
-  const hoverY = -(hoverH + gap);
-  const jumpY = -(70 + gap);
-
-  // ==== 로드뷰 상태 감지 ====
+  // ===== 유틸 =====
   const isRoadviewActive = () => {
-    const container = document.getElementById("container");
-    return container && container.classList.contains("view_roadview");
+    const c = document.getElementById("container");
+    return c && c.classList.contains("view_roadview");
   };
 
-  function setDefaultZ(marker, overlay) {
-    marker?.setZIndex(Z.BASE);
-    overlay?.setZIndex(Z.BASE);
-  }
-
-  function setFrontZ(marker, overlay) {
-    // 동동이보다 항상 아래 유지
-    const safeTop = Math.min(Z_WALKER - 1, Z.FRONT);
-    marker?.setZIndex(safeTop);
-    overlay?.setZIndex(safeTop + 1);
-  }
-
-  // 지도 클릭 시 선택 해제
-  function bindMapClick(map) {
-    kakao.maps.event.addListener(map, "click", function () {
-      if (selectedOverlay) {
-        selectedOverlay.setZIndex(Z.BASE);
-        selectedOverlay.holder.style.border = "1px solid #ccc";
-      }
-      selectedMarker = null;
-      selectedOverlay = null;
-    });
-  }
-
-  // name1 tail → 검색창 반영
-  function extractAfterSecondHyphen(s) {
+  const fillSearchInputWithTail = (s) => {
     s = (s || "").toString().trim();
     const i1 = s.indexOf("-");
-    if (i1 < 0) return s;
     const i2 = s.indexOf("-", i1 + 1);
-    return (i2 >= 0 ? s.slice(i2 + 1) : s.slice(i1 + 1)).trim();
-  }
-  function fillSearchInputWithTail(baseText) {
-    const tail = extractAfterSecondHyphen(baseText);
+    const tail = (i2 >= 0 ? s.slice(i2 + 1) : s.slice(i1 + 1)).trim();
     const input = document.querySelector(".gx-input") || document.getElementById("keyword");
-    if (input) {
+    if (input && tail) {
       input.value = tail;
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
-  }
+  };
 
-  // ====== 마커 초기화 ======
+  // ====== 초기화 ======
   window.initMarkers = function (map, positions) {
-    bindMapClick(map);
-
-    normalImage = new kakao.maps.MarkerImage(
+    const normalImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(30, 42),
       { offset: new kakao.maps.Point(15, 42) }
     );
-    hoverImage = new kakao.maps.MarkerImage(
+    const hoverImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(36, 50.4),
       { offset: new kakao.maps.Point(18, 50.4) }
     );
-    jumpImage = new kakao.maps.MarkerImage(
+    const jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(30, 42),
       { offset: new kakao.maps.Point(15, 70) }
@@ -104,16 +65,26 @@
     const markers = [];
     const overlays = [];
 
-    positions.forEach(pos => {
+    // 지도 클릭 시 선택 해제
+    kakao.maps.event.addListener(map, "click", function () {
+      if (selectedOverlay) {
+        selectedOverlay.setMap(null);
+        selectedOverlay.holder.style.border = "1px solid #ccc";
+      }
+      selectedMarker = null;
+      selectedOverlay = null;
+    });
+
+    for (const pos of positions) {
       const marker = new kakao.maps.Marker({
         map,
         position: pos.latlng,
         image: normalImage,
-        zIndex: Z.BASE
+        zIndex: Z.BASE,
+        clickable: true
       });
-      marker.group = pos.group || null;
+
       marker.__name1 = pos.name1 || "";
-      marker.__pos = pos.latlng;
       marker.__lat = pos.latlng.getLat();
       marker.__lng = pos.latlng.getLng();
 
@@ -130,41 +101,39 @@
         zIndex: Z.BASE
       });
       overlay.holder = el;
+      marker.__overlay = overlay;
 
-      // --- 마우스 오버 ---
+      // ===== Hover (로드뷰 아닐 때만) =====
       kakao.maps.event.addListener(marker, "mouseover", function () {
-        if (isRoadviewActive()) return; // 로드뷰 중엔 비활성
+        if (isRoadviewActive()) return; // 로드뷰 중엔 무시
         marker.setImage(hoverImage);
         overlay.setMap(map);
-        setFrontZ(marker, overlay);
+        overlay.setZIndex(Z_WALKER - 2);
         el.style.transform = `translateY(${hoverY}px)`;
       });
 
-      // --- 마우스 아웃 ---
       kakao.maps.event.addListener(marker, "mouseout", function () {
         if (isRoadviewActive()) return;
         marker.setImage(normalImage);
-        setDefaultZ(marker, overlay);
+        overlay.setMap(null);
         el.style.transform = `translateY(${baseY}px)`;
       });
 
-      // --- 마커 클릭 ---
+      // ===== Click =====
       kakao.maps.event.addListener(marker, "click", function (mouseEvent) {
-        // 로드뷰 중엔 지도 클릭으로 대체
+        // 로드뷰 중엔 지도 클릭처럼 동작 (커서 없음)
         if (isRoadviewActive()) {
           kakao.maps.event.trigger(map, "click", mouseEvent);
           return;
         }
 
         if (selectedMarker === marker) {
-          // 같은 마커 다시 클릭 시 해제
           overlay.setMap(null);
           selectedMarker = null;
           selectedOverlay = null;
           return;
         }
 
-        // 이전 선택 해제
         if (selectedOverlay) {
           selectedOverlay.setMap(null);
           selectedOverlay.holder.style.border = "1px solid #ccc";
@@ -174,12 +143,10 @@
         selectedOverlay = overlay;
         marker.setImage(jumpImage);
         overlay.setMap(map);
-        setFrontZ(marker, overlay);
-
+        overlay.setZIndex(Z_WALKER - 2);
         el.style.border = "2px solid blue";
         el.style.transform = `translateY(${jumpY}px)`;
 
-        // 좌표 갱신
         const g = document.getElementById("gpsyx");
         if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
         fillSearchInputWithTail(marker.__name1);
@@ -187,29 +154,51 @@
         setTimeout(() => {
           marker.setImage(normalImage);
           el.style.transform = `translateY(${baseY - 2}px)`;
-        }, 150);
+        }, 200);
       });
 
       markers.push(marker);
       overlays.push(overlay);
-    });
+    }
 
     window.markers = markers;
-    window.overlays = overlays;
 
-    // ==== idle: 확대레벨별 오버레이 제어 ====
+    // ===== Idle (오버레이 표시 제어) =====
     kakao.maps.event.addListener(map, "idle", function () {
       const level = map.getLevel();
+      const rvOn = isRoadviewActive();
+
       for (const m of markers) {
-        const o = m.__overlay || overlays.find(v => v.holder.textContent === m.__name1);
+        const o = m.__overlay;
         if (!o) continue;
+
+        if (rvOn) {
+          // 로드뷰 중엔 모든 오버레이 숨김
+          o.setMap(null);
+          continue;
+        }
+
         if (level <= 3) {
           o.setMap(map);
+          o.setZIndex(Z_WALKER - 3);
         } else {
           o.setMap(null);
         }
-        setDefaultZ(m, o);
       }
     });
+
+    // ===== 로드뷰 전환 시 즉시 반응 =====
+    const container = document.getElementById("container");
+    if (container) {
+      const obs = new MutationObserver(() => {
+        const rvOn = isRoadviewActive();
+        markers.forEach(m => {
+          m.setClickable(!rvOn);
+          m.setCursor(rvOn ? "default" : "pointer");
+          if (rvOn && m.__overlay) m.__overlay.setMap(null);
+        });
+      });
+      obs.observe(container, { attributes: true, attributeFilter: ["class"] });
+    }
   };
 })();
