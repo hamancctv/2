@@ -625,13 +625,18 @@ kakao.maps.load(function(){
     // 시선 변화 시 살짝 보정
     smoothWalkerCenter(250);
   });
-  // 로드뷰 위치 ↔ 지도/동동이 싱크
-  kakao.maps.event.addListener(rv, 'position_changed', function(){
-    if(!overlayOn) return;
-    const pos = rv.getPosition();
-    map.setCenter(pos);
-    if(mapWalker) mapWalker.setPosition(pos);
-  });
+// 로드뷰 위치 ↔ 지도/동동이 싱크 (부드럽게 이동)
+kakao.maps.event.addListener(rv, 'position_changed', function(){
+  if(!overlayOn) return;
+  const pos = rv.getPosition();
+  try {
+    map.panTo(pos, {duration: 400});  // 💫 부드러운 이동 (카카오맵 효과와 동일)
+  } catch(e) {
+    map.setCenter(pos); // 혹시 panTo 미지원일 경우 대비
+  }
+  if(mapWalker) mapWalker.setPosition(pos);
+});
+
 
   // 지도 클릭 → (픽모드면 먼저 동동이 옮기고) 로드뷰 이동
   kakao.maps.event.addListener(map, 'click', function(e){
