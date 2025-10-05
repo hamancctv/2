@@ -1,6 +1,6 @@
-// markers-handler.js (v2025-10-06 FINAL-ALL-LOGIC-FIXED)
+// markers-handler.js (v2025-10-06 FINAL-ALL-LOGIC-FIXED-V2)
 (function () {
-  console.log("[markers-handler] loaded v2025-10-06 FINAL-ALL-LOGIC-FIXED");
+  console.log("[markers-handler] loaded v2025-10-06 FINAL-ALL-LOGIC-FIXED-V2");
 
   /* ==================== 스타일 ==================== */
   const style = document.createElement("style");
@@ -13,6 +13,7 @@
       font-size:14px;
       white-space:nowrap;
       user-select:none;
+      cursor:default; 
       transition:transform .15s ease, border .15s ease, background .15s ease;
       will-change:transform, border;
       transform:translateZ(0);
@@ -22,8 +23,7 @@
   document.head.appendChild(style);
 
   /* ==================== 상수 / 상태 ==================== */
-  // 오버레이는 로드뷰에 의해 Z-Index가 강제되거나, isInteractionLocked가 true일 때 항상 뒤에 있어야 함.
-  const Z = { BASE: 100, FRONT: 100000 };
+  const Z = { BASE: 100, FRONT: 100000 }; 
 
   let selectedMarker = null;
   let selectedOverlayEl = null;
@@ -44,13 +44,14 @@
 
   /* ==================== 유틸 ==================== */
   function setDefaultZ(marker, overlay){
-    // ⭐ 인터락 시에는 Z.BASE로 고정하여 로드뷰/MapWalker 뒤로 보냄
-    const zBase = (window.isInteractionLocked && window.isInteractionLocked()) ? 1 : Z.BASE;
-    if (marker)  marker.setZIndex(zBase + 1);
-    if (overlay) overlay.setZIndex(zBase);
+    if (marker)  {
+        marker.setZIndex(Z.BASE + 1); 
+    }
+    if (overlay) {
+        overlay.setZIndex(Z.BASE);
+    }
   }
   function setFrontZ(marker, overlay){
-    // ⭐ 인터락 시에도 선택/호버 마커는 MapWalker(Z.FRONT) 앞으로 나와야 함.
     if (marker)  marker.setZIndex(Z.FRONT);
     if (overlay) overlay.setZIndex(Z.FRONT + 1);
   }
@@ -101,14 +102,14 @@
         setDefaultZ(selectedMarker, selectedOverlayObj);
       }
     
-      // 레벨 4 이상이고 선택 해제된 오버레이가 전면 오버레이가 아니면 숨김
-      if (map.getLevel() > 3 && selectedOverlayObj && selectedOverlayObj !== frontOverlay) {
+      // ⭐ [수정 핵심]: 레벨 4 이상일 때만, 선택된 오버레이를 지도에서 숨김
+      if (map.getLevel() > 3 && selectedOverlayObj) {
           selectedOverlayObj.setMap(null);
       }
     
       selectedMarker = null; selectedOverlayEl = null; selectedOverlayObj = null;
       
-      // 전면 마커가 남아있다면 Z-Index 재설정 (호버 마커가 선택 해제되었을 때)
+      // 전면 마커가 남아있다면 Z-Index 재설정
       if (frontMarker && frontOverlay) {
           setFrontZ(frontMarker, frontOverlay);
       }
@@ -162,31 +163,21 @@
           marker.__overlay = overlay;
           overlay.__marker = marker;
 
-          /* ===== Hover in (인터락 시 호버만, 클릭 불가) ===== */
+          /* ===== Hover in (마커에만 반응) ===== */
           function onOver(){
-            const isLocked = window.isInteractionLocked && window.isInteractionLocked();
+            if (window.isInteractionLocked && window.isInteractionLocked()) return; 
 
-            if (isLocked) {
-                // ⭐ 인터락 시 오버레이의 커서를 기본으로 유지 (클릭 불가)
-                el.style.cursor = 'default';
-                // RV 패치에 의해 Z-Index는 낮게 유지됨
-            } else {
-                // ⭐ 인터락 아닐 때만 클릭 가능함을 표시
-                el.style.cursor = 'pointer';
-            }
-            
             marker.setImage(hoverImage);
             bringToFront(map, marker, overlay, 'hover');
             el.style.transform = (marker === selectedMarker)
-              ? `translateY(${hoverY-2}px)`
+              ? `translateY(${hoverY-2}px)` 
               : `translateY(${hoverY}px)`;
           }
 
-          /* ===== Hover out (호버 오버레이 숨김 로직 강화) ===== */
+          /* ===== Hover out (마커에만 반응) ===== */
           function onOut(){
-            const isLocked = window.isInteractionLocked && window.isInteractionLocked();
-            if (isLocked) el.style.cursor = 'default';
-            
+            if (window.isInteractionLocked && window.isInteractionLocked()) return;
+            
             marker.setImage(normalImage);
             const wasHoverFront = (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover');
 
@@ -199,7 +190,7 @@
                   selectedOverlayEl.style.transform = `translateY(${baseY-2}px)`;
                 }
               } else {
-                // ⭐ [수정]: 선택 마커가 없고 레벨이 높으면, 호버 오버레이를 숨김
+                // 선택 마커가 없고 레벨이 높으면, 호버 오버레이를 숨김
                 if (map.getLevel() > 3) {
                     overlay.setMap(null);
                 }
@@ -217,7 +208,7 @@
               if (map.getLevel() > 3 && overlay !== frontOverlay && overlay !== selectedOverlayObj) {
                 overlay.setMap(null);
               }
-              // Z-Index 재설정 (전면 마커가 아닐 경우)
+              // Z-Index 재설정
               if (!(frontMarker === marker && frontOverlay === overlay)) {
                 setDefaultZ(marker, overlay);
               }
@@ -227,17 +218,14 @@
 
           kakao.maps.event.addListener(marker, "mouseover", onOver);
           kakao.maps.event.addListener(marker, "mouseout",  onOut);
-          el.addEventListener("mouseover", onOver);
-          el.addEventListener("mouseout",  onOut);
 
           /* ===== Marker mousedown (인터락 시 무시) ===== */
           kakao.maps.event.addListener(marker, "mousedown", function(){
-            if (window.isInteractionLocked && window.isInteractionLocked()) return; // ⭐ 인터락 시 무시
+            if (window.isInteractionLocked && window.isInteractionLocked()) return; 
 
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
             
-            // ... (선택 마커 설정 로직 유지) ...
             if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
             selectedMarker = marker; selectedOverlayEl = el; selectedOverlayObj = overlay;
 
@@ -248,7 +236,7 @@
 
           /* ===== Marker mouseup (클릭 확정, 인터락 시 무시) ===== */
           kakao.maps.event.addListener(marker, "mouseup", function(){
-            if (window.isInteractionLocked && window.isInteractionLocked()) return; // ⭐ 인터락 시 무시
+            if (window.isInteractionLocked && window.isInteractionLocked()) return;
             
             const elapsed = Date.now() - clickStartTime;
             const delay = Math.max(0, 100 - elapsed);
@@ -260,36 +248,12 @@
               el.style.transform = `translateY(${baseY-2}px)`;
               bringToFront(map, marker, overlay, 'clickMarker');
 
-              // ... (좌표 및 입력창 갱신 로직 유지) ...
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
               fillSearchInputWithTail(marker.__name1);
 
               setTimeout(()=>{ el.style.transition = "transform .15s ease, border .15s ease"; }, 200);
             }, delay);
-          });
-
-          /* ===== Overlay click (인터락 시 무시) ===== */
-          el.addEventListener("click", function(){
-            if (window.isInteractionLocked && window.isInteractionLocked()) return; // ⭐ 인터락 시 무시
-            
-            // ... (선택 마커 설정 및 스타일 로직 유지) ...
-            if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
-            selectedMarker = marker; selectedOverlayEl = el; selectedOverlayObj = overlay;
-
-            bringToFront(map, marker, overlay, 'clickOverlay');
-
-            el.style.border = "2px solid blue";
-            if (marker.getImage() === hoverImage) {
-              el.style.transform = `translateY(${hoverY-2}px)`;
-            } else {
-              el.style.transform = `translateY(${baseY-2}px)`;
-            }
-
-            // ... (좌표 및 입력창 갱신 로직 유지) ...
-            const g = document.getElementById("gpsyx");
-            if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
-            fillSearchInputWithTail(marker.__name1);
           });
 
           markers.push(marker);
@@ -317,11 +281,11 @@
 
         const isFrontOrSelected = (frontOverlay && o === frontOverlay) || (selectedOverlayObj && o === selectedOverlayObj);
 
-        // ⭐ 레벨 3 이하 또는 전면/선택 마커는 항상 표시
+        // 레벨 3 이하 또는 전면/선택 마커는 항상 표시
         if (level <= 3 || isFrontOrSelected) {
           o.setMap(map);
         } else {
-          // 레벨 4 이상일 때 호버되지 않은 마커는 숨김 (오버레이 로직 분리)
+          // 레벨 4 이상일 때 숨김
           o.setMap(null);
         }
 
@@ -330,7 +294,7 @@
         else setDefaultZ(m, o);
       }
 
-      // 전면 마커가 있었다면 Z-Index 재설정 (전면 효과 유지)
+      // 전면 마커가 있었다면 Z-Index 재설정
       if (frontMarker && frontOverlay) setFrontZ(frontMarker, frontOverlay);
     });
   };
