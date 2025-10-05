@@ -138,6 +138,7 @@
             clickable: true,
             zIndex: Z.BASE + 1
           });
+          
           marker.group = pos.group ? String(pos.group) : (pos.line ? String(pos.line) : null);
           marker.__pos = pos.latlng;                   // (MST용) LatLng 직접 저장
           marker.__lat = pos.latlng.getLat();
