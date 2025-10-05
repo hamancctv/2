@@ -369,31 +369,48 @@
     }
 
     // 지도 이동(레벨3 고정) + 빨간 원 Circle 1초 — 인스턴스 재사용
-    function centerWithEffect(lat, lng){
-      const pt = new kakao.maps.LatLng(lat, lng);
-      try{ map.setLevel(3); }catch{}
-      try{ map.panTo(pt); }catch{}
-      try{
-        if(!pulseCircle){
-          pulseCircle = new kakao.maps.Circle({
-            center: pt,
-            radius: 50,
-            strokeWeight: 1,
-            strokeColor: '#ffa500',
-            strokeOpacity: 1,
-            strokeStyle: 'dashed',
-            fillColor: '#FF1000',
-            fillOpacity: 0.3,
-            zIndex: 9999
-          });
-        }else{
-          pulseCircle.setCenter(pt);
-        }
-        pulseCircle.setMap(map);
-        if(pulseHideTimer) clearTimeout(pulseHideTimer);
-        pulseHideTimer = setTimeout(()=>{ try{ pulseCircle.setMap(null); }catch{} }, 1000);
-      }catch{}
+// 파일 내 기존 centerWithEffect 를 이 버전으로 교체
+function centerWithEffect(lat, lng){
+  const pt = new kakao.maps.LatLng(lat, lng);
+
+  // 이동 + 레벨 고정
+  try { map.setLevel(3); } catch {}
+  try { map.panTo(pt); } catch {}
+
+  // ✅ 매번 새로운 써클 생성 (이전 써클은 정리)
+  try {
+    // 이전 써클 제거
+    if (pulseCircle) {
+      try { pulseCircle.setMap(null); } catch {}
+      pulseCircle = null;
     }
+    // 새 써클 만들기
+    pulseCircle = new kakao.maps.Circle({
+      center: pt,
+      radius: 50,
+      strokeWeight: 1,
+      strokeColor: '#ffa500',
+      strokeOpacity: 1,
+      strokeStyle: 'dashed',
+      fillColor: '#FF1000',
+      fillOpacity: 0.3,
+      zIndex: 9999
+    });
+    pulseCircle.setMap(map);
+
+    // 타이머 갱신
+    if (pulseHideTimer) clearTimeout(pulseHideTimer);
+    pulseHideTimer = setTimeout(() => {
+      try {
+        if (pulseCircle) {
+          pulseCircle.setMap(null);
+          pulseCircle = null;
+        }
+      } catch {}
+    }, 1000);
+  } catch {}
+}
+
 
     function __rememberPicked(){
       const q = (input.value||'').trim();
