@@ -1,12 +1,13 @@
-// markers-handler.js (v2025-10-06 FINAL-ALL-LOGIC-FIXED-V2)
+// markers-handler.js (v2025-10-06 CLICK-INTERLOCK-FINAL)
 (function () {
-  console.log("[markers-handler] loaded v2025-10-06 FINAL-ALL-LOGIC-FIXED-V2");
+  console.log("[markers-handler] loaded v2025-10-06 CLICK-INTERLOCK-FINAL");
 
   /* ==================== 스타일 ==================== */
   const style = document.createElement("style");
   style.textContent = `
     .overlay-hover{
       padding:2px 6px;
+      /* 배경을 불투명 흰색으로 강제 적용하여 배경 없는 문제 해결 */
       background: #FFFFFF !important; 
       border:1px solid #ccc;
       border-radius:5px;
@@ -61,7 +62,6 @@
     // 이전 전면 마커 복원
     if (frontMarker && frontOverlay && (frontMarker !== marker || frontOverlay !== overlay)) {
       setDefaultZ(frontMarker, frontOverlay);
-      // 레벨이 높고 선택 마커가 아니면 숨김 (오버레이 로직 분리)
       if (map.getLevel() > 3 && frontMarker !== selectedMarker) {
         frontOverlay.setMap(null);
       }
@@ -90,7 +90,6 @@
     try { input.dispatchEvent(new Event("input", { bubbles:true })); } catch {}
   }
 
-  // ⭐ [수정]: 지도 클릭 시 선택 해제 로직 보강
   function bindMapClickToClearSelection(map){
     kakao.maps.event.addListener(map, "click", function(){
       if (selectedOverlayEl) {
@@ -102,7 +101,7 @@
         setDefaultZ(selectedMarker, selectedOverlayObj);
       }
     
-      // ⭐ [수정 핵심]: 레벨 4 이상일 때만, 선택된 오버레이를 지도에서 숨김
+      // 레벨 4 이상일 때만, 선택된 오버레이를 지도에서 숨김
       if (map.getLevel() > 3 && selectedOverlayObj) {
           selectedOverlayObj.setMap(null);
       }
@@ -165,6 +164,7 @@
 
           /* ===== Hover in (마커에만 반응) ===== */
           function onOver(){
+            // ⭐ [인터락]: 호버 시에도 인터락 상태이면 시각 효과를 주지 않음
             if (window.isInteractionLocked && window.isInteractionLocked()) return; 
 
             marker.setImage(hoverImage);
@@ -176,6 +176,7 @@
 
           /* ===== Hover out (마커에만 반응) ===== */
           function onOut(){
+            // ⭐ [인터락]: 마우스가 마커를 벗어날 때도 인터락 상태이면 효과를 되돌리지 않음 (필요 시)
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
             
             marker.setImage(normalImage);
@@ -190,7 +191,6 @@
                   selectedOverlayEl.style.transform = `translateY(${baseY-2}px)`;
                 }
               } else {
-                // 선택 마커가 없고 레벨이 높으면, 호버 오버레이를 숨김
                 if (map.getLevel() > 3) {
                     overlay.setMap(null);
                 }
@@ -204,11 +204,9 @@
               bringToFront(map, selectedMarker, selectedOverlayObj || overlay, 'clickMarker');
             } else {
               el.style.transform = `translateY(${baseY}px)`;
-              // 레벨이 높고, 전면/선택 오버레이가 아니라면 숨김
               if (map.getLevel() > 3 && overlay !== frontOverlay && overlay !== selectedOverlayObj) {
                 overlay.setMap(null);
               }
-              // Z-Index 재설정
               if (!(frontMarker === marker && frontOverlay === overlay)) {
                 setDefaultZ(marker, overlay);
               }
@@ -219,8 +217,9 @@
           kakao.maps.event.addListener(marker, "mouseover", onOver);
           kakao.maps.event.addListener(marker, "mouseout",  onOut);
 
-          /* ===== Marker mousedown (인터락 시 무시) ===== */
+          /* ===== Marker mousedown (클릭 시작) ===== */
           kakao.maps.event.addListener(marker, "mousedown", function(){
+            // ⭐ [인터락 강화]: 로드뷰 ON 또는 거리재기 ON 상태에서 클릭 즉시 차단
             if (window.isInteractionLocked && window.isInteractionLocked()) return; 
 
             marker.setImage(jumpImage);
@@ -234,8 +233,9 @@
             el.style.transform = `translateY(${jumpY-2}px)`;
           });
 
-          /* ===== Marker mouseup (클릭 확정, 인터락 시 무시) ===== */
+          /* ===== Marker mouseup (클릭 확정) ===== */
           kakao.maps.event.addListener(marker, "mouseup", function(){
+            // ⭐ [인터락 강화]: 로드뷰 ON 또는 거리재기 ON 상태에서 클릭 즉시 차단
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
             
             const elapsed = Date.now() - clickStartTime;
