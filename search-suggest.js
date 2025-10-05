@@ -1,16 +1,16 @@
-/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v8)
-   ✅ 변경 요약 (v7 → v8)
-   - 빨간 원(써클) 복구 + 강화
-     · pick/엔터/제안클릭/마커클릭 시 표시(유지)
-     · ✅ 지도 아무 곳이나 클릭해도 표시 + 레벨 3로 이동 (요청사항)
-   - 모바일 드래그 패스스루 그대로 유지(빈영역 pointerdown 재주입)
-   - 닫힘 상태: display:none + pointer-events:none (지도 클릭/드래그 100% 보장)
-   - 나머지 기능 동일:
-     · 슬래시 핫키, 키보드 내비(↑↓EnterEsc)
-     · 비활성 ←/→/↓: ←=끝, →=처음, ↓=열기
-     · "두 번째 하이픈 뒤" 텍스트 입력(제안/엔터/마커 공통)
-     · 근접 매칭(≈50m 그리드+폴백)
-     · 로드뷰 모드 자동 숨김, z-index/간격 안전
+/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v9)
+   요구 동작 정리
+   - 지도 클릭: 제안창 닫기 + 키보드 내리기(blur)만. 지도 이동/레벨 변경/써클 표시 없음.
+   - 제안 항목 클릭/Enter: 해당 좌표로 이동 + 지도 레벨 3, 빨간 써클 1초 표시.
+   - 마커 클릭: 입력창에 “두 번째 하이픈 뒤” 텍스트 채움 + 지도 레벨 3 이동 + 써클.
+   - 로드뷰 모드(#container.view_roadview)일 때 입력창 자동 숨김.
+   UX/성능
+   - 제안창 닫힘: display:none + pointer-events:none → 지도 클릭/드래그 100% 통과.
+   - 빈영역 pointerdown/touchstart 시 closeBox 후 같은 좌표로 down 재주입(모바일 드래그 패스스루).
+   - sel_suggest 1회 로드/정규화/캐시, 진행형 검색 캐시(__lastQ/__lastPool), 공간 인덱스(~50m grid).
+   - 키보드: ↑↓EnterEsc, 비활성일 때 ←=끝, →=처음, ↓=열기, "/" 핫키 포커스+최근질의 복원.
+   - “두 번째 하이픈 뒤” 텍스트 규칙: name1 → name → searchName 우선.
+   - 배지/검색 필드: line, enclosure, address, ip, group 등을 인덱스에 포함.
 */
 (function () {
   const G = (typeof window !== 'undefined' ? window : globalThis);
@@ -36,7 +36,7 @@
   /* ---------- sel_suggest 로더(1회) + 정규화/인덱싱 ---------- */
   G.SEL_SUG = G.SEL_SUG || { data: [], ready: false, _promise: null, varName: null };
 
-  function loadSelSuggestScriptOnce(url, varName = 'sel_suggest'){
+  function loadSelSuggestScriptOnce(url, varName = 'SEL_SUGGEST'){
     if (G.SEL_SUG.ready && G.SEL_SUG.varName === varName) return Promise.resolve(G.SEL_SUG.data);
     if (G.SEL_SUG._promise) return G.SEL_SUG._promise;
 
@@ -67,61 +67,59 @@
   }
   G.loadSelSuggestScriptOnce = loadSelSuggestScriptOnce;
 
-// v8 파일 안의 normalizeSelArray() 전체 교체
-function normalizeSelArray(arr){
-  const out = [];
-  for (const item of arr) {
-    let o = null;
+  // ✅ 데이터 스키마(enclosure, address, ip, group)에 맞춤
+  function normalizeSelArray(arr){
+    const out = [];
+    for (const item of arr) {
+      let o = null;
 
-    if (Array.isArray(item)) {
-      const name = String(item[0] ?? '');
-      const lat  = Number(item[1] ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()));
-      const lng  = Number(item[2] ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()));
-      o = {
-        name, name1: name, name2: '', searchName: '',
-        address: '', line: '', enclosure: '', ip: '', group: '',
-        lat, lng
-      };
+      if (Array.isArray(item)) {
+        const name = String(item[0] ?? '');
+        const lat  = Number(item[1] ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()));
+        const lng  = Number(item[2] ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()));
+        o = {
+          name, name1: name, name2: '', searchName: '',
+          address: '', line: '', enclosure: '', ip: '', group: '',
+          lat, lng
+        };
 
-    } else if (item && typeof item === 'object') {
-      const lat = Number(
-        item.lat ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()) ??
-        item.y ?? item.latitude
-      );
-      const lng = Number(
-        item.lng ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()) ??
-        item.x ?? item.longitude
-      );
+      } else if (item && typeof item === 'object') {
+        const lat = Number(
+          item.lat ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()) ??
+          item.y ?? item.latitude
+        );
+        const lng = Number(
+          item.lng ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()) ??
+          item.x ?? item.longitude
+        );
 
-      // ✅ 데이터 키 그대로 사용: enclosure, address, ip, group
-      o = {
-        name: item.name || '',
-        name1: item.name1 || item.name || '',
-        name2: item.name2 || '',
-        searchName: item.searchName || '',
-        address: item.address ?? item.addr ?? '',     // addr가 있어도 우선 address
-        line: item.line || '',
-        enclosure: item.enclosure ?? item.encloser ?? '', // encloser가 있어도 우선 enclosure
-        ip: item.ip || '',
-        group: item.group || '',
-        lat, lng
-      };
+        o = {
+          name: item.name || '',
+          name1: item.name1 || item.name || '',
+          name2: item.name2 || '',
+          searchName: item.searchName || '',
+          address: item.address ?? item.addr ?? '',
+          line: item.line || '',
+          enclosure: item.enclosure ?? item.encloser ?? '',
+          ip: item.ip || '',
+          group: item.group || '',
+          lat, lng
+        };
+      }
+
+      if (!o) continue;
+      if (!isFinite(o.lat) || !isFinite(o.lng)) continue;
+
+      // 검색 인덱스
+      o._needle = [
+        o.name, o.name1, o.name2, o.searchName,
+        o.address, o.line, o.enclosure, o.ip, o.group
+      ].filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
+
+      out.push(o);
     }
-
-    if (!o) continue;
-    if (!isFinite(o.lat) || !isFinite(o.lng)) continue;
-
-    // ✅ 검색 인덱스에 address/enclosure/ip/group 포함
-    o._needle = [
-      o.name, o.name1, o.name2, o.searchName,
-      o.address, o.line, o.enclosure, o.ip, o.group
-    ].filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
-
-    out.push(o);
+    return out;
   }
-  return out;
-}
-
 
   /* ---------- CSS 주입 ---------- */
   function injectCSS(){
@@ -139,22 +137,19 @@ function normalizeSelArray(arr){
 }
 .gx-suggest-search .gx-input:focus{border-color:#4a90e2;box-shadow:0 0 0 2px rgba(74,144,226,.2);}
 
-/* ✅ 닫힘 상태: 지도 클릭/드래그 방해 방지 (완전 제거) */
+/* 닫힘 상태: 지도 방해 방지(완전 제거) */
 .gx-suggest-box{
   position:absolute;top:calc(100% + 2px);left:0;width:100%;
   max-height:45vh;overflow:auto;-webkit-overflow-scrolling:touch;
   background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);
   opacity:0;transform:translateY(-8px);
-  display:none;
-  pointer-events:none;
+  display:none; pointer-events:none;
   transition:opacity .25s ease,transform .25s ease;
 }
-/* ✅ 열림 상태만 표시 + 이벤트 허용 */
+/* 열림 상태만 표시 + 이벤트 허용 */
 .gx-suggest-box.open{
-  display:block;
-  pointer-events:auto;
-  opacity:1;
-  transform:translateY(0);
+  display:block; pointer-events:auto;
+  opacity:1; transform:translateY(0);
 }
 
 .gx-suggest-item{padding:12px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:4px;border-bottom:1px solid #f0f0f0;transition:background .2s;}
@@ -171,7 +166,7 @@ function normalizeSelArray(arr){
 
   /* ---------- DOM 생성 ---------- */
   function createDOM(parent){
-    if(!parent || parent.nodeType !== 1) parent = document.body; // 안전장치
+    if(!parent || parent.nodeType !== 1) parent = document.body;
     let root = parent.querySelector('.gx-suggest-root');
     if(root){
       return { root, input: root.querySelector('.gx-input'), box: root.querySelector('.gx-suggest-box') };
@@ -193,13 +188,12 @@ function normalizeSelArray(arr){
     search.appendChild(input); root.appendChild(search); root.appendChild(box);
     parent.appendChild(root);
 
-    // 기본 닫힘 상태를 inline으로도 보장
+    // 기본 닫힘 상태
     box.style.display = 'none';
     box.style.pointerEvents = 'none';
 
     // iOS Safari 핀치 제스처 방지
     document.addEventListener('gesturestart', e=>e.preventDefault(), { passive:false });
-
     // 멀티터치 핀치 방지(제안창 내부)
     box.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive:false });
 
@@ -269,8 +263,10 @@ function normalizeSelArray(arr){
     // 데이터 인덱싱(_needle 없으면 생성)
     for (const o of data) {
       if (!o._needle) {
-        o._needle = [o.name,o.name1,o.name2,o.searchName,o.addr,o.line,o.encloser]
-          .filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
+        o._needle = [
+          o.name, o.name1, o.name2, o.searchName,
+          o.address, o.line, o.enclosure, o.ip, o.group
+        ].filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
       }
     }
 
@@ -352,8 +348,10 @@ function normalizeSelArray(arr){
       const pool = (n.startsWith(__lastQ) && Array.isArray(__lastPool)) ? __lastPool : data;
       const out = [];
       for (const o of pool) {
-        const key = o._needle || [o.name,o.name1,o.name2,o.searchName,o.addr,o.line,o.encloser]
-          .filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
+        const key = o._needle || [
+          o.name, o.name1, o.name2, o.searchName,
+          o.address, o.line, o.enclosure, o.ip, o.group
+        ].filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
         if (key.includes(n)) {
           out.push(o);
           if (out.length >= maxItems) break;
@@ -370,7 +368,7 @@ function normalizeSelArray(arr){
       return { lat, lng };
     }
 
-    // 지도 이동(레벨3 고정) + 빨간 원 Circle 항상 표시(1초) — 인스턴스 재사용
+    // 지도 이동(레벨3 고정) + 빨간 원 Circle 1초 — 인스턴스 재사용
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
       try{ map.setLevel(3); }catch{}
@@ -413,7 +411,7 @@ function normalizeSelArray(arr){
       if(t) input.value = t;
 
       const {lat, lng} = getLatLngFromItem(o);
-      if(isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
+      if(isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng); // ✅ 제안 확정 시 이동+레벨3+써클
 
       __rememberPicked();
       closeBox(); // blur 없음
@@ -508,15 +506,12 @@ function normalizeSelArray(arr){
     });
     window.addEventListener('resize', closeBox);
 
-    // 지도 이벤트
-    kakao.maps.event.addListener(map,'click',(e)=>{
+    // ✅ 지도 클릭: 제안창 닫기 + 키보드 내리기만 (이동/써클 X)
+    kakao.maps.event.addListener(map,'click',()=>{
       closeBox();
-      try{
-        const pos = e.latLng;
-        const lat = pos.getLat ? pos.getLat() : (pos?.La ?? pos?.y ?? pos?.latitude);
-        const lng = pos.getLng ? pos.getLng() : (pos?.Ma ?? pos?.x ?? pos?.longitude);
-        if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng); // ✅ 지도 클릭에도 써클 + 레벨3
-      }catch{}
+      try {
+        if (document.activeElement === input) input.blur();
+      } catch {}
     });
     kakao.maps.event.addListener(map,'dragstart',()=>closeBox());
 
@@ -528,7 +523,7 @@ function normalizeSelArray(arr){
       },{passive:true});
     }
 
-    /* ✅ 화면에서 안 보이면 강제 닫기 (완전 제거 보장) */
+    /* 화면에서 안 보이면 강제 닫기 (완전 제거 보장) */
     try{
       const io = new IntersectionObserver((entries)=>{
         const on = entries[0] && entries[0].isIntersecting;
@@ -598,7 +593,7 @@ function normalizeSelArray(arr){
       }, true);
     }
 
-    /* ----- 마커 클릭 → 입력창 자동 입력 (로드뷰 모드면 무시) ----- */
+    /* ----- 마커 클릭 → 입력창 자동 입력 + 이동/써클 (로드뷰 모드면 무시) ----- */
     const patched = new WeakSet();
     function attachMarkerHandlersOnce(){
       const container = parent.closest('#container') || document.getElementById('container') || document.body;
@@ -636,8 +631,7 @@ function normalizeSelArray(arr){
               closeBox(); // 포커스 유지
             }
 
-            // ✅ 마커 클릭 시에도 써클 보장
-            if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
+            if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng); // ✅ 마커 클릭 시 이동+써클
           }catch{}
         });
 
