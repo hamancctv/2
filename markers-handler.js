@@ -1,5 +1,5 @@
 (function () {
-  console.log("[markers-handler] loaded v2025-10-07 FINAL-CSS-HOVER-SCALE-1.2");
+  console.log("[markers-handler] loaded v2025-10-06 FINAL-CLONE-HOVER");
 
   /* ==================== 스타일 ==================== */
   const style = document.createElement("style");
@@ -20,50 +20,54 @@
       backface-visibility: hidden;
       z-index: 101;
     }
+
+    /* ✅ 가짜 hover 클론 */
+    .marker-hover-clone {
+      position: absolute;
+      transform-origin: center bottom;
+      transition: transform .15s ease;
+      z-index: 99999;
+      pointer-events: none;
+    }
   `;
   document.head.appendChild(style);
 
-  /* ==================== 변수 ==================== */
   const Z = { BASE: 100, FRONT: 100000 };
   let selectedMarker = null;
   let selectedOverlayEl = null;
   let selectedOverlayObj = null;
   let frontMarker = null;
   let frontOverlay = null;
-  let frontReason = null;
+  let frontReason  = null;
   let normalImage, jumpImage;
   let clickStartTime = 0;
 
   const normalH = 42, hoverH = 50.4, gap = 2;
-  const baseY = -(normalH + gap);
-  const jumpY = -(70 + gap);
+  const baseY  = -(normalH + gap);
+  const jumpY  = -(70 + gap);
 
   function setDefaultZ(marker, overlay) {
     if (marker) marker.setZIndex(Z.BASE + 1);
     if (overlay) overlay.setZIndex(Z.BASE);
   }
-
   function setFrontZ(marker, overlay) {
     if (marker) marker.setZIndex(Z.FRONT);
     if (overlay) overlay.setZIndex(Z.FRONT + 1);
   }
-
   function bringToFront(map, marker, overlay, reason) {
     if (!marker || !overlay) return;
     if (frontMarker && frontOverlay && (frontMarker !== marker || frontOverlay !== overlay)) {
       setDefaultZ(frontMarker, frontOverlay);
-      if (map.getLevel() > 3 && frontMarker !== selectedMarker && frontReason !== "clickMarker") {
+      if (map.getLevel() > 3 && frontMarker !== selectedMarker && frontReason !== 'clickMarker') {
         frontOverlay.setMap(null);
       }
     }
     overlay.setMap(map);
     setFrontZ(marker, overlay);
-    frontMarker = marker;
-    frontOverlay = overlay;
-    frontReason = reason;
+    frontMarker = marker; frontOverlay = overlay; frontReason = reason;
   }
 
-  function extractAfterSecondHyphen(s) {
+  function extractAfterSecondHyphen(s){
     s = (s || "").toString().trim();
     const i1 = s.indexOf("-");
     if (i1 < 0) return s;
@@ -71,106 +75,105 @@
     return (i2 >= 0 ? s.slice(i2 + 1) : s.slice(i1 + 1)).trim();
   }
 
-  function fillSearchInputWithTail(baseText) {
+  function fillSearchInputWithTail(baseText){
     const tail = extractAfterSecondHyphen(baseText || "");
     if (!tail) return;
     const input = document.querySelector(".gx-input") || document.getElementById("keyword");
     if (!input) return;
     input.value = tail;
-    try {
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    } catch {}
+    try { input.dispatchEvent(new Event("input", { bubbles:true })); } catch {}
   }
 
   function bindMapClickToClearSelection(map) {
-    kakao.maps.event.addListener(map, "click", function () {
+    kakao.maps.event.addListener(map, "click", function(){
       if (selectedMarker) {
         selectedOverlayEl.style.border = "1px solid #ccc";
         selectedOverlayEl.style.transform = `translateY(${baseY}px)`;
         selectedMarker.setImage(normalImage);
         setDefaultZ(selectedMarker, selectedOverlayObj);
-        if (map.getLevel() > 3 && selectedOverlayObj) {
-          selectedOverlayObj.setMap(null);
-        }
+        if (map.getLevel() > 3 && selectedOverlayObj) selectedOverlayObj.setMap(null);
       }
-      selectedMarker = null;
-      selectedOverlayEl = null;
-      selectedOverlayObj = null;
-      frontMarker = null;
-      frontOverlay = null;
-      frontReason = null;
+      selectedMarker = null; selectedOverlayEl = null; selectedOverlayObj = null;
+      frontMarker = null; frontOverlay = null; frontReason = null;
     });
   }
 
-  /* ==================== 메인 함수 ==================== */
+  // ✅ hover 클론 유틸
+  function createHoverClone(marker) {
+    const pos = marker.getPosition();
+    const projection = map.getProjection();
+    const point = projection.pointFromCoords(pos);
+
+    const markerImg = marker.getImage().getSrc();
+    const clone = document.createElement("img");
+    clone.src = markerImg;
+    clone.className = "marker-hover-clone";
+    clone.style.transform = "scale(1.2)";
+    clone.style.left = point.x - 15 + "px";
+    clone.style.top = point.y - 42 + "px";
+
+    document.body.appendChild(clone);
+    return clone;
+  }
+
+  function removeHoverClone(clone) {
+    if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
+  }
+
   window.initMarkers = function (map, positions) {
     bindMapClickToClearSelection(map);
 
     normalImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(30, 42),
-      { offset: new kakao.maps.Point(15, 42) }
+      new kakao.maps.Size(30,42),
+      { offset:new kakao.maps.Point(15,42) }
     );
-
     jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(30, 42),
-      { offset: new kakao.maps.Point(15, 70) }
+      new kakao.maps.Size(30,42),
+      { offset:new kakao.maps.Point(15,70) }
     );
 
-    const markers = [];
-    const overlays = [];
-    const batchSize = 50;
-    let idx = 0;
+    const markers = []; const overlays = [];
+    const batchSize = 50; let idx = 0;
 
     function createBatch() {
       const end = Math.min(positions.length, idx + batchSize);
       for (let i = idx; i < end; i++) {
-        (function (i) {
+        (function(i){
           const pos = positions[i];
-
           const marker = new kakao.maps.Marker({
-            map,
-            position: pos.latlng,
-            image: normalImage,
-            clickable: true,
-            zIndex: Z.BASE + 1,
+            map, position: pos.latlng, image: normalImage, clickable: true, zIndex: Z.BASE + 1
           });
+          marker.group = pos.group ? String(pos.group) : (pos.line ? String(pos.line) : null);
+          marker.__pos = pos.latlng;
+          marker.__lat = pos.latlng.getLat();
+          marker.__lng = pos.latlng.getLng();
+          marker.__name1 = (pos.__name1 || pos.content || "");
 
           const el = document.createElement("div");
           el.className = "overlay-hover";
           el.style.transform = `translateY(${baseY}px)`;
           el.textContent = pos.content;
+          el.style.backgroundColor = "#fff";
           el.style.background = "#fff";
           el.style.opacity = "1";
 
           const overlay = new kakao.maps.CustomOverlay({
-            position: pos.latlng,
-            content: el,
-            yAnchor: 1,
-            map: null,
+            position: pos.latlng, content: el, yAnchor: 1, map: null
           });
           overlay.setZIndex(Z.BASE);
 
           marker.__overlay = overlay;
           overlay.__marker = marker;
 
-          /* ==================== Hover / Out ==================== */
+          let hoverClone = null;
+
           function onOver() {
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
-
-            const imgs = document.querySelectorAll("img[src*='marker_spot.png']");
-            imgs.forEach(img => {
-              const rect = img.getBoundingClientRect();
-              const mpos = map.getProjection().containerPointFromCoords(marker.getPosition());
-              if (Math.abs(rect.x - mpos.x) < 40 && Math.abs(rect.y - mpos.y) < 40) {
-                img.style.transition = "transform .15s ease";
-                img.style.transform = "scale(1.2)";
-                img.style.transformOrigin = "center bottom";
-              }
-            });
-
-            bringToFront(map, marker, overlay, "hover");
+            if (hoverClone) removeHoverClone(hoverClone);
+            hoverClone = createHoverClone(marker);
+            bringToFront(map, marker, overlay, 'hover');
             el.style.transform = (marker === selectedMarker)
               ? `translateY(${baseY - 2}px)`
               : `translateY(${baseY}px)`;
@@ -178,26 +181,19 @@
 
           function onOut() {
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
+            removeHoverClone(hoverClone);
+            hoverClone = null;
 
-            const imgs = document.querySelectorAll("img[src*='marker_spot.png']");
-            imgs.forEach(img => {
-              img.style.transition = "transform .15s ease";
-              img.style.transform = "scale(1)";
-            });
-
-            if (frontMarker === marker && frontOverlay === overlay && frontReason === "hover") {
+            if (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover') {
               setDefaultZ(marker, overlay);
               if (selectedMarker && selectedOverlayObj) {
-                bringToFront(map, selectedMarker, selectedOverlayObj, "clickMarker");
+                bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
                 selectedOverlayEl.style.border = "2px solid blue";
                 selectedOverlayEl.style.transform = `translateY(${baseY - 2}px)`;
               } else {
-                frontMarker = null;
-                frontOverlay = null;
-                frontReason = null;
+                frontMarker = null; frontOverlay = null; frontReason = null;
               }
             }
-
             if (marker === selectedMarker) {
               el.style.transform = `translateY(${baseY - 2}px)`;
               el.style.border = "2px solid blue";
@@ -205,44 +201,41 @@
               el.style.transform = `translateY(${baseY}px)`;
               el.style.border = "1px solid #ccc";
             }
-
             if (map.getLevel() > 3 && marker !== selectedMarker && frontMarker !== marker) {
               overlay.setMap(null);
             }
           }
 
-          /* ==================== Click / Jump ==================== */
           kakao.maps.event.addListener(marker, "mouseover", onOver);
           kakao.maps.event.addListener(marker, "mouseout", onOut);
 
-          kakao.maps.event.addListener(marker, "mousedown", function () {
+          kakao.maps.event.addListener(marker, "mousedown", function(){
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
             if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
-            selectedMarker = marker;
-            selectedOverlayEl = el;
-            selectedOverlayObj = overlay;
-            bringToFront(map, marker, overlay, "clickMarker");
+            selectedMarker = marker; selectedOverlayEl = el; selectedOverlayObj = overlay;
+            bringToFront(map, marker, overlay, 'clickMarker');
             el.style.border = "2px solid blue";
             el.style.transform = `translateY(${jumpY - 2}px)`;
           });
 
-          kakao.maps.event.addListener(marker, "mouseup", function () {
+          kakao.maps.event.addListener(marker, "mouseup", function(){
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
             const elapsed = Date.now() - clickStartTime;
             const delay = Math.max(0, 100 - elapsed);
-            setTimeout(function () {
+            setTimeout(function(){
               marker.setImage(normalImage);
               el.style.border = "2px solid blue";
               el.style.transition = "transform .2s ease, border .2s ease";
               el.style.transform = `translateY(${baseY - 2}px)`;
-              bringToFront(map, marker, overlay, "clickMarker");
+              bringToFront(map, marker, overlay, 'clickMarker');
 
               const g = document.getElementById("gpsyx");
-              if (g) g.value = `${marker.getPosition().getLat()}, ${marker.getPosition().getLng()}`;
-              fillSearchInputWithTail(pos.content);
-              setTimeout(() => { el.style.transition = "transform .15s ease, border .15s ease"; }, 200);
+              if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
+              fillSearchInputWithTail(marker.__name1);
+
+              setTimeout(()=>{ el.style.transition = "transform .15s ease, border .15s ease"; }, 200);
             }, delay);
           });
 
@@ -250,22 +243,20 @@
           overlays.push(overlay);
         })(i);
       }
-
       idx = end;
       if (idx < positions.length) setTimeout(createBatch, 0);
       else window.markers = markers;
     }
     createBatch();
 
-    /* ==================== 지도 레벨별 오버레이 표시 ==================== */
-    kakao.maps.event.addListener(map, "idle", function () {
+    kakao.maps.event.addListener(map, "idle", function(){
       const level = map.getLevel();
       const list = window.markers || [];
-      for (const m of list) {
+      for (const m of list){
         const o = m.__overlay;
         if (!o) continue;
-        const isFront = frontOverlay && o === frontOverlay;
-        const isSelected = selectedOverlayObj && o === selectedOverlayObj;
+        const isFront = (frontOverlay && o === frontOverlay);
+        const isSelected = (selectedOverlayObj && o === selectedOverlayObj);
         if (level <= 3 || isFront || isSelected) o.setMap(map);
         else o.setMap(null);
         if (isFront || isSelected) setFrontZ(m, o);
