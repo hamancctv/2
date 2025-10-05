@@ -67,48 +67,61 @@
   }
   G.loadSelSuggestScriptOnce = loadSelSuggestScriptOnce;
 
-  function normalizeSelArray(arr){
-    const out = [];
-    for (const item of arr) {
-      let o = null;
+// v8 파일 안의 normalizeSelArray() 전체 교체
+function normalizeSelArray(arr){
+  const out = [];
+  for (const item of arr) {
+    let o = null;
 
-      if (Array.isArray(item)) {
-        const name = String(item[0] ?? '');
-        const lat  = Number(item[1] ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()));
-        const lng  = Number(item[2] ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()));
-        o = { name, name1: name, name2: '', searchName: '', addr: '', line: '', encloser: '', lat, lng };
+    if (Array.isArray(item)) {
+      const name = String(item[0] ?? '');
+      const lat  = Number(item[1] ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()));
+      const lng  = Number(item[2] ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()));
+      o = {
+        name, name1: name, name2: '', searchName: '',
+        address: '', line: '', enclosure: '', ip: '', group: '',
+        lat, lng
+      };
 
-      } else if (item && typeof item === 'object') {
-        const lat = Number(
-          item.lat ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()) ??
-          item.y ?? item.latitude
-        );
-        const lng = Number(
-          item.lng ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()) ??
-          item.x ?? item.longitude
-        );
-        o = {
-          name: item.name || '',
-          name1: item.name1 || item.name || '',
-          name2: item.name2 || '',
-          searchName: item.searchName || '',
-          addr: item.addr || '',
-          line: item.line || '',
-          encloser: item.encloser || '',
-          lat, lng
-        };
-      }
+    } else if (item && typeof item === 'object') {
+      const lat = Number(
+        item.lat ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()) ??
+        item.y ?? item.latitude
+      );
+      const lng = Number(
+        item.lng ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()) ??
+        item.x ?? item.longitude
+      );
 
-      if (!o) continue;
-      if (!isFinite(o.lat) || !isFinite(o.lng)) continue;
-
-      o._needle = [o.name,o.name1,o.name2,o.searchName,o.addr,o.line,o.encloser]
-        .filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
-
-      out.push(o);
+      // ✅ 데이터 키 그대로 사용: enclosure, address, ip, group
+      o = {
+        name: item.name || '',
+        name1: item.name1 || item.name || '',
+        name2: item.name2 || '',
+        searchName: item.searchName || '',
+        address: item.address ?? item.addr ?? '',     // addr가 있어도 우선 address
+        line: item.line || '',
+        enclosure: item.enclosure ?? item.encloser ?? '', // encloser가 있어도 우선 enclosure
+        ip: item.ip || '',
+        group: item.group || '',
+        lat, lng
+      };
     }
-    return out;
+
+    if (!o) continue;
+    if (!isFinite(o.lat) || !isFinite(o.lng)) continue;
+
+    // ✅ 검색 인덱스에 address/enclosure/ip/group 포함
+    o._needle = [
+      o.name, o.name1, o.name2, o.searchName,
+      o.address, o.line, o.enclosure, o.ip, o.group
+    ].filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
+
+    out.push(o);
   }
+  return out;
+}
+
 
   /* ---------- CSS 주입 ---------- */
   function injectCSS(){
