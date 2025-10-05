@@ -1,33 +1,32 @@
-// markers-handler.js (v2025-10-05-STABLE-RV-STRICT)
-// ✅ 로드뷰시 마커 완전 비활성 + 커서 제거 + 오버레이 숨김
+// markers-handler.js (v2025-10-05-STABLE-RV-WALKERFRONT)
+// ✅ 동동이 항상 위, 로드뷰시 마커 클릭 무효 + hover만 작동, 오버레이는 항상 동동이 뒤
 (function () {
-  console.log("[markers-handler] loaded v2025-10-05-STABLE-RV-STRICT");
+  console.log("[markers-handler] loaded v2025-10-05-STABLE-RV-WALKERFRONT");
 
   const style = document.createElement("style");
   style.textContent = `
     .overlay-hover {
       padding:2px 6px;
-      background:rgba(255,255,255,0.85);
+      background:rgba(255,255,255,0.88);
       border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
       white-space:nowrap;
       user-select:none;
       transition:transform .15s ease, border .15s ease;
-      pointer-events:none; /* 커서통과 */
+      pointer-events:none; /* hover는 marker에서만 */
     }
   `;
   document.head.appendChild(style);
 
-  const Z = { BASE: 1, FRONT: 999999 };
-  const Z_WALKER = 2147483647; // 동동이보다 항상 아래
+  const Z = { BASE: 100, FRONT: 200 };
+  const Z_WALKER = 9999; // 동동이는 이보다 높음
   const baseY = -44, hoverY = -52.4, jumpY = -72;
 
   let selectedMarker = null;
   let selectedOverlay = null;
 
-  // ===== 유틸 =====
-  const isRoadviewActive = () => {
+  const isRV = () => {
     const c = document.getElementById("container");
     return c && c.classList.contains("view_roadview");
   };
@@ -44,7 +43,6 @@
     }
   };
 
-  // ====== 초기화 ======
   window.initMarkers = function (map, positions) {
     const normalImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
@@ -65,7 +63,6 @@
     const markers = [];
     const overlays = [];
 
-    // 지도 클릭 시 선택 해제
     kakao.maps.event.addListener(map, "click", function () {
       if (selectedOverlay) {
         selectedOverlay.setMap(null);
@@ -103,26 +100,22 @@
       overlay.holder = el;
       marker.__overlay = overlay;
 
-      // ===== Hover (로드뷰 아닐 때만) =====
       kakao.maps.event.addListener(marker, "mouseover", function () {
-        if (isRoadviewActive()) return; // 로드뷰 중엔 무시
         marker.setImage(hoverImage);
         overlay.setMap(map);
-        overlay.setZIndex(Z_WALKER - 2);
+        overlay.setZIndex(Z_WALKER - 2); // 항상 동동이보다 뒤
         el.style.transform = `translateY(${hoverY}px)`;
       });
 
       kakao.maps.event.addListener(marker, "mouseout", function () {
-        if (isRoadviewActive()) return;
         marker.setImage(normalImage);
         overlay.setMap(null);
         el.style.transform = `translateY(${baseY}px)`;
       });
 
-      // ===== Click =====
       kakao.maps.event.addListener(marker, "click", function (mouseEvent) {
-        // 로드뷰 중엔 지도 클릭처럼 동작 (커서 없음)
-        if (isRoadviewActive()) {
+        if (isRV()) {
+          // 로드뷰일 때 클릭은 지도 클릭으로 대체
           kakao.maps.event.trigger(map, "click", mouseEvent);
           return;
         }
@@ -163,21 +156,20 @@
 
     window.markers = markers;
 
-    // ===== Idle (오버레이 표시 제어) =====
+    // 지도 초기 레벨 3 이하 → 오버레이 자동 표시
+    if (map.getLevel() <= 3) {
+      overlays.forEach(o => {
+        o.setMap(map);
+        o.setZIndex(Z_WALKER - 3); // 동동이보다 항상 아래
+      });
+    }
+
+    // idle 시 업데이트
     kakao.maps.event.addListener(map, "idle", function () {
       const level = map.getLevel();
-      const rvOn = isRoadviewActive();
-
-      for (const m of markers) {
-        const o = m.__overlay;
-        if (!o) continue;
-
-        if (rvOn) {
-          // 로드뷰 중엔 모든 오버레이 숨김
-          o.setMap(null);
-          continue;
-        }
-
+      const rvOn = isRV();
+      for (const o of overlays) {
+        if (rvOn) { o.setMap(null); continue; }
         if (level <= 3) {
           o.setMap(map);
           o.setZIndex(Z_WALKER - 3);
@@ -187,11 +179,11 @@
       }
     });
 
-    // ===== 로드뷰 전환 시 즉시 반응 =====
+    // 로드뷰 토글 감시
     const container = document.getElementById("container");
     if (container) {
       const obs = new MutationObserver(() => {
-        const rvOn = isRoadviewActive();
+        const rvOn = isRV();
         markers.forEach(m => {
           m.setClickable(!rvOn);
           m.setCursor(rvOn ? "default" : "pointer");
