@@ -124,20 +124,28 @@
         }
         if (!minEdge) break;
 
+  // ... (while 루프 내부) ...
+
         const p1 = new kakao.maps.LatLng(minEdge.from.__lat, minEdge.from.__lng);
         const p2 = new kakao.maps.LatLng(minEdge.to.__lat, minEdge.to.__lng);
         
-        // ⭐ Polyline 생성 충돌 에러(TypeError) 해결: map 옵션 제거 후 setMap 별도 호출
         const line = new kakao.maps.Polyline({
           path: [p1, p2],
           strokeWeight: 3.5,
-          strokeColor: "#db4040", // 빨간색
+          strokeColor: "#db4040",
           strokeOpacity: 0.9
         });
         
-        line.setMap(map); // ⭐ 맵 등록을 분리하여 에러를 우회합니다.
+        // ⭐ 수정 2: 저장된 원본 setMap 함수를 사용하여 충돌 우회
+        if (line.__rvOriginalSetMap) {
+             line.__rvOriginalSetMap.call(line, map);
+        } else {
+             // 원본이 저장되지 않았다면 일반 setMap을 시도 (패치 로직이 정상 작동하길 희망)
+             line.setMap(map); 
+        }
         
         window.groupLines.push(line);
+// ... (나머지 코드) ...
         connected.push(minEdge.to);
         created++;
       }
