@@ -678,12 +678,14 @@ if (typeof initSuggestUI === 'function') {
     data: window.SEL_SUGGEST || [],
     parent: document.getElementById('mapWrapper'),
     getMarkers: () => window.markers,
-    badges: ['line', 'enclosure', 'address', 'ip', 'group'], // ← 여기!
+    badges: ['line', 'enclosure', 'address', 'ip', 'group'],
     maxItems: 30,
-    chooseOnEnter: true,   // 있어도 무시(기본 동작 내장), 둬도 OK
-    openOnFocus: true      // 있어도 무시(기본 동작 내장), 둬도 OK
+    chooseOnEnter: true,
+    openOnFocus: true,
+    hideOnRoadview: false // ✅ 입력창 항상 보이게 고정
   });
 }
+
 
 
   /* ===== 미니맵(로드뷰시) 크기 조절: 위/오른쪽으로 끌수록 커짐 ===== */
