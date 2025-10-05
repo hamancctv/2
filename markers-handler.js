@@ -7,7 +7,7 @@
   style.textContent = `
     .overlay-hover{
       padding:2px 6px;
-      background:rgba(255,255,255,0.80);
+      background: #FFFFFF !important; 
       border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
