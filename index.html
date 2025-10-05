@@ -195,6 +195,24 @@
   <!-- 기존 스크립트들 -->
   <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
   <script src="https://hamancctv.github.io/2/sel_suggest.js"></script>
+<!-- ✅ 여기 아래에 추가! 인터랙션 잠금 제어 전역 스크립트 -->
+  <script>
+    // 🔒 마커, 오버레이 등의 사용자 인터랙션 잠금 상태 (기본값: 해제)
+    window.__interactionLock = false;
+
+    // 현재 인터랙션 잠금 여부 확인 (true/false 반환)
+    window.isInteractionLocked = function() {
+      return window.__interactionLock === true;
+    };
+
+    // 잠금 상태 변경 함수
+    window.setInteractionLock = function(state) {
+      window.__interactionLock = !!state;
+      console.log(`[interactionLock] ${state ? "LOCKED" : "UNLOCKED"}`);
+    };
+  </script>
+  <!-- ✅ 여기 위에 추가! 인터랙션 잠금 제어 전역 스크립트 -->
+
   <script src="https://hamancctv.github.io/2/markers-handler.js"></script>
   <script src="https://hamancctv.github.io/2/search-suggest.js"></script>
   <script src="https://hamancctv.github.io/2/drawGroupLinesMST.js"></script>
