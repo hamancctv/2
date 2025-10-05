@@ -145,6 +145,15 @@
 
           function onOver(){
             if (window.isInteractionLocked && window.isInteractionLocked()) return; 
+            
+            function applyOverlayPointerLock(lock) {
+  const els = document.querySelectorAll('.overlay-hover');
+  els.forEach(el => {
+    el.style.pointerEvents = lock ? 'none' : 'auto';
+  });
+  console.log(`[overlay-pointer] ${lock ? "LOCKED" : "UNLOCKED"}`);
+}
+
             marker.setImage(hoverImage);
             bringToFront(map, marker, overlay, 'hover');
             el.style.transform = (marker === selectedMarker)
