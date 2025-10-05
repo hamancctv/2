@@ -12,12 +12,14 @@
       font-size:14px;
       white-space:nowrap;
       user-select:none;
-      cursor:default; 
+      cursor:default;
+      pointer-event: none !important
       transition:transform .15s ease, border .15s ease, background .15s ease;
       will-change:transform, border;
       transform:translateZ(0);
       backface-visibility:hidden;
       z-index:101;
+  
     }
   `;
   document.head.appendChild(style);
