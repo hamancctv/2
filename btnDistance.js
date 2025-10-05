@@ -182,14 +182,22 @@
     updateTotalOverlayText();
   }
 
+  // --- 버튼 클릭 이벤트 ---
   btn.addEventListener("click", () => {
     if (!mapExists()) return;
     drawing = !drawing;
     btn.classList.toggle("active", drawing);
     map.setCursor(drawing ? "crosshair" : "");
+
     if (drawing) {
+      // ✅ 거리재기 시작 시 마커 인터랙션 잠금
+      if (window.setInteractionLock) setInteractionLock(true);
+
       kakao.maps.event.addListener(map, "click", onMapClick);
     } else {
+      // ✅ 거리재기 종료 시 마커 인터랙션 해제
+      if (window.setInteractionLock) setInteractionLock(false);
+
       kakao.maps.event.removeListener(map, "click", onMapClick);
       resetMeasure();
     }
