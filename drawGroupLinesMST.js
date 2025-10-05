@@ -29,7 +29,7 @@
     st.textContent = `
       #btnGroupMST{
         position:fixed;
-        top:58px; left:10px;
+        top:158px; left:10px;
         z-index:99998; /* 지도보다 위, 제안창(99999)보다 아래 */
         width:40px;height:40px;
         display:flex;align-items:center;justify-content:center;
