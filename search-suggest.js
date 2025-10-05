@@ -1,16 +1,14 @@
-/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v10)
-   요구 동작
-   - 지도 클릭: 제안창 닫기 + 키보드 내리기(blur)만. (이동/써클 X)
-   - 제안 항목 클릭/Enter: 해당 좌표로 이동 + 지도 레벨 3 + 빨간 써클 1초 표시.
-   - 마커 클릭: 입력창에 name1 기준 "두 번째 하이픈 뒤" 텍스트 채움 + 레벨 3 이동 + 써클.
-   - 로드뷰 모드(#container.view_roadview)일 때 입력창 자동 숨김.
-
-   UX/성능
-   - 제안창 닫힘: display:none + pointer-events:none → 지도 클릭/드래그 100% 통과.
-   - 빈영역 pointerdown/touchstart 시 close 후 같은 좌표로 down 재주입(모바일 드래그 패스스루).
-   - sel_suggest 1회 로드/정규화/캐시, 진행형 검색 캐시(__lastQ/__lastPool), 공간 인덱스(~50m grid).
-   - 키보드: ↑↓EnterEsc, 비활성일 때 ←=끝, →=처음, ↓=열기, "/" 핫키 포커스+최근질의 복원.
-   - 데이터 키: address/enclosure/ip/group 지원(배지/검색 인덱스 포함).
+/* ===== search-suggest.js (통합 안정판, 2025-10-05)
+   - "/" 핫키: 입력창 포커스 + 최근 질의 복원 + 제안 열기
+   - 입력창 클릭: 전체선택 없이 제안만 열기(비어 있으면 최근 질의 복원)
+   - 제안 클릭/Enter: 지도 레벨3 이동 + 빨간 써클(1초) 표시 + 입력창에 텍스트 설정
+   - 지도 클릭: 제안창 닫고 키보드 내리기(blur) — 지도 이동 없음
+   - 로드뷰 모드(.view_roadview): 입력창 자동 숨김
+   - 마커 클릭 처리(옵션): name1의 "두 번째 하이픈 뒤"를 입력창에 채우고, 레벨3 + 써클 (중복 방지 플래그 지원)
+   - 제안창 닫힘 상태는 display:none + pointer-events:none → 지도 클릭/드래그 100% 통과
+   - 모바일에서 제안창 빈영역 터치 시: 닫고 같은 좌표에 pointerdown 재주입(드래그 패스스루)
+   - 빠른 검색: 전처리(_needle) + 증분 캐시(__lastQ/__lastPool)
+   - 배지 필드: 자유 지정(예: ['enclosure','address','ip','group'])
 */
 (function () {
   const G = (typeof window !== 'undefined' ? window : globalThis);
@@ -18,6 +16,7 @@
   /* ---------- 유틸 ---------- */
   function normalizeText(s){ return (s||'').toString().trim(); }
   function escapeHTML(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function toNeedle(arr){ return arr.filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase(); }
 
   // "두 번째 하이픈 뒤"부터 반환 (하이픈 1개면 첫 하이픈 뒤부터)
   function extractAfterSecondHyphen(name, fallback){
@@ -31,83 +30,14 @@
     }
     return result;
   }
-  const toNeedle = (arr)=>arr.filter(Boolean).join(' ').replace(/\s+/g,'').toLowerCase();
 
-  /* ---------- sel_suggest 로더(1회) + 정규화 ---------- */
-  G.SEL_SUG = G.SEL_SUG || { data: [], ready: false, _promise: null, varName: null };
-
-  function loadSelSuggestScriptOnce(url, varName = 'SEL_SUGGEST'){
-    if (G.SEL_SUG.ready && G.SEL_SUG.varName === varName) return Promise.resolve(G.SEL_SUG.data);
-    if (G.SEL_SUG._promise) return G.SEL_SUG._promise;
-    G.SEL_SUG.varName = varName;
-
-    if (Array.isArray(G[varName])) {
-      const norm = normalizeSelArray(G[varName]);
-      G.SEL_SUG.data = norm; G.SEL_SUG.ready = true;
-      return Promise.resolve(norm);
-    }
-
-    G.SEL_SUG._promise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = url; s.async = true;
-      s.onload = () => {
-        const raw = G[varName];
-        if (!Array.isArray(raw)) { reject(new Error(`Global "${varName}" not found or not an array after loading ${url}`)); return; }
-        const norm = normalizeSelArray(raw);
-        G.SEL_SUG.data = norm; G.SEL_SUG.ready = true; resolve(norm);
-      };
-      s.onerror = () => reject(new Error(`Failed to load ${url}`));
-      document.head.appendChild(s);
-    });
-    return G.SEL_SUG._promise;
-  }
-  G.loadSelSuggestScriptOnce = loadSelSuggestScriptOnce;
-
-  // ✅ 데이터 스키마(enclosure, address, ip, group)에 맞춤
-  function normalizeSelArray(arr){
-    const out = [];
-    for (const item of arr) {
-      let o = null;
-
-      if (Array.isArray(item)) {
-        const name = String(item[0] ?? '');
-        const lat  = Number(item[1] ?? (item.latlng && item.latlng.getLat && item.latlng.getLat()));
-        const lng  = Number(item[2] ?? (item.latlng && item.latlng.getLng && item.latlng.getLng()));
-        o = { name, name1: name, name2: '', searchName: '',
-              address: '', line: '', enclosure: '', ip: '', group: '', lat, lng };
-
-      } else if (item && typeof item === 'object') {
-        const lat = Number(item.lat ?? item.latitude ?? item?.latlng?.getLat?.());
-        const lng = Number(item.lng ?? item.longitude ?? item?.latlng?.getLng?.());
-        o = {
-          name: item.name || '',
-          name1: item.name1 || item.name || '',
-          name2: item.name2 || '',
-          searchName: item.searchName || '',
-          address: item.address ?? item.addr ?? '',
-          line: item.line || '',
-          enclosure: item.enclosure ?? item.encloser ?? '',
-          ip: item.ip || '',
-          group: item.group || '',
-          lat, lng
-        };
-      }
-
-      if (!o) continue;
-      if (!isFinite(o.lat) || !isFinite(o.lng)) continue;
-      o._needle = toNeedle([o.name,o.name1,o.name2,o.searchName,o.address,o.line,o.enclosure,o.ip,o.group]);
-      out.push(o);
-    }
-    return out;
-  }
-
-  /* ---------- CSS ---------- */
+  /* ---------- CSS 주입 ---------- */
   function injectCSS(){
     if(document.getElementById('gx-suggest-style')) return;
     const css = `
 .gx-suggest-root{
   position:fixed; top:12px; left:50%; transform:translateX(-50%);
-  width:min(520px,90vw); z-index:999999;
+  width:min(520px,90vw); z-index:99999;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun 고딕","맑은 고딕",sans-serif;
 }
 .gx-suggest-search{position:relative;display:flex;align-items:center;gap:8px;}
@@ -116,22 +46,21 @@
   background:#fff;font-size:15px;outline:none;transition:border .2s ease,box-shadow .2s ease;
 }
 .gx-suggest-search .gx-input:focus{border-color:#4a90e2;box-shadow:0 0 0 2px rgba(74,144,226,.2);}
-
-/* 닫힘 상태: 지도 방해 방지 */
 .gx-suggest-box{
-  position:absolute;top:calc(100% + 2px);left:0;width:100%;
-  max-height:45vh;overflow:auto;-webkit-overflow-scrolling:touch;
-  background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);
-  opacity:0;transform:translateY(-8px); display:none; pointer-events:none;
-  transition:opacity .25s ease,transform .25s ease;
+  position:absolute; top:calc(100% + 2px); left:0; width:100%;
+  max-height:45vh; overflow:auto; -webkit-overflow-scrolling:touch;
+  background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.15);
+  opacity:0; transform:translateY(-8px);
+  display:none; pointer-events:none; /* 닫힘 상태: 지도 방해 금지 */
+  transition:opacity .25s ease, transform .25s ease;
 }
 .gx-suggest-box.open{ display:block; pointer-events:auto; opacity:1; transform:translateY(0); }
-
-.gx-suggest-item{padding:12px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:4px;border-bottom:1px solid #f0f0f0;transition:background .2s;}
-.gx-suggest-item:hover,.gx-suggest-item.active{background:#d9e9ff;}
-.gx-suggest-title{font-weight:600;font-size:15px;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.gx-suggest-sub{font-size:13px;color:#666;display:flex;flex-wrap:wrap;gap:6px;}
-.gx-suggest-root.is-hidden{display:none!important;}
+.gx-suggest-item{ padding:12px 16px; cursor:pointer; display:flex; flex-direction:column; align-items:flex-start; gap:4px; border-bottom:1px solid #f0f0f0; transition:background .2s; }
+.gx-suggest-item:last-child{ border-bottom:none; }
+.gx-suggest-item:hover,.gx-suggest-item.active{ background:#d9e9ff; }
+.gx-suggest-title{ font-weight:600; font-size:15px; color:#222; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gx-suggest-sub{ font-size:13px; color:#666; display:flex; flex-wrap:wrap; gap:6px; min-height:18px; }
+.gx-suggest-root.is-hidden{ display:none !important; }
     `.trim();
     const st = document.createElement('style');
     st.id = 'gx-suggest-style';
@@ -162,16 +91,14 @@
     search.appendChild(input); root.appendChild(search); root.appendChild(box);
     parent.appendChild(root);
 
-    box.style.display = 'none';
-    box.style.pointerEvents = 'none';
-
+    // 멀티터치 핀치줌 방지(사파리 대응)
     document.addEventListener('gesturestart', e=>e.preventDefault(), { passive:false });
     box.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive:false });
 
     return { root, input, box };
   }
 
-  /* ---------- 공간 인덱스 ---------- */
+  /* ---------- 공간 인덱스 (마커 근접 탐색 용) ---------- */
   function buildGeoIndex(arr, cell = 0.0005){
     const m = new Map();
     for (const o of arr) {
@@ -215,36 +142,41 @@
     return best;
   }
 
-  /* ---------- 메인 UI ---------- */
+  /* ---------- 공개 API ---------- */
   G.initSuggestUI = function initSuggestUI(opts){
     const {
       map,
       data = [],
       parent = document.body,
       getMarkers = null,
-      badges = [],
+      badges = [],                // 예: ['enclosure','address','ip','group']
       maxItems = 30,
-      hideOnRoadview = true
+      hideOnRoadview = true,
+      handleMarkerClicks = !G.__MARKER_CLICK_EXTERNALLY_HANDLED // 외부에서 마커 클릭을 처리하면 false 로
     } = opts || {};
     if(!map) return;
 
     injectCSS();
     const { root, input, box } = createDOM(parent);
 
-    // 인덱싱 보강
+    // 전처리(_needle)
     for (const o of data) {
-      if (!o._needle) o._needle = toNeedle([o.name,o.name1,o.name2,o.searchName,o.address,o.line,o.enclosure,o.ip,o.group]);
+      if (!o._needle) {
+        o._needle = toNeedle([
+          o.name, o.name1, o.name2, o.searchName,
+          o.address, o.line, o.enclosure, o.ip, o.group
+        ]);
+      }
     }
+    // 근접 인덱스(마커 ↔ 데이터 매칭)
+    const geoIndex = buildGeoIndex(data, 0.0005);
 
-    const geoIndex = buildGeoIndex(data, 0.0005); // ~50m
-
-    let activeIdx = -1, current = [], __lastTypedQuery = '', __lastPickedQuery = '';
-    G.__gxLastTypedQuery = __lastTypedQuery;
-    G.__gxLastPickedQuery = __lastPickedQuery;
-
+    // 상태
+    let activeIdx = -1, current = [];
+    let __lastTypedQuery = '', __lastPickedQuery = '';
+    let __pulseCircle = null, __pulseTimer = null;
+    let __lastQ = "", __lastPool = null; // 증분 캐시
     let pickBlockUntil = 0;
-    let pulseCircle = null, pulseHideTimer = null;
-    let __lastQ = "", __lastPool = null;
 
     const items = () => Array.from(box.querySelectorAll('.gx-suggest-item'));
     const openBox = () => {
@@ -309,7 +241,10 @@
       const pool = (n.startsWith(__lastQ) && Array.isArray(__lastPool)) ? __lastPool : data;
       const out = [];
       for (const o of pool) {
-        const key = o._needle || toNeedle([o.name,o.name1,o.name2,o.searchName,o.address,o.line,o.enclosure,o.ip,o.group]);
+        const key = o._needle || toNeedle([
+          o.name, o.name1, o.name2, o.searchName,
+          o.address, o.line, o.enclosure, o.ip, o.group
+        ]);
         if (key.includes(n)) { out.push(o); if (out.length >= maxItems) break; }
       }
       __lastQ = n; __lastPool = out.length >= 10 ? out : null;
@@ -322,15 +257,14 @@
       return { lat, lng };
     }
 
-    // ✅ 매 호출마다 새 써클 생성(항상 보장)
+    // 레벨3 + panTo + 빨간 써클(1초)
     function centerWithEffect(lat, lng){
       const pt = new kakao.maps.LatLng(lat, lng);
       try { map.setLevel(3); } catch {}
       try { map.panTo(pt); } catch {}
-
       try {
-        if (pulseCircle) { try { pulseCircle.setMap(null); } catch {} pulseCircle = null; }
-        pulseCircle = new kakao.maps.Circle({
+        if (__pulseCircle) { __pulseCircle.setMap(null); __pulseCircle = null; }
+        __pulseCircle = new kakao.maps.Circle({
           center: pt,
           radius: 50,
           strokeWeight: 1,
@@ -341,11 +275,9 @@
           fillOpacity: 0.3,
           zIndex: 9999
         });
-        pulseCircle.setMap(map);
-        if (pulseHideTimer) clearTimeout(pulseHideTimer);
-        pulseHideTimer = setTimeout(() => {
-          try { if (pulseCircle) { pulseCircle.setMap(null); pulseCircle = null; } } catch {}
-        }, 1000);
+        __pulseCircle.setMap(map);
+        if (__pulseTimer) clearTimeout(__pulseTimer);
+        __pulseTimer = setTimeout(()=>{ if (__pulseCircle){ __pulseCircle.setMap(null); __pulseCircle=null; } }, 1000);
       } catch {}
     }
 
@@ -354,6 +286,7 @@
       if(q){ __lastPickedQuery = q; G.__gxLastPickedQuery = q; }
     }
 
+    // 제안 확정
     function pick(i){
       if(i<0 || i>=current.length) return;
       const now = Date.now();
@@ -365,13 +298,13 @@
       if(t) input.value = t;
 
       const {lat, lng} = getLatLngFromItem(o);
-      if(isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng); // 제안 확정 시 이동+써클
+      if(isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
 
       __rememberPicked();
-      closeBox(); // 포커스 유지
+      closeBox(); // 포커스 유지(blur 하지 않음)
     }
 
-    // 입력 이벤트
+    /* ===== 입력/키보드 ===== */
     input.addEventListener('input', ()=>{
       const q = (input.value||'').trim();
       if(q){ __lastTypedQuery = q; G.__gxLastTypedQuery = q; }
@@ -388,7 +321,7 @@
       if(list.length){ render(list); openBox(); }
     });
 
-    // 키보드 내비: ↑/↓/Esc + Enter 확정(IME 가드)
+    // ↑/↓/Esc, Enter(IME 가드)
     input.addEventListener('keydown',(e)=>{
       if(e.isComposing || e.keyCode===229) return;
       const listEls = items();
@@ -398,7 +331,6 @@
         const q = (input.value||'').trim();
         if(q){ const l = filterData(q); current = l; if(l.length){ render(l); openBox(); } }
       }
-
       if(e.key==='ArrowDown' && isOpen){
         e.preventDefault(); setActive((activeIdx+1)%listEls.length);
       }else if(e.key==='ArrowUp' && isOpen){
@@ -415,6 +347,7 @@
       pick(activeIdx>=0 && activeIdx<current.length ? activeIdx : 0);
     });
 
+    // 입력창 클릭 → 제안 열기(전체선택 금지)
     input.addEventListener('mousedown',()=>{
       setTimeout(()=>{
         let q = (input.value||'').trim();
@@ -425,7 +358,7 @@
       },0);
     });
 
-    /* 빈영역 패스스루(모바일 드래그) */
+    // 제안창 빈영역: 닫고 pointerdown 재주입(모바일 드래그 패스스루)
     function forwardPointerDownOnly(clientX, clientY){
       const el = document.elementFromPoint(clientX, clientY);
       if (!el) return;
@@ -450,7 +383,7 @@
       emptyAreaPointerDown(t.clientX, t.clientY, ()=>e.preventDefault(), ()=>e.stopPropagation());
     }, { capture:true, passive:false });
 
-    // 바깥 클릭 닫기
+    // 바깥 클릭으로 닫기
     document.addEventListener('mousedown',(e)=>{
       if(!box.classList.contains('open')) return;
       if(e.target===input || box.contains(e.target)) return;
@@ -458,7 +391,7 @@
     });
     window.addEventListener('resize', closeBox);
 
-    // ✅ 지도 클릭: 제안창 닫기 + 키보드 내리기만
+    // 지도 클릭 → 닫고 키보드 내리기
     kakao.maps.event.addListener(map,'click',()=>{
       closeBox();
       try { if (document.activeElement === input) input.blur(); } catch {}
@@ -472,126 +405,56 @@
       },{passive:true});
     }
 
-    try{
-      const io = new IntersectionObserver((entries)=>{
-        const on = entries[0] && entries[0].isIntersecting;
-        if(!on) closeBox();
-      }, { root:null, threshold:0 });
-      io.observe(root);
-    }catch{}
-
-    /* 글로벌 핫키 */
-    if (!G.__gxSuggestBound) {
-      G.__gxSuggestBound = true;
-
-      // "/" 핫키
+    // "/" 핫키: 포커스 + 최근 질의 복원 + 전체선택 + 열기
+    if (!G.__gxSlashBound) {
+      G.__gxSlashBound = true;
       window.addEventListener('keydown',(e)=>{
         const isSlash = (e.key==='/' || e.code==='Slash' || e.keyCode===191);
         if(!isSlash) return;
 
         const ae = document.activeElement;
-        const isOtherEditable = (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
-        if(isOtherEditable && !ae.classList.contains('gx-input')) return;
+        const isOtherEditable = (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable)) &&
+                                !(ae && ae.classList && ae.classList.contains('gx-input'));
+        if(isOtherEditable) return;
 
         e.preventDefault(); e.stopPropagation();
 
-        const el = document.querySelector('.gx-suggest-root .gx-input');
-        if(el){ try{ el.focus(); }catch{} }
-
-        const inputEl = el || document.activeElement;
-        if(!inputEl) return;
-        let seed = (inputEl.value||'').trim();
-        if(!seed) seed = G.__gxLastPickedQuery || G.__gxLastTypedQuery || '';
+        const el = input;
+        try{ el.focus(); }catch{}
+        let seed = (el.value||'').trim();
+        if(!seed) seed = __lastPickedQuery || __lastTypedQuery || '';
         if(seed){
-          inputEl.value = seed;
-          try{ inputEl.dispatchEvent(new Event('input', {bubbles:true})); }catch{}
+          el.value = seed;
+          try{ el.dispatchEvent(new Event('input', {bubbles:true})); }catch{}
         }
-        try{ inputEl.setSelectionRange(0, inputEl.value.length); }catch{}
+        try{ el.setSelectionRange(0, el.value.length); }catch{}
       }, true);
 
-      // 비활성 상태에서도 화살표: ←=끝, →=처음, ↓=열기
+      // 비활성 상태에서 화살표: ←=끝, →=처음, ↓=열기
       window.addEventListener('keydown',(e)=>{
         const ae = document.activeElement;
         const isOurInput = (ae && ae.classList && ae.classList.contains('gx-input'));
         const isOtherEditable = !isOurInput && (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));
         if(isOtherEditable || isOurInput) return;
 
-        const inputEl = document.querySelector('.gx-suggest-root .gx-input');
-        if(!inputEl) return;
-
         if(e.key==='ArrowDown'){
           e.preventDefault();
-          try{ inputEl.focus(); }catch{}
-          let seed = (inputEl.value||'').trim();
-          if(!seed) seed = G.__gxLastPickedQuery || G.__gxLastTypedQuery || '';
+          try{ input.focus(); }catch{}
+          let seed = (input.value||'').trim();
+          if(!seed) seed = __lastPickedQuery || __lastTypedQuery || '';
           if(seed){
-            inputEl.value = seed;
-            try{ inputEl.dispatchEvent(new Event('input', {bubbles:true})); }catch{}
+            input.value = seed;
+            try{ input.dispatchEvent(new Event('input', {bubbles:true})); }catch{}
           }
         }else if(e.key==='ArrowLeft' || e.key==='ArrowRight'){
           e.preventDefault();
-          try{ inputEl.focus(); }catch{}
-          const val = inputEl.value||'';
+          try{ input.focus(); }catch{}
+          const val = input.value||'';
           const pos = (e.key==='ArrowLeft') ? val.length : 0;
-          try{ inputEl.setSelectionRange(pos, pos); }catch{}
+          try{ input.setSelectionRange(pos, pos); }catch{}
         }
       }, true);
     }
-
-    /* ----- 마커 클릭 → 입력창 자동입력(name1 우선) + 이동/써클 ----- */
-    function extractTailForInput(o){
-      const base = normalizeText(o?.name1 || o?.name || o?.searchName || '');
-      return extractAfterSecondHyphen(base, base);
-    }
-
-    const patched = new WeakSet();
-    function attachMarkerHandlersOnce(){
-      const container = parent.closest('#container') || document.getElementById('container') || document.body;
-      const list = (typeof getMarkers==='function' ? getMarkers() : (Array.isArray(G.markers) ? G.markers : [])) || [];
-      if(!Array.isArray(list)) return;
-
-      list.forEach(mk=>{
-        if(!mk || patched.has(mk)) return;
-        if(typeof mk.getPosition!=='function'){ patched.add(mk); return; }
-
-        kakao.maps.event.addListener(mk,'click',()=>{
-          if(container && container.classList.contains('view_roadview')) return;
-          try{
-            const pos = mk.getPosition();
-            const lat = pos.getLat ? pos.getLat() : (pos?.La ?? pos?.y ?? pos?.latitude);
-            const lng = pos.getLng ? pos.getLng() : (pos?.Ma ?? pos?.x ?? pos?.longitude);
-
-            let text = '';
-            let found = null;
-
-            if (isFinite(lat) && isFinite(lng)) {
-              found = nearestFromIndex(Number(lat), Number(lng), geoIndex) || nearestLinear(Number(lat), Number(lng), data);
-            }
-            if (found) text = extractTailForInput(found);
-
-            if (!text && typeof mk.getTitle==='function') {
-              const t = mk.getTitle(); if (t) text = extractAfterSecondHyphen(t, t);
-            }
-            if (!text && found) {
-              const b = found.name || found.searchName || '';
-              text = extractAfterSecondHyphen(b, b);
-            }
-
-            if(text){
-              input.value = text;
-              __lastPickedQuery = text; G.__gxLastPickedQuery = text;
-              closeBox(); // 포커스 유지
-            }
-
-            if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
-          }catch{}
-        });
-
-        patched.add(mk);
-      });
-    }
-    attachMarkerHandlersOnce();
-    document.addEventListener('markers:updated', attachMarkerHandlersOnce);
 
     // 로드뷰 모드 감시: 입력창 자동 숨김
     if(hideOnRoadview){
@@ -605,6 +468,65 @@
       const mo = new MutationObserver(update);
       mo.observe(container,{ attributes:true, attributeFilter:['class'] });
     }
-  };
 
+    /* ----- (옵션) 마커 클릭 처리: 외부에서 처리하면 handleMarkerClicks=false 로 ----- */
+    if (handleMarkerClicks) {
+      const patched = new WeakSet();
+
+      function extractTailForInput(o){
+        const base = normalizeText(o?.name1 || o?.name || o?.searchName || '');
+        return extractAfterSecondHyphen(base, base);
+      }
+
+      function bindMarkerClicks(){
+        const container = parent.closest('#container') || document.getElementById('container') || document.body;
+        const list = (typeof getMarkers==='function' ? getMarkers() : (Array.isArray(G.markers) ? G.markers : [])) || [];
+        if(!Array.isArray(list)) return;
+
+        list.forEach(mk=>{
+          if(!mk || patched.has(mk)) return;
+          if(typeof mk.getPosition!=='function'){ patched.add(mk); return; }
+
+          kakao.maps.event.addListener(mk,'click',()=>{
+            // 로드뷰 모드면 무시
+            if(container && container.classList.contains('view_roadview')) return;
+            try{
+              const pos = mk.getPosition();
+              const lat = pos.getLat ? pos.getLat() : (pos?.La ?? pos?.y ?? pos?.latitude);
+              const lng = pos.getLng ? pos.getLng() : (pos?.Ma ?? pos?.x ?? pos?.longitude);
+
+              let text = '';
+              let found = null;
+
+              if (isFinite(lat) && isFinite(lng)) {
+                found = nearestFromIndex(Number(lat), Number(lng), geoIndex) || nearestLinear(Number(lat), Number(lng), data);
+              }
+              if (found) text = extractTailForInput(found);
+
+              if (!text && typeof mk.getTitle==='function') {
+                const t = mk.getTitle(); if (t) text = extractAfterSecondHyphen(t, t);
+              }
+              if (!text && found) {
+                const b = found.name || found.searchName || '';
+                text = extractAfterSecondHyphen(b, b);
+              }
+
+              if(text){
+                input.value = text;
+                __lastPickedQuery = text; G.__gxLastPickedQuery = text;
+                closeBox(); // 포커스 유지
+              }
+
+              if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
+            }catch{}
+          });
+
+          patched.add(mk);
+        });
+      }
+
+      bindMarkerClicks();
+      document.addEventListener('markers:updated', bindMarkerClicks);
+    }
+  };
 })();
