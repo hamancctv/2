@@ -166,40 +166,42 @@ document.head.appendChild(style);
           overlay.__marker = marker;
 
           /* ===== Hover in (마커에만 반응) ===== */
-          function onOver(){
-            // ⭐ [인터락]: 호버 시에도 인터락 상태이면 시각 효과를 주지 않음
-            if (window.isInteractionLocked && window.isInteractionLocked()) return; 
+function onOver(){
+  if (window.isInteractionLocked && window.isInteractionLocked()) return;
+  marker.setImage(hoverImage);
+  bringToFront(map, marker, overlay, 'hover'); // ✅ 이 줄 그대로 유지
+  el.style.transform = (marker === selectedMarker)
+    ? `translateY(${hoverY-2}px)`
+    : `translateY(${hoverY}px)`;
+}
 
-            marker.setImage(hoverImage);
-            bringToFront(map, marker, overlay, 'hover');
-            el.style.transform = (marker === selectedMarker)
-              ? `translateY(${hoverY-2}px)` 
-              : `translateY(${hoverY}px)`;
-          }
 
           /* ===== Hover out (마커에만 반응) ===== */
-          function onOut(){
-            // ⭐ [인터락]: 마우스가 마커를 벗어날 때도 인터락 상태이면 효과를 되돌리지 않음 (필요 시)
-            if (window.isInteractionLocked && window.isInteractionLocked()) return;
-            
-            marker.setImage(normalImage);
-            const wasHoverFront = (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover');
+function onOut(){
+  if (window.isInteractionLocked && window.isInteractionLocked()) return;
 
-            if (wasHoverFront){
-              el.style.transform = `translateY(${baseY}px)`;
-              if (selectedMarker && selectedOverlayObj){
-                bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
-                if (selectedOverlayEl){
-                  selectedOverlayEl.style.border = "2px solid blue";
-                  selectedOverlayEl.style.transform = `translateY(${baseY-2}px)`;
-                }
-              } else {
-                if (map.getLevel() > 3) {
-                    overlay.setMap(null);
-                }
-            }
-              return;
-            }
+  marker.setImage(normalImage);
+
+  // 🔽 front로 올라온 상태였다면 원래대로 돌려놓기
+  const isFrontSelf = (frontMarker === marker && frontOverlay === overlay);
+  if (isFrontSelf) {
+    setDefaultZ(marker, overlay);       // ✅ z-index 복원
+    frontMarker = null;                 // ✅ front 상태 해제
+    frontOverlay = null;
+    frontReason = null;
+  }
+
+  // 오버레이 시각 복원
+  if (marker === selectedMarker){
+    el.style.transform = `translateY(${baseY-2}px)`;
+    el.style.border = "2px solid blue";
+    bringToFront(map, selectedMarker, selectedOverlayObj || overlay, 'clickMarker');
+  } else {
+    el.style.transform = `translateY(${baseY}px)`;
+    el.style.border = "1px solid #ccc";
+  }
+}
+
 
             if (marker === selectedMarker){
               el.style.transform = `translateY(${baseY-2}px)`;
