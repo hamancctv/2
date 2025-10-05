@@ -22,6 +22,8 @@
       transform:translateZ(0);
       backface-visibility:hidden;
       z-index:101; /* Z.BASE+1과 일치 (선택 마커와는 별개) */
+          pointer-events: none !important; 
+
     }
   `;
   document.head.appendChild(style);
