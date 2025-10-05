@@ -667,7 +667,7 @@ kakao.maps.load(function(){
         latlng: new kakao.maps.LatLng(lat, lng),
         content: it.name1 || it.name || '',
         searchName: it.name2 || it.name || '',
-        group: it.line || null
+        group: it.group || null
       });
     }
     initMarkers(map, positionsLike);
