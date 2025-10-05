@@ -1,6 +1,6 @@
-// markers-handler.js (v2025-10-05-FINAL-RV-PROTECTED)
+// markers-handler.js (v2025-10-05-FINAL-RV-PROTECTED-Z1)
 (function () {
-  console.log("[markers-handler] loaded v2025-10-05-FINAL-RV-PROTECTED");
+  console.log("[markers-handler] loaded v2025-10-05-FINAL-RV-PROTECTED-Z1");
 
   /* ==================== 스타일 ==================== */
   const style = document.createElement("style");
@@ -22,7 +22,7 @@
   document.head.appendChild(style);
 
   /* ==================== 상수 / 상태 ==================== */
-  const Z = { BASE: 100, FRONT: 100000 };
+  const Z = { BASE: 1, FRONT: 10 }; // ✅ 기본 zIndex 낮춤
   let selectedMarker = null, selectedOverlayEl = null, selectedOverlayObj = null;
   let frontMarker = null, frontOverlay = null, frontReason = null;
   let normalImage, hoverImage, jumpImage;
@@ -103,7 +103,7 @@
         (function(i){
           const pos = positions[i];
           const marker = new kakao.maps.Marker({
-            map, position: pos.latlng, image: normalImage, clickable: true, zIndex: Z.BASE+1
+            map, position: pos.latlng, image: normalImage, clickable: true, zIndex: 1 // ✅ 초기 zIndex 낮게
           });
           marker.group = pos.group || null;
           marker.__pos = pos.latlng;
@@ -119,10 +119,10 @@
           const overlay = new kakao.maps.CustomOverlay({
             position: pos.latlng, content: el, yAnchor: 1, map: null
           });
-          overlay.setZIndex(Z.BASE);
+          overlay.setZIndex(1);
           marker.__overlay = overlay; overlay.__marker = marker;
 
-          /* ===== Hover in/out ===== */
+          /* ===== Hover ===== */
           function onOver(){
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
             marker.setImage(hoverImage);
@@ -177,7 +177,7 @@
             }, delay);
           });
 
-          /* ===== Overlay 클릭 (RV 중 비활성) ===== */
+          /* Overlay 클릭 — RV 중 비활성 */
           el.addEventListener("click", function(){
             if (isRVOn()) return;
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
@@ -200,7 +200,7 @@
     }
     createBatch();
 
-    /* ===== idle 오버레이 표시 ===== */
+    /* ===== idle ===== */
     kakao.maps.event.addListener(map,"idle",function(){
       const level=map.getLevel(); const list=window.markers||[];
       for(const m of list){
