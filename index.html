@@ -348,13 +348,7 @@ function __rvMuteOverlay(o){
       }
       o.setDraggable(false);
     }
-    if (typeof o.getContent === 'function'){
-      const el = o.getContent();
-      if (el && el.style){
-        if (o.__rvOrigPE === undefined) o.__rvOrigPE = el.style.pointerEvents || '';
-        el.style.pointerEvents = 'none';
-      }
-    }
+
     if (o.__rvHandlers){
       if (!o.__rvMuted) o.__rvMuted = {};
       for (const type in o.__rvHandlers){
