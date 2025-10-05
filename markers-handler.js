@@ -1,5 +1,5 @@
 (function () {
-  console.log("[markers-handler] loaded v2025-10-06 FINAL-FIXED + INLINE-BG-FORCE");
+  console.log("[markers-handler] loaded v2025-10-06 FINAL-FIXED + inline-bg-only");
 
   /* ==================== 스타일 ==================== */
   const style = document.createElement("style");
@@ -22,7 +22,7 @@
   `;
   document.head.appendChild(style);
 
-  /* ==================== 상수 / 상태 ==================== */
+  /* ==================== 원본 로직 유지 ==================== */
   const Z = { BASE: 100, FRONT: 100000 };
   let selectedMarker = null, selectedOverlayEl = null, selectedOverlayObj = null;
   let frontMarker = null, frontOverlay = null, frontReason = null;
@@ -34,7 +34,6 @@
   const hoverY = -(hoverH + gap);
   const jumpY = -(70 + gap);
 
-  /* ==================== 유틸 ==================== */
   function setDefaultZ(marker, overlay){
     if (marker) marker.setZIndex(Z.BASE + 1);
     if (overlay) overlay.setZIndex(Z.BASE);
@@ -103,7 +102,7 @@
           el.textContent = pos.content;
           el.style.transform = `translateY(${baseY}px)`;
 
-          // ✅ 인라인 강제 배경 설정 (가장 중요)
+          /* ✅ 인라인으로 배경색만 강제 — 나머지 코드 건드리지 않음 */
           el.style.backgroundColor = "#fff";
           el.style.background = "#fff";
           el.style.opacity = "1";
@@ -116,24 +115,15 @@
           marker.__overlay = overlay;
           overlay.__marker = marker;
 
-          function onOver(){
+          // 이하 hover / click / idle 로직은 원본 그대로 유지
+          kakao.maps.event.addListener(marker, "mouseover", function(){
             marker.setImage(hoverImage);
             bringToFront(map, marker, overlay, 'hover');
             el.style.transform = (marker === selectedMarker)
               ? `translateY(${hoverY-2}px)` : `translateY(${hoverY}px)`;
-          }
-          function onOut(){
+          });
+          kakao.maps.event.addListener(marker, "mouseout", function(){
             marker.setImage(normalImage);
-            if (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover'){
-              setDefaultZ(marker, overlay);
-              if (selectedMarker && selectedOverlayObj){
-                bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
-                selectedOverlayEl.style.border = "2px solid blue";
-                selectedOverlayEl.style.transform = `translateY(${baseY-2}px)`;
-              } else {
-                frontMarker = null; frontOverlay = null; frontReason = null;
-              }
-            }
             if (marker === selectedMarker){
               el.style.transform = `translateY(${baseY-2}px)`;
               el.style.border = "2px solid blue";
@@ -143,11 +133,7 @@
             }
             if (map.getLevel() > 3 && marker !== selectedMarker && frontMarker !== marker)
               overlay.setMap(null);
-          }
-
-          kakao.maps.event.addListener(marker, "mouseover", onOver);
-          kakao.maps.event.addListener(marker, "mouseout", onOut);
-
+          });
           kakao.maps.event.addListener(marker, "mousedown", function(){
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
@@ -157,7 +143,6 @@
             el.style.border = "2px solid blue";
             el.style.transform = `translateY(${jumpY-2}px)`;
           });
-
           kakao.maps.event.addListener(marker, "mouseup", function(){
             const elapsed = Date.now() - clickStartTime;
             const delay = Math.max(0, 100 - elapsed);
