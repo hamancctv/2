@@ -1,28 +1,27 @@
 (function () {
   console.log("[markers-handler] loaded v2025-10-06 FINAL-FIXED + white-bg-only");
 
-  /* ==================== 스타일 ==================== */
-  const style = document.createElement("style");
-  style.textContent = `
-    .overlay-hover{
-      padding:2px 6px;
-      background:rgba(255,255,255,0.80); 
-      border:1px solid #ccc;
-      border-radius:5px;
-      font-size:14px;
-      white-space:nowrap;
-      user-select:none;
-      cursor:default;
-      pointer-event: none !important
-      transition:transform .15s ease, border .15s ease, background .15s ease;
-      will-change:transform, border;
-      transform:translateZ(0);
-      backface-visibility:hidden;
-      z-index:101;
-  
-    }
-  `;
-  document.head.appendChild(style);
+/* ==================== 스타일 ==================== */
+const style = document.createElement("style");
+style.textContent = `
+  .overlay-hover {
+    padding: 2px 6px;
+    background: rgba(255,255,255,0.80);
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    white-space: nowrap;
+    user-select: none;
+    cursor: default;
+    pointer-events: none !important;   /* ✅ 오타 수정 + 세미콜론 추가 */
+    transition: transform .15s ease, border .15s ease, background .15s ease;
+    will-change: transform, border;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    z-index: 101;
+  }
+`;
+document.head.appendChild(style);
 
   /* ==================== 이하 원본 그대로 ==================== */
   const Z = { BASE: 100, FRONT: 100000 }; 
