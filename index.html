@@ -722,14 +722,25 @@ kakao.maps.load(function(){
 
     let startX, startY, startW, startH, curW, curH, active=false, rafId=null;
 
-    function applySize(){
-      rafId = null;
-      if (curW && curH){
-        wrapper.style.width  = curW + 'px';
-        wrapper.style.height = curH + 'px';
-        map.relayout();
+  function applySize(){
+    rafId = null;
+    if (curW && curH){
+      wrapper.style.width  = curW + 'px';
+      wrapper.style.height = curH + 'px';
+      map.relayout();
+
+      // ✅ 카카오맵처럼 리사이즈 시 동동이가 중앙에 고정되도록
+      try {
+        if (overlayOn && mapWalker && mapWalker.position) {
+          const target = mapWalker.position;
+          map.setCenter(target);
+        }
+      } catch(e) {
+        console.warn("[resize-sync] center update failed", e);
       }
     }
+  }
+
     function onDown(ev){
       ev.preventDefault(); ev.stopPropagation();
       const t = ev.touches ? ev.touches[0] : ev;
