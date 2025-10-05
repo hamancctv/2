@@ -1,7 +1,7 @@
 // drawGroupLinesMSTButton.js — 그룹별 MST 토글 버튼 (거리재기 아래 or 고정형)
-// v2025-10-05-STABLE-DELAY (numeric-safe + zIndex tuned)
+// v2025-10-05-STABLE-DEBUG (numeric-safe + zIndex tuned + NaN guard)
 (function () {
-  console.log("[MST] loader start (stable-delay)");
+  console.log("[MST] loader start (stable-debug)");
 
   // ===== 유틸 =====
   const mapReady = () =>
@@ -64,12 +64,13 @@
 
     window.groupLines = window.groupLines || [];
 
+    // ===== 그룹 나누기 =====
     function buildGroups(markers) {
       const groups = {};
       for (const m of markers) {
         const lat = m.__lat ?? (typeof m.getPosition === "function" ? m.getPosition().getLat?.() : undefined);
         const lng = m.__lng ?? (typeof m.getPosition === "function" ? m.getPosition().getLng?.() : undefined);
-        if (typeof lat !== "number" || typeof lng !== "number") continue;
+        if (!isFinite(lat) || !isFinite(lng)) continue;
 
         let g = null;
         if (m.group != null) g = String(m.group);
@@ -85,9 +86,11 @@
       return groups;
     }
 
-    function createMSTLinesForGroup(map, list) {
+    // ===== 그룹별 MST 생성 =====
+    function createMSTLinesForGroup(map, list, gname) {
       const n = list.length;
       if (n < 2) return 0;
+
       const connected = [list[0]];
       let created = 0;
 
@@ -96,13 +99,26 @@
         for (const cm of connected) {
           for (const tm of list) {
             if (connected.includes(tm)) continue;
+            if (!isFinite(cm.__lat) || !isFinite(cm.__lng) || !isFinite(tm.__lat) || !isFinite(tm.__lng)) continue;
             const d = getDistanceLL(cm.__lat, cm.__lng, tm.__lat, tm.__lng);
             if (!minEdge || d < minEdge.dist) minEdge = { from: cm, to: tm, dist: d };
           }
         }
-        if (!minEdge) break;
+
+        if (!minEdge) {
+          console.warn(`[MST:${gname}] no valid edge found, breaking.`);
+          break;
+        }
+
+        if (!isFinite(minEdge.from.__lat) || !isFinite(minEdge.from.__lng) ||
+            !isFinite(minEdge.to.__lat)   || !isFinite(minEdge.to.__lng)) {
+          console.warn(`[MST:${gname}] invalid coords`, minEdge);
+          continue;
+        }
+
         const p1 = new kakao.maps.LatLng(minEdge.from.__lat, minEdge.from.__lng);
         const p2 = new kakao.maps.LatLng(minEdge.to.__lat, minEdge.to.__lng);
+
         const line = new kakao.maps.Polyline({
           map,
           path: [p1, p2],
@@ -111,13 +127,17 @@
           strokeOpacity: 0.9,
           strokeStyle: "solid"
         });
+
         window.groupLines.push(line);
         connected.push(minEdge.to);
         created++;
       }
+
+      console.log(`[MST] ${gname}: ${created} lines created`);
       return created;
     }
 
+    // ===== 전체 그룹 처리 =====
     function drawMSTAllGroups() {
       if (!mapReady()) { console.warn("[MST] map not ready"); return; }
       const map = window.map;
@@ -146,9 +166,9 @@
       for (const k of keys) {
         const arr = groups[k];
         if (!arr || arr.length < 2) continue;
-        totalLines += createMSTLinesForGroup(map, arr);
+        totalLines += createMSTLinesForGroup(map, arr, k);
       }
-      console.log(`[MST] groups: ${keys.length}, lines created: ${totalLines}`);
+      console.log(`[MST] total groups: ${keys.length}, total lines: ${totalLines}`);
     }
 
     btn.addEventListener("click", () => {
@@ -162,7 +182,7 @@
       }
     });
 
-    console.log("[MST] ready (numeric + delay-safe)");
+    console.log("[MST] ready (numeric + debug + safe)");
   }
 
   // ===== 로드 지연 감시 =====
@@ -171,7 +191,6 @@
       console.log("[MST] markers ready, initializing...");
       initMSTButton();
     } else {
-      console.log("[MST] waiting for map/markers...");
       setTimeout(waitForMapAndMarkers, 500);
     }
   }
