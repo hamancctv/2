@@ -1,17 +1,16 @@
-/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v6)
-   ✅ 변경 요약
-   - 제안창 닫힘 상태: display:none + pointer-events:none (지도 클릭 100% 보장)
-   - 열릴 때만 display:block + pointer-events:auto
-   - 빈 영역 클릭 시 닫고 같은 좌표로 지도 클릭 재발송(원클릭)
-   - 나머지 기능(v5) 동일 유지:
+/* ===== search-suggest.integrated.js (2025-10-05, FULL-INTEGRATION v8)
+   ✅ 변경 요약 (v7 → v8)
+   - 빨간 원(써클) 복구 + 강화
+     · pick/엔터/제안클릭/마커클릭 시 표시(유지)
+     · ✅ 지도 아무 곳이나 클릭해도 표시 + 레벨 3로 이동 (요청사항)
+   - 모바일 드래그 패스스루 그대로 유지(빈영역 pointerdown 재주입)
+   - 닫힘 상태: display:none + pointer-events:none (지도 클릭/드래그 100% 보장)
+   - 나머지 기능 동일:
      · 슬래시 핫키, 키보드 내비(↑↓EnterEsc)
      · 비활성 ←/→/↓: ←=끝, →=처음, ↓=열기
      · "두 번째 하이픈 뒤" 텍스트 입력(제안/엔터/마커 공통)
-     · 마커 클릭 자동 입력(로드뷰 무시)
-     · 근접 매칭(≈50m 그리드 + 폴백)
-     · 지도 레벨 3 고정 + 빨간 원(1s, 재사용)
-     · 로드뷰 모드 자동 숨김
-     · z-index 안전, 제안창 간격 2px
+     · 근접 매칭(≈50m 그리드+폴백)
+     · 로드뷰 모드 자동 숨김, z-index/간격 안전
 */
 (function () {
   const G = (typeof window !== 'undefined' ? window : globalThis);
@@ -118,7 +117,7 @@
 .gx-suggest-root{
   position:fixed; top:12px; left:50%; transform:translateX(-50%);
   width:min(520px,90vw); z-index:999999;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,"Apple SD Gothic Neo","Malgun 고딕","맑은 고딕",sans-serif;
 }
 .gx-suggest-search{position:relative;display:flex;align-items:center;gap:8px;}
 .gx-suggest-search .gx-input{
@@ -127,14 +126,14 @@
 }
 .gx-suggest-search .gx-input:focus{border-color:#4a90e2;box-shadow:0 0 0 2px rgba(74,144,226,.2);}
 
-/* ✅ 닫힘 상태: 지도 클릭 방해 방지 (완전 제거) */
+/* ✅ 닫힘 상태: 지도 클릭/드래그 방해 방지 (완전 제거) */
 .gx-suggest-box{
   position:absolute;top:calc(100% + 2px);left:0;width:100%;
   max-height:45vh;overflow:auto;-webkit-overflow-scrolling:touch;
   background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);
   opacity:0;transform:translateY(-8px);
-  display:none;                 /* ← 완전 제거 */
-  pointer-events:none;          /* ← 이벤트 차단 */
+  display:none;
+  pointer-events:none;
   transition:opacity .25s ease,transform .25s ease;
 }
 /* ✅ 열림 상태만 표시 + 이벤트 허용 */
@@ -188,10 +187,8 @@
     // iOS Safari 핀치 제스처 방지
     document.addEventListener('gesturestart', e=>e.preventDefault(), { passive:false });
 
-    // 핀치 방지(멀티터치만): 제안창 스크롤은 유지
-    [box].forEach(el=>{
-      el.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive:false });
-    });
+    // 멀티터치 핀치 방지(제안창 내부)
+    box.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive:false });
 
     return { root, input, box };
   }
@@ -269,7 +266,6 @@
 
     // 상태
     let activeIdx = -1, current = [], __lastTypedQuery = '', __lastPickedQuery = '';
-    // 외부 참조(글로벌 핫키에서 사용)
     G.__gxLastTypedQuery = __lastTypedQuery;
     G.__gxLastPickedQuery = __lastPickedQuery;
 
@@ -284,7 +280,6 @@
     const openBox = () => {
       if(!box.classList.contains('open')) box.classList.add('open');
       input.setAttribute('aria-expanded','true');
-      // ✅ 안전하게 inline으로도 보장
       box.style.display = 'block';
       box.style.pointerEvents = 'auto';
     };
@@ -292,11 +287,8 @@
       if(box.classList.contains('open')) box.classList.remove('open');
       input.setAttribute('aria-expanded','false');
       setActive(-1);
-      // ✅ 완전 제거
       box.style.display = 'none';
       box.style.pointerEvents = 'none';
-      // 필요하면 렌더 캐시 줄이기
-      // box.innerHTML = '';
     };
 
     function setActive(i){
@@ -470,25 +462,30 @@
       },0);
     });
 
-    /* ▶︎ 빈 영역 클릭 시: 닫고 같은 좌표로 지도에 click 재발송 (원클릭) */
-    function forwardClickToUnderlying(clientX, clientY){
+    /* ▶︎ 패스스루: 빈 영역에서 드래그/탭 시 지도에 곧바로 전달 (모바일 포함) */
+    function forwardPointerDownOnly(clientX, clientY){
       const el = document.elementFromPoint(clientX, clientY);
       if (!el) return;
       const common = { bubbles:true, cancelable:true, view:window, clientX, clientY, button:0 };
       try { el.dispatchEvent(new PointerEvent('pointerdown', common)); } catch {}
       try { el.dispatchEvent(new MouseEvent('mousedown', common)); } catch {}
-      try { el.dispatchEvent(new PointerEvent('pointerup', common)); } catch {}
-      try { el.dispatchEvent(new MouseEvent('mouseup', common)); } catch {}
-      try { el.dispatchEvent(new MouseEvent('click', common)); } catch {}
     }
-
-    box.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.gx-suggest-item')) return; // 항목 클릭은 그대로
-      e.preventDefault(); e.stopPropagation();
-      const { clientX, clientY } = e;
+    const emptyAreaPointerDown = (clientX, clientY, preventDefaultFn, stopPropagationFn) => {
+      if (preventDefaultFn) preventDefaultFn();
+      if (stopPropagationFn) stopPropagationFn();
       closeBox();
-      requestAnimationFrame(()=> forwardClickToUnderlying(clientX, clientY));
+      requestAnimationFrame(()=> forwardPointerDownOnly(clientX, clientY));
+    };
+    box.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.gx-suggest-item')) return;
+      emptyAreaPointerDown(e.clientX, e.clientY, ()=>e.preventDefault(), ()=>e.stopPropagation());
     }, true);
+    box.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.gx-suggest-item')) return;
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+      emptyAreaPointerDown(t.clientX, t.clientY, ()=>e.preventDefault(), ()=>e.stopPropagation());
+    }, { capture:true, passive:false });
 
     // 바깥 클릭 닫기
     document.addEventListener('mousedown',(e)=>{
@@ -499,7 +496,15 @@
     window.addEventListener('resize', closeBox);
 
     // 지도 이벤트
-    kakao.maps.event.addListener(map,'click',()=>closeBox());
+    kakao.maps.event.addListener(map,'click',(e)=>{
+      closeBox();
+      try{
+        const pos = e.latLng;
+        const lat = pos.getLat ? pos.getLat() : (pos?.La ?? pos?.y ?? pos?.latitude);
+        const lng = pos.getLng ? pos.getLng() : (pos?.Ma ?? pos?.x ?? pos?.longitude);
+        if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng); // ✅ 지도 클릭에도 써클 + 레벨3
+      }catch{}
+    });
     kakao.maps.event.addListener(map,'dragstart',()=>closeBox());
 
     // Safari: touchend에서만 필요 시 blur
@@ -617,6 +622,9 @@
               __lastPickedQuery = text; G.__gxLastPickedQuery = text;
               closeBox(); // 포커스 유지
             }
+
+            // ✅ 마커 클릭 시에도 써클 보장
+            if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
           }catch{}
         });
 
