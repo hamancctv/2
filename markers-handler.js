@@ -1,46 +1,31 @@
 (function () {
-  console.log("[markers-handler] loaded v2025-10-06 FINAL-FIXED + white-bg-only + hover-restore");
+  console.log("[markers-handler] loaded v2025-10-07 FINAL-STABLE-NO-FLICKER");
 
   /* ==================== 스타일 ==================== */
   const style = document.createElement("style");
   style.textContent = `
     .overlay-hover {
-      padding: 2px 6px;
-      background: rgba(255,255,255,0.80);
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 14px;
-      white-space: nowrap;
-      user-select: none;
-      cursor: default;
-      pointer-events: none !important;
-      transition: transform .15s ease, border .15s ease, background .15s ease;
-      will-change: transform, border;
-      transform: translateZ(0);
-      backface-visibility: hidden;
-      z-index: 101;
+      padding:2px 6px;
+      background:#fff;
+      border:1px solid #ccc;
+      border-radius:5px;
+      font-size:14px;
+      white-space:nowrap;
+      user-select:none;
+      pointer-events:none !important;
+      transition:transform .15s ease, border .15s ease, background .15s ease;
+      will-change:transform, border;
+      transform:translateZ(0);
+      backface-visibility:hidden;
+      z-index:101;
     }
   `;
   document.head.appendChild(style);
 
-  /* ✅ 오버레이 포인터 제어 함수 (전역 선언) */
-  function applyOverlayPointerLock(lock) {
-    const els = document.querySelectorAll('.overlay-hover');
-    els.forEach(el => {
-      el.style.pointerEvents = lock ? 'none' : 'auto';
-    });
-    console.log(`[overlay-pointer] ${lock ? "LOCKED" : "UNLOCKED"}`);
-  }
-
-  /* ==================== 이하 기존 코드 그대로 ==================== */
   const Z = { BASE: 100, FRONT: 100000 };
-  let selectedMarker = null;
-  let selectedOverlayEl = null;
-  let selectedOverlayObj = null;
-  let frontMarker = null;
-  let frontOverlay = null;
-  let frontReason  = null;
-  let normalImage, hoverImage, jumpImage;
+  let selectedMarker = null, selectedOverlayEl = null, selectedOverlayObj = null;
+  let frontMarker = null, frontOverlay = null, frontReason = null;
+  let normalImage, jumpImage;
   let clickStartTime = 0;
 
   const normalH = 42, hoverH = 50.4, gap = 2;
@@ -91,7 +76,6 @@
       if (selectedMarker) {
         selectedOverlayEl.style.border = "1px solid #ccc";
         selectedOverlayEl.style.transform = `translateY(${baseY}px)`;
-        selectedMarker.setImage(normalImage);
         setDefaultZ(selectedMarker, selectedOverlayObj);
         if (map.getLevel() > 3 && selectedOverlayObj) {
           selectedOverlayObj.setMap(null);
@@ -105,19 +89,11 @@
   window.initMarkers = function (map, positions) {
     bindMapClickToClearSelection(map);
 
+    // ✅ 기본 마커이미지만 사용 (hoverImage 제거)
     normalImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,42) }
     );
-
-    hoverImage = new kakao.maps.MarkerImage(
-      "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(36,50.4),
-      {
-        offset:new kakao.maps.Point(18,50.4)
-      }
-    );
-
     jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,70) }
@@ -134,17 +110,16 @@
           const marker = new kakao.maps.Marker({
             map, position: pos.latlng, image: normalImage, clickable: true, zIndex: Z.BASE + 1
           });
-
-          marker.group = pos.group ? String(pos.group) : (pos.line ? String(pos.line) : null);
+          marker.group = pos.group ? String(pos.group) : null;
           marker.__pos = pos.latlng;
-          marker.__lat = pos.latlng.getLat(); marker.__lng = pos.latlng.getLng();
-          marker.__name1 = (pos.__name1 || pos.content || "");
+          marker.__lat = pos.latlng.getLat();
+          marker.__lng = pos.latlng.getLng();
+          marker.__name1 = pos.__name1 || pos.content || "";
 
           const el = document.createElement("div");
           el.className = "overlay-hover";
           el.style.transform = `translateY(${baseY}px)`;
           el.textContent = pos.content;
-          el.style.backgroundColor = "#fff";
           el.style.background = "#fff";
           el.style.opacity = "1";
 
@@ -156,55 +131,54 @@
           marker.__overlay = overlay;
           overlay.__marker = marker;
 
-// 기존 hover 관련 함수 부분 전체 교체
-let hoverTimer = null;
+          function onOver(){
+            if (window.isInteractionLocked && window.isInteractionLocked()) return;
+            // ✅ CSS transform 기반 확대
+            const markerEl = marker.Ga && marker.Ga.querySelector("img");
+            if (markerEl) {
+              markerEl.style.transition = "transform .15s ease";
+              markerEl.style.transform = "scale(1.18)";
+              markerEl.style.transformOrigin = "center bottom";
+            }
+            bringToFront(map, marker, overlay, 'hover');
+            el.style.transform = (marker === selectedMarker)
+              ? `translateY(${hoverY-2}px)`
+              : `translateY(${hoverY}px)`;
+          }
 
-function onOver() {
-  clearTimeout(hoverTimer);
-  hoverTimer = setTimeout(() => {
-    if (window.isInteractionLocked && window.isInteractionLocked()) return;
-    marker.setImage(hoverImage);
-    bringToFront(map, marker, overlay, 'hover');
-    el.style.transform = (marker === selectedMarker)
-      ? `translateY(${hoverY - 2}px)`
-      : `translateY(${hoverY}px)`;
-  }, 20); // 🔹 20ms 디바운스
-}
+          function onOut(){
+            if (window.isInteractionLocked && window.isInteractionLocked()) return;
+            // ✅ 원래 크기로 복귀
+            const markerEl = marker.Ga && marker.Ga.querySelector("img");
+            if (markerEl) {
+              markerEl.style.transition = "transform .15s ease";
+              markerEl.style.transform = "scale(1)";
+            }
 
-function onOut() {
-  clearTimeout(hoverTimer);
-  hoverTimer = setTimeout(() => {
-    if (window.isInteractionLocked && window.isInteractionLocked()) return;
-    marker.setImage(normalImage);
-
-    if (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover') {
-      setDefaultZ(marker, overlay);
-      if (selectedMarker && selectedOverlayObj) {
-        bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
-        selectedOverlayEl.style.border = "2px solid blue";
-        selectedOverlayEl.style.transform = `translateY(${baseY - 2}px)`;
-      } else {
-        frontMarker = null; frontOverlay = null; frontReason = null;
-      }
-    }
-
-    if (marker === selectedMarker) {
-      el.style.transform = `translateY(${baseY - 2}px)`;
-      el.style.border = "2px solid blue";
-    } else {
-      el.style.transform = `translateY(${baseY}px)`;
-      el.style.border = "1px solid #ccc";
-    }
-
-    if (map.getLevel() > 3 && marker !== selectedMarker && frontMarker !== marker) {
-      overlay.setMap(null);
-    }
-  }, 20);
-}
-
+            if (frontMarker === marker && frontOverlay === overlay && frontReason === 'hover'){
+              setDefaultZ(marker, overlay);
+              if (selectedMarker && selectedOverlayObj){
+                bringToFront(map, selectedMarker, selectedOverlayObj, 'clickMarker');
+                selectedOverlayEl.style.border = "2px solid blue";
+                selectedOverlayEl.style.transform = `translateY(${baseY-2}px)`;
+              } else {
+                frontMarker = null; frontOverlay = null; frontReason = null;
+              }
+            }
+            if (marker === selectedMarker){
+              el.style.transform = `translateY(${baseY-2}px)`;
+              el.style.border = "2px solid blue";
+            } else {
+              el.style.transform = `translateY(${baseY}px)`;
+              el.style.border = "1px solid #ccc";
+            }
+            if (map.getLevel() > 3 && marker !== selectedMarker && frontMarker !== marker) {
+              overlay.setMap(null);
+            }
+          }
 
           kakao.maps.event.addListener(marker, "mouseover", onOver);
-          kakao.maps.event.addListener(marker, "mouseout",  onOut);
+          kakao.maps.event.addListener(marker, "mouseout", onOut);
 
           kakao.maps.event.addListener(marker, "mousedown", function(){
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
@@ -227,7 +201,6 @@ function onOut() {
               el.style.transition = "transform .2s ease, border .2s ease";
               el.style.transform = `translateY(${baseY-2}px)`;
               bringToFront(map, marker, overlay, 'clickMarker');
-
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
               fillSearchInputWithTail(marker.__name1);
