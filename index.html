@@ -538,6 +538,8 @@ function applyOverlayPointerLock(lock){
 function toggleOverlay(active){
   const btn = document.getElementById('roadviewControl');
   if(active){
+    setInteractionLock(true);   // ✅ 로드뷰 진입 시 잠금
+
     overlayOn = true;
     btn.classList.add('active');
     map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
@@ -546,7 +548,6 @@ function toggleOverlay(active){
     setAllOverlaysZForRV(true);
     setAllOverlaysClickForRV(true);
     applyOverlayPointerLock(true);
-    setInteractionLock(true);
 
     if (!mapWalker){
       mapWalker = new MapWalker(map.getCenter());
@@ -556,7 +557,9 @@ function toggleOverlay(active){
       mapWalker.setMap(map);
     }
     setRoadviewAt(map.getCenter());
-  }else{
+  } else {
+    setInteractionLock(false);  // ✅ 로드뷰 종료 시 해제
+
     overlayOn = false;
     pickMode  = false;
     btn.classList.remove('active');
@@ -566,9 +569,11 @@ function toggleOverlay(active){
     setAllOverlaysClickForRV(false);
     setAllOverlaysZForRV(false);
     applyOverlayPointerLock(false);
-    setInteractionLock(false);
 
-    if(mapWalker) { mapWalker.content.classList.remove('pick'); mapWalker.setMap(null); }
+    if(mapWalker) {
+      mapWalker.content.classList.remove('pick');
+      mapWalker.setMap(null);
+    }
     document.getElementById('container').classList.remove('view_roadview');
     map.relayout();
   }
