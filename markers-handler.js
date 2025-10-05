@@ -112,7 +112,7 @@
 
     hoverImage = new kakao.maps.MarkerImage(
       "https://hamancctv.github.io/2/marker_spot (3).png",
-      new kakao.maps.Size(36,70.4), { offset:new kakao.maps.Point(18,50.4)
+      new kakao.maps.Size(36,50.4), { offset:new kakao.maps.Point(18,50.4)
       }
     );
  
