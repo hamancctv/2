@@ -165,22 +165,45 @@ document.head.appendChild(style);
           marker.__overlay = overlay;
           overlay.__marker = marker;
 
-          /* ===== Hover in (마커에만 반응) ===== */
-function onOver(){
+/* ===== Hover in (마커에만 반응) ===== */
+function onOver() {
   if (window.isInteractionLocked && window.isInteractionLocked()) return;
+
   marker.setImage(hoverImage);
-  bringToFront(map, marker, overlay, 'hover'); // ✅ 이 줄 그대로 유지
-  el.style.transform = (marker === selectedMarker)
-    ? `translateY(${hoverY-2}px)`
-    : `translateY(${hoverY}px)`;
+  overlay.setMap(map); // ✅ 항상 표시 유지
+  bringToFront(map, marker, overlay, "hover");
+
+  el.style.transform =
+    marker === selectedMarker
+      ? `translateY(${hoverY - 2}px)`
+      : `translateY(${hoverY}px)`;
 }
 
-
-          /* ===== Hover out (마커에만 반응) ===== */
-function onOut(){
+/* ===== Hover out (마커에만 반응) ===== */
+function onOut() {
   if (window.isInteractionLocked && window.isInteractionLocked()) return;
 
   marker.setImage(normalImage);
+
+  // 🔽 전면 상태였다면 기본 z로 복원 (단, 지도에서 안 빼기)
+  if (frontMarker === marker && frontOverlay === overlay) {
+    setDefaultZ(marker, overlay);
+    frontMarker = null;
+    frontOverlay = null;
+    frontReason = null;
+  }
+
+  // 오버레이 위치·시각 복원
+  if (marker === selectedMarker) {
+    el.style.transform = `translateY(${baseY - 2}px)`;
+    el.style.border = "2px solid blue";
+    bringToFront(map, marker, overlay, "clickMarker");
+  } else {
+    el.style.transform = `translateY(${baseY}px)`;
+    el.style.border = "1px solid #ccc";
+    overlay.setMap(map); // ✅ 숨기지 말고 항상 유지!
+  }
+}
 
   // 🔽 front로 올라온 상태였다면 원래대로 돌려놓기
   const isFrontSelf = (frontMarker === marker && frontOverlay === overlay);
