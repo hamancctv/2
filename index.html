@@ -663,12 +663,13 @@ kakao.maps.load(function(){
       const key = lat + ',' + lng;
       if (unique.has(key)) continue;
       unique.set(key, true);
-      positionsLike.push({
-        latlng: new kakao.maps.LatLng(lat, lng),
-        content: it.name1 || it.name || '',
-        searchName: it.name2 || it.name || '',
-        group: it.group || null
-      });
+positionsLike.push({
+  latlng: new kakao.maps.LatLng(lat, lng),
+  content: it.name1 || it.name || '',
+  searchName: it.name2 || it.name || '',
+  group: it.group || null
+});
+
     }
     initMarkers(map, positionsLike);
   }
