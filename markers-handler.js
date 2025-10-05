@@ -100,9 +100,18 @@ document.head.appendChild(style);
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,42) }
     );
+          /* ✅ 호버이미지 coords 조정으로 마커 깜빡임 방지 */
     hoverImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(36,50.4), { offset:new kakao.maps.Point(18,50.4) }
+      new kakao.maps.Size(36,50.4), 
+      { offset:new kakao.maps.Point(18,50.4),
+       {
+    offset: new kakao.maps.Point(18, 50.4),
+    shape: "rect",                     // 감지 영역 모양 (사각형)
+    coords: "0,0,36,56"                // 감지 영역 범위 (가로 36, 세로 56)
+  }                              
+                                    
+                                    
     );
     jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
