@@ -10,7 +10,7 @@
       /* 배경을 불투명 흰색으로 강제 적용 */
       background-color:#fff !important; 
       background:#fff !important;
-      opacity:1 !important; /* 0.9로 약간 투명도를 주되, 흰색을 유지 */
+      opacity:1 !important; /* 불투명 및 흰색을 유지 */
       border:1px solid #ccc !important;
       border-radius:5px;
       font-size:14px;
