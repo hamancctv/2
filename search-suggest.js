@@ -469,64 +469,66 @@
       mo.observe(container,{ attributes:true, attributeFilter:['class'] });
     }
 
-    /* ----- (옵션) 마커 클릭 처리: 외부에서 처리하면 handleMarkerClicks=false 로 ----- */
-    if (handleMarkerClicks) {
-      const patched = new WeakSet();
+ /* ----- (옵션) 마커 클릭 처리: 외부에서 처리하면 handleMarkerClicks=false 로 ----- */
+if (handleMarkerClicks) {
+  const patched = new WeakSet();
 
-      function extractTailForInput(o){
-        const base = normalizeText(o?.name1 || o?.name || o?.searchName || '');
-        return extractAfterSecondHyphen(base, base);
-      }
+  function extractTailForInput(o){
+    const base = normalizeText(o?.name1 || o?.name || o?.searchName || '');
+    return extractAfterSecondHyphen(base, base);
+  }
 
-      function bindMarkerClicks(){
-        const container = parent.closest('#container') || document.getElementById('container') || document.body;
-        const list = (typeof getMarkers==='function' ? getMarkers() : (Array.isArray(G.markers) ? G.markers : [])) || [];
-        if(!Array.isArray(list)) return;
+  function bindMarkerClicks(){
+    const container = parent.closest('#container') || document.getElementById('container') || document.body;
+    const list = (typeof getMarkers==='function' ? getMarkers() : (Array.isArray(G.markers) ? G.markers : [])) || [];
+    if(!Array.isArray(list)) return;
 
-        list.forEach(mk=>{
-          if(!mk || patched.has(mk)) return;
-          if(typeof mk.getPosition!=='function'){ patched.add(mk); return; }
+    list.forEach(mk=>{
+      if(!mk || patched.has(mk)) return;
+      if(typeof mk.getPosition!=='function'){ patched.add(mk); return; }
 
-          kakao.maps.event.addListener(mk,'click',()=>{
-            // 로드뷰 모드면 무시
-            if(container && container.classList.contains('view_roadview')) return;
-            try{
-              const pos = mk.getPosition();
-              const lat = pos.getLat ? pos.getLat() : (pos?.La ?? pos?.y ?? pos?.latitude);
-              const lng = pos.getLng ? pos.getLng() : (pos?.Ma ?? pos?.x ?? pos?.longitude);
+      kakao.maps.event.addListener(mk,'click',()=>{
+        // 로드뷰 모드면 무시
+        if(container && container.classList.contains('view_roadview')) return;
+        try{
+          const pos = mk.getPosition();
+          const lat = pos.getLat ? pos.getLat() : (pos?.La ?? pos?.y ?? pos?.latitude);
+          const lng = pos.getLng ? pos.getLng() : (pos?.Ma ?? pos?.x ?? pos?.longitude);
 
-              let text = '';
-              let found = null;
+          let text = '';
+          let found = null;
 
-              if (isFinite(lat) && isFinite(lng)) {
-                found = nearestFromIndex(Number(lat), Number(lng), geoIndex) || nearestLinear(Number(lat), Number(lng), data);
-              }
-              if (found) text = extractTailForInput(found);
+          if (isFinite(lat) && isFinite(lng)) {
+            found = nearestFromIndex(Number(lat), Number(lng), geoIndex) || nearestLinear(Number(lat), Number(lng), data);
+          }
+          if (found) text = extractTailForInput(found);
 
-              if (!text && typeof mk.getTitle==='function') {
-                const t = mk.getTitle(); if (t) text = extractAfterSecondHyphen(t, t);
-              }
-              if (!text && found) {
-                const b = found.name || found.searchName || '';
-                text = extractAfterSecondHyphen(b, b);
-              }
+          if (!text && typeof mk.getTitle==='function') {
+            const t = mk.getTitle(); if (t) text = extractAfterSecondHyphen(t, t);
+          }
+          if (!text && found) {
+            const b = found.name || found.searchName || '';
+            text = extractAfterSecondHyphen(b, b);
+          }
 
-              if(text){
-                input.value = text;
-                __lastPickedQuery = text; G.__gxLastPickedQuery = text;
-                closeBox(); // 포커스 유지
-              }
+          // ✅ 지도 이동 및 빨간 써클 제거 (입력창만 업데이트)
+          if (text) {
+            input.value = text;
+            __lastPickedQuery = text;
+            G.__gxLastPickedQuery = text;
+            closeBox(); // 포커스 유지
+          }
 
-              if (isFinite(lat) && isFinite(lng)) centerWithEffect(lat, lng);
-            }catch{}
-          });
+        }catch(e){ console.warn("marker click handler error", e); }
+      });
 
-          patched.add(mk);
-        });
-      }
+      patched.add(mk);
+    });
+  }
 
-      bindMarkerClicks();
-      document.addEventListener('markers:updated', bindMarkerClicks);
-    }
+  bindMarkerClicks();
+  document.addEventListener('markers:updated', bindMarkerClicks);
+}
+
   };
 })();
