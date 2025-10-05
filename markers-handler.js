@@ -1,30 +1,39 @@
 (function () {
-  console.log("[markers-handler] loaded v2025-10-06 FINAL-FIXED + white-bg-only");
+  console.log("[markers-handler] loaded v2025-10-06 FINAL-FIXED + white-bg-only + hover-restore");
 
-/* ==================== 스타일 ==================== */
-const style = document.createElement("style");
-style.textContent = `
-  .overlay-hover {
-    padding: 2px 6px;
-    background: rgba(255,255,255,0.80);
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 14px;
-    white-space: nowrap;
-    user-select: none;
-    cursor: default;
-    pointer-events: none !important;   /* ✅ 오타 수정 + 세미콜론 추가 */
-    transition: transform .15s ease, border .15s ease, background .15s ease;
-    will-change: transform, border;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    z-index: 101;
+  /* ==================== 스타일 ==================== */
+  const style = document.createElement("style");
+  style.textContent = `
+    .overlay-hover {
+      padding: 2px 6px;
+      background: rgba(255,255,255,0.80);
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      white-space: nowrap;
+      user-select: none;
+      cursor: default;
+      pointer-events: none !important;
+      transition: transform .15s ease, border .15s ease, background .15s ease;
+      will-change: transform, border;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+      z-index: 101;
+    }
+  `;
+  document.head.appendChild(style);
+
+  /* ✅ 오버레이 포인터 제어 함수 (전역 선언) */
+  function applyOverlayPointerLock(lock) {
+    const els = document.querySelectorAll('.overlay-hover');
+    els.forEach(el => {
+      el.style.pointerEvents = lock ? 'none' : 'auto';
+    });
+    console.log(`[overlay-pointer] ${lock ? "LOCKED" : "UNLOCKED"}`);
   }
-`;
-document.head.appendChild(style);
 
-  /* ==================== 이하 원본 그대로 ==================== */
-  const Z = { BASE: 100, FRONT: 100000 }; 
+  /* ==================== 이하 기존 코드 그대로 ==================== */
+  const Z = { BASE: 100, FRONT: 100000 };
   let selectedMarker = null;
   let selectedOverlayEl = null;
   let selectedOverlayObj = null;
@@ -55,7 +64,7 @@ document.head.appendChild(style);
         frontOverlay.setMap(null);
       }
     }
-    overlay.setMap(map);          
+    overlay.setMap(map);
     setFrontZ(marker, overlay);
     frontMarker = marker; frontOverlay = overlay; frontReason = reason;
   }
@@ -100,17 +109,17 @@ document.head.appendChild(style);
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,42) }
     );
-          /* ✅ 호버이미지 coords 조정으로 마커 깜빡임 방지 */
+
     hoverImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(36,50.4), 
-      { offset:new kakao.maps.Point(18,50.4),
-    shape: "rect",                     // 감지 영역 모양 (사각형)
-    coords: "0,0,36,56"                // 감지 영역 범위 (가로 36, 세로 56)
-  }                              
-                                    
-                                    
+      new kakao.maps.Size(36,50.4),
+      {
+        offset:new kakao.maps.Point(18,50.4),
+        shape:"rect",
+        coords:"0,0,36,56"
+      }
     );
+
     jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,70) }
@@ -124,21 +133,19 @@ document.head.appendChild(style);
       for (let i = idx; i < end; i++){
         (function(i){
           const pos = positions[i];
-
-          const marker = new kakao.maps.Marker({ 
-            map, position: pos.latlng, image: normalImage, clickable: true, zIndex: Z.BASE + 1 
+          const marker = new kakao.maps.Marker({
+            map, position: pos.latlng, image: normalImage, clickable: true, zIndex: Z.BASE + 1
           });
+
           marker.group = pos.group ? String(pos.group) : (pos.line ? String(pos.line) : null);
-          marker.__pos = pos.latlng;                  
+          marker.__pos = pos.latlng;
           marker.__lat = pos.latlng.getLat(); marker.__lng = pos.latlng.getLng();
-          marker.__name1 = (pos.__name1 || pos.content || ""); 
+          marker.__name1 = (pos.__name1 || pos.content || "");
 
           const el = document.createElement("div");
           el.className = "overlay-hover";
           el.style.transform = `translateY(${baseY}px)`;
           el.textContent = pos.content;
-
-          /* ✅ 흰색 배경만 인라인 강제 */
           el.style.backgroundColor = "#fff";
           el.style.background = "#fff";
           el.style.opacity = "1";
@@ -152,20 +159,11 @@ document.head.appendChild(style);
           overlay.__marker = marker;
 
           function onOver(){
-            if (window.isInteractionLocked && window.isInteractionLocked()) return; 
-            
-            function applyOverlayPointerLock(lock) {
-  const els = document.querySelectorAll('.overlay-hover');
-  els.forEach(el => {
-    el.style.pointerEvents = lock ? 'none' : 'auto';
-  });
-  console.log(`[overlay-pointer] ${lock ? "LOCKED" : "UNLOCKED"}`);
-}
-
+            if (window.isInteractionLocked && window.isInteractionLocked()) return;
             marker.setImage(hoverImage);
             bringToFront(map, marker, overlay, 'hover');
             el.style.transform = (marker === selectedMarker)
-              ? `translateY(${hoverY-2}px)` 
+              ? `translateY(${hoverY-2}px)`
               : `translateY(${hoverY}px)`;
           }
 
@@ -193,12 +191,12 @@ document.head.appendChild(style);
               overlay.setMap(null);
             }
           }
-          
+
           kakao.maps.event.addListener(marker, "mouseover", onOver);
           kakao.maps.event.addListener(marker, "mouseout",  onOut);
 
           kakao.maps.event.addListener(marker, "mousedown", function(){
-            if (window.isInteractionLocked && window.isInteractionLocked()) return; 
+            if (window.isInteractionLocked && window.isInteractionLocked()) return;
             marker.setImage(jumpImage);
             clickStartTime = Date.now();
             if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
@@ -222,7 +220,6 @@ document.head.appendChild(style);
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
               fillSearchInputWithTail(marker.__name1);
-
               setTimeout(()=>{ el.style.transition = "transform .15s ease, border .15s ease"; }, 200);
             }, delay);
           });
@@ -232,12 +229,8 @@ document.head.appendChild(style);
         })(i);
       }
       idx = end;
-
-      if (idx < positions.length) {
-        setTimeout(createBatch, 0);
-      } else {
-        window.markers = markers; 
-      }
+      if (idx < positions.length) setTimeout(createBatch, 0);
+      else window.markers = markers;
     }
     createBatch();
 
