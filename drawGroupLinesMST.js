@@ -1,7 +1,7 @@
 // drawGroupLinesMSTButton.js — 그룹별 MST 토글 버튼 (group-safe + debug)
-// v2025-10-05-STABLE-GROUPSAFE-FIXED
+// v2025-10-05-STABLE-GROUPSAFE-FINAL-FIX
 (function () {
-  console.log("[MST] loader start (group-safe) - FIX APPLIED");
+  console.log("[MST] loader start (group-safe) - FINAL FIX APPLIED");
 
   // ===== 유틸 =====
   const mapReady = () =>
@@ -76,32 +76,23 @@
                 lng = +m.__lng;
             }
         } catch(e) {
-            // console.warn("[MST] Marker position access error:", e, m);
             continue;
         }
 
         if (!isFinite(lat) || !isFinite(lng)) {
-            // console.warn("[MST] Invalid coordinates for marker:", m);
             continue;
         }
 
-        // MST 로직이 사용할 수 있도록 마커 객체에 위도/경도 저장 (재사용을 위해)
+        // MST 로직이 사용할 수 있도록 마커 객체에 위도/경도 저장
         m.__lat = lat; 
         m.__lng = lng;
 
         let g = (m.group ?? m.line ?? "").toString().trim();
         if (!g) continue;
 
-        // ⚙️ 숫자+하이픈 외 문자 → 연결 대신 텍스트 표시용 (CustomOverlay 에러 방지 위해 이 로직 전체를 제거)
-        // if (/[^0-9\-]/.test(g)) {
-        //   // CustomOverlay 관련 에러 코드를 완전히 제거합니다.
-        //   continue; // 연결하지 않고, 그룹으로도 포함하지 않습니다.
-        // }
-
-        // 필터링된 그룹만 MST 연결 대상으로 남깁니다.
+        // 숫자/하이픈 외 문자가 포함된 그룹은 MST 연결에서 제외합니다.
         if (/[^0-9\-]/.test(g)) {
-            // 그룹 연결을 원치 않는 마커는 건너뜁니다.
-            continue;
+            continue; // 연결하지 않고, 그룹으로도 포함하지 않습니다. (CustomOverlay 오류 방지)
         }
 
         const key = g.replace(/[-\s]/g, "");
@@ -127,7 +118,6 @@
         for (const cm of connected) {
           for (const tm of unique) {
             if (connected.includes(tm)) continue;
-            // __lat, __lng 사용 (위에서 안정화됨)
             const d = getDistanceLL(cm.__lat, cm.__lng, tm.__lat, tm.__lng);
             if (!minEdge || d < minEdge.dist) minEdge = { from: cm, to: tm, dist: d };
           }
@@ -136,28 +126,20 @@
 
         const p1 = new kakao.maps.LatLng(minEdge.from.__lat, minEdge.from.__lng);
         const p2 = new kakao.maps.LatLng(minEdge.to.__lat, minEdge.to.__lng);
-// drawGroupLinesMST.js 파일 내 createMSTLinesForGroup 함수 (수정된 부분)
-
-// ... (while 루프 내부) ...
-
-// 기존 코드: map 옵션을 생성자에 바로 전달
-// const line = new kakao.maps.Polyline({ map, path: [p1, p2], ... });
-
-// ⭐ 수정된 코드: map 옵션을 제거하고, 다음 줄에서 setMap을 호출합니다.
-const line = new kakao.maps.Polyline({
-  path: [p1, p2], // map 옵션을 제거했습니다!
-  strokeWeight: 3.5,
-  strokeColor: "#db4040",
-  strokeOpacity: 0.9
-});
-
-// ⭐ setMap을 별도로 호출하여 맵에 등록합니다.
-line.setMap(map); 
-
-window.groupLines.push(line);
-connected.push(minEdge.to);
-created++;
-// ... (나머지 코드) ...
+        
+        // ⭐ Polyline 생성 충돌 에러(TypeError) 해결: map 옵션 제거 후 setMap 별도 호출
+        const line = new kakao.maps.Polyline({
+          path: [p1, p2],
+          strokeWeight: 3.5,
+          strokeColor: "#db4040", // 빨간색
+          strokeOpacity: 0.9
+        });
+        
+        line.setMap(map); // ⭐ 맵 등록을 분리하여 에러를 우회합니다.
+        
+        window.groupLines.push(line);
+        connected.push(minEdge.to);
+        created++;
       }
 
       console.log(`[MST] Group done (${unique.length} pts) → ${created} lines`);
@@ -180,7 +162,10 @@ created++;
       const groups = buildGroups(markers);
       let total = 0;
       for (const [g, arr] of Object.entries(groups)) {
-        total += createMSTLinesForGroup(map, arr);
+        // 그룹 내 마커가 2개 이상이고, MST 연결이 가능할 때만 시도
+        if (arr.length >= 2) { 
+            total += createMSTLinesForGroup(map, arr);
+        }
       }
       console.log(`[MST] total lines drawn: ${total}`);
     }
@@ -201,7 +186,6 @@ created++;
 
   // === 로드 대기 ===
   function waitForMapAndMarkers() {
-    // window.markers.length > 0 조건은 markers-handler.js 실행 이후에 만족됩니다.
     if (window.map && window.markers) {
       initMSTButton();
     } else {
