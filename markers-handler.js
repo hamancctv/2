@@ -105,8 +105,6 @@ document.head.appendChild(style);
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
       new kakao.maps.Size(36,50.4), 
       { offset:new kakao.maps.Point(18,50.4),
-       {
-    offset: new kakao.maps.Point(18, 50.4),
     shape: "rect",                     // 감지 영역 모양 (사각형)
     coords: "0,0,36,56"                // 감지 영역 범위 (가로 36, 세로 56)
   }                              
