@@ -2,16 +2,14 @@
 (function () {
   console.log("[markers-handler] loaded v2025-10-06 FINAL-FIXED");
 
-  /* ==================== 스타일 ==================== */
+ /* ==================== 스타일 ==================== */
   const style = document.createElement("style");
   style.textContent = `
     .overlay-hover{
       padding:2px 6px;
-      /* 배경을 불투명 흰색으로 강제 적용 */
-      background-color:#fff !important; 
-      background:#fff !important;
-      opacity:1 !important; /* 불투명 및 흰색을 유지 */
-      border:1px solid #ccc !important;
+      /* ✅ V2025-10-05 코드의 안정적인 스타일로 복원 */
+      background:rgba(255,255,255,0.80); 
+      border:1px solid #ccc;
       border-radius:5px;
       font-size:14px;
       white-space:nowrap;
@@ -21,13 +19,13 @@
       will-change:transform, border;
       transform:translateZ(0);
       backface-visibility:hidden;
-      z-index:101; /* Z.BASE+1과 일치 (선택 마커와는 별개) */
-          pointer-events: none !important; 
-
+      z-index:101; 
+      /* pointer-events는 마우스 오버/아웃 이벤트를 위해 제거하거나 조건부 적용 권장 */
+      /* pointer-events: none !important;  // 이 줄은 제거하거나 주석 처리 */
     }
   `;
   document.head.appendChild(style);
-
+          
   /* ==================== 상수 / 상태 ==================== */
   const Z = { BASE: 100, FRONT: 100000 }; 
 
