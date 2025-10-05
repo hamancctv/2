@@ -1,8 +1,8 @@
-// markers-handler.js (v2025-10-05-FINAL-RV-PROTECTED-Z1)
+// markers-handler.js (v2025-10-05-RV-SAFE-FINAL)
+// ✅ 기존 기능 유지 + 로드뷰시 마커 클릭 비활성 + 동동이보다 항상 아래
 (function () {
-  console.log("[markers-handler] loaded v2025-10-05-FINAL-RV-PROTECTED-Z1");
+  console.log("[markers-handler] loaded v2025-10-05-RV-SAFE-FINAL");
 
-  /* ==================== 스타일 ==================== */
   const style = document.createElement("style");
   style.textContent = `
     .overlay-hover{
@@ -14,203 +14,202 @@
       white-space:nowrap;
       user-select:none;
       transition:transform .15s ease, border .15s ease, background .15s ease;
-      will-change:transform, border;
       transform:translateZ(0);
-      backface-visibility:hidden;
+      will-change:transform, border;
     }
   `;
   document.head.appendChild(style);
 
-  /* ==================== 상수 / 상태 ==================== */
-  const Z = { BASE: 1, FRONT: 10 }; // ✅ 기본 zIndex 낮춤
-  let selectedMarker = null, selectedOverlayEl = null, selectedOverlayObj = null;
-  let frontMarker = null, frontOverlay = null, frontReason = null;
+  const Z = { BASE: 1, FRONT: 999999 }; // 기본 zIndex 낮춤 (동동이보다 항상 아래)
+  const Z_WALKER = 2147483647;
+
+  let selectedMarker = null;
+  let selectedOverlay = null;
+  let hoverMarker = null;
   let normalImage, hoverImage, jumpImage;
   let clickStartTime = 0;
 
   const normalH = 42, hoverH = 50.4, gap = 2;
-  const baseY  = -(normalH + gap);
-  const hoverY = -(hoverH  + gap);
-  const jumpY  = -(70 + gap);
+  const baseY = -(normalH + gap);
+  const hoverY = -(hoverH + gap);
+  const jumpY = -(70 + gap);
 
-  const isRVOn = () => !!window.overlayOn;
+  // ==== 로드뷰 상태 감지 ====
+  const isRoadviewActive = () => {
+    const container = document.getElementById("container");
+    return container && container.classList.contains("view_roadview");
+  };
 
-  /* ==================== Z 인덱스 제어 ==================== */
-  function setDefaultZ(marker, overlay){
-    const baseZ = isRVOn() ? 2147483645 : Z.BASE;
-    if (marker)  marker.setZIndex(baseZ + 1);
-    if (overlay) overlay.setZIndex(baseZ);
-  }
-  function setFrontZ(marker, overlay){
-    const frontZ = isRVOn() ? 2147483645 : Z.FRONT;
-    if (marker)  marker.setZIndex(frontZ);
-    if (overlay) overlay.setZIndex(frontZ - 1);
-  }
-  function bringToFront(map, marker, overlay, reason){
-    if (!marker || !overlay) return;
-    if (frontMarker && frontOverlay && (frontMarker !== marker || frontOverlay !== overlay)) {
-      setDefaultZ(frontMarker, frontOverlay);
-      if (map.getLevel() > 3 && frontMarker !== selectedMarker) frontOverlay.setMap(null);
-    }
-    overlay.setMap(map);
-    if (isRVOn()){
-      marker.setZIndex(2147483645);
-      overlay.setZIndex(2147483644);
-    } else setFrontZ(marker, overlay);
-    frontMarker = marker; frontOverlay = overlay; frontReason = reason;
+  function setDefaultZ(marker, overlay) {
+    marker?.setZIndex(Z.BASE);
+    overlay?.setZIndex(Z.BASE);
   }
 
-  function fillSearchInputWithTail(baseText){
-    const s = (baseText || "").toString();
-    const i1 = s.indexOf("-"), i2 = s.indexOf("-", i1+1);
-    const tail = (i2 >= 0 ? s.slice(i2+1) : s.slice(i1+1)).trim();
-    if (!tail) return;
-    const input = document.querySelector(".gx-input") || document.getElementById("keyword");
-    if (!input) return;
-    input.value = tail;
-    try { input.dispatchEvent(new Event("input",{bubbles:true})); } catch {}
+  function setFrontZ(marker, overlay) {
+    // 동동이보다 항상 아래 유지
+    const safeTop = Math.min(Z_WALKER - 1, Z.FRONT);
+    marker?.setZIndex(safeTop);
+    overlay?.setZIndex(safeTop + 1);
   }
 
-  /* ==================== 마커 초기화 ==================== */
-  window.initMarkers = function (map, positions) {
-    kakao.maps.event.addListener(map, "click", function(){
-      if (selectedOverlayEl) selectedOverlayEl.style.border = "1px solid #ccc";
-      selectedMarker = null; selectedOverlayEl = null; selectedOverlayObj = null;
+  // 지도 클릭 시 선택 해제
+  function bindMapClick(map) {
+    kakao.maps.event.addListener(map, "click", function () {
+      if (selectedOverlay) {
+        selectedOverlay.setZIndex(Z.BASE);
+        selectedOverlay.holder.style.border = "1px solid #ccc";
+      }
+      selectedMarker = null;
+      selectedOverlay = null;
     });
+  }
+
+  // name1 tail → 검색창 반영
+  function extractAfterSecondHyphen(s) {
+    s = (s || "").toString().trim();
+    const i1 = s.indexOf("-");
+    if (i1 < 0) return s;
+    const i2 = s.indexOf("-", i1 + 1);
+    return (i2 >= 0 ? s.slice(i2 + 1) : s.slice(i1 + 1)).trim();
+  }
+  function fillSearchInputWithTail(baseText) {
+    const tail = extractAfterSecondHyphen(baseText);
+    const input = document.querySelector(".gx-input") || document.getElementById("keyword");
+    if (input) {
+      input.value = tail;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+
+  // ====== 마커 초기화 ======
+  window.initMarkers = function (map, positions) {
+    bindMapClick(map);
 
     normalImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(30,42),
-      { offset:new kakao.maps.Point(15,42) }
+      new kakao.maps.Size(30, 42),
+      { offset: new kakao.maps.Point(15, 42) }
     );
     hoverImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(36,50.4),
-      { offset:new kakao.maps.Point(18,50.4) }
+      new kakao.maps.Size(36, 50.4),
+      { offset: new kakao.maps.Point(18, 50.4) }
     );
     jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(30,42),
-      { offset:new kakao.maps.Point(15,70) }
+      new kakao.maps.Size(30, 42),
+      { offset: new kakao.maps.Point(15, 70) }
     );
 
-    const markers = [], overlays = [];
-    const batchSize = 50; let idx = 0;
+    const markers = [];
+    const overlays = [];
 
-    function createBatch(){
-      const end = Math.min(positions.length, idx + batchSize);
-      for (let i = idx; i < end; i++){
-        (function(i){
-          const pos = positions[i];
-          const marker = new kakao.maps.Marker({
-            map, position: pos.latlng, image: normalImage, clickable: true, zIndex: 1 // ✅ 초기 zIndex 낮게
-          });
-          marker.group = pos.group || null;
-          marker.__pos = pos.latlng;
-          marker.__lat = pos.latlng.getLat();
-          marker.__lng = pos.latlng.getLng();
-          marker.__name1 = pos.name1 || pos.content || "";
+    positions.forEach(pos => {
+      const marker = new kakao.maps.Marker({
+        map,
+        position: pos.latlng,
+        image: normalImage,
+        zIndex: Z.BASE
+      });
+      marker.group = pos.group || null;
+      marker.__name1 = pos.name1 || "";
+      marker.__pos = pos.latlng;
+      marker.__lat = pos.latlng.getLat();
+      marker.__lng = pos.latlng.getLng();
 
-          const el = document.createElement("div");
-          el.className = "overlay-hover";
-          el.style.transform = `translateY(${baseY}px)`;
-          el.textContent = pos.content;
+      const el = document.createElement("div");
+      el.className = "overlay-hover";
+      el.textContent = pos.content;
+      el.style.transform = `translateY(${baseY}px)`;
 
-          const overlay = new kakao.maps.CustomOverlay({
-            position: pos.latlng, content: el, yAnchor: 1, map: null
-          });
-          overlay.setZIndex(1);
-          marker.__overlay = overlay; overlay.__marker = marker;
+      const overlay = new kakao.maps.CustomOverlay({
+        position: pos.latlng,
+        content: el,
+        yAnchor: 1,
+        map: null,
+        zIndex: Z.BASE
+      });
+      overlay.holder = el;
 
-          /* ===== Hover ===== */
-          function onOver(){
-            if (window.isInteractionLocked && window.isInteractionLocked()) return;
-            marker.setImage(hoverImage);
-            bringToFront(map, marker, overlay, 'hover');
-            el.style.transform = (marker===selectedMarker)
-              ? `translateY(${hoverY-2}px)` : `translateY(${hoverY}px)`;
-          }
-          function onOut(){
-            if (window.isInteractionLocked && window.isInteractionLocked()) return;
-            marker.setImage(normalImage);
-            el.style.transform = (marker===selectedMarker)
-              ? `translateY(${baseY-2}px)` : `translateY(${baseY}px)`;
-            setDefaultZ(marker, overlay);
-          }
-          kakao.maps.event.addListener(marker, "mouseover", onOver);
-          kakao.maps.event.addListener(marker, "mouseout", onOut);
+      // --- 마우스 오버 ---
+      kakao.maps.event.addListener(marker, "mouseover", function () {
+        if (isRoadviewActive()) return; // 로드뷰 중엔 비활성
+        marker.setImage(hoverImage);
+        overlay.setMap(map);
+        setFrontZ(marker, overlay);
+        el.style.transform = `translateY(${hoverY}px)`;
+      });
 
-          /* ===== Marker 클릭 ===== */
-          kakao.maps.event.addListener(marker, "mousedown", function(){
-            if (isRVOn()){
-              try {
-                if (typeof window.setRoadviewAt === "function")
-                  window.setRoadviewAt(marker.getPosition());
-                else map.setCenter(marker.getPosition());
-              } catch {}
-              return;
-            }
-            if (window.isInteractionLocked && window.isInteractionLocked()) return;
-            marker.setImage(jumpImage);
-            clickStartTime = Date.now();
-            if (selectedOverlayEl) selectedOverlayEl.style.border="1px solid #ccc";
-            selectedMarker = marker; selectedOverlayEl = el; selectedOverlayObj = overlay;
-            bringToFront(map, marker, overlay, 'clickMarker');
-            el.style.border="2px solid blue";
-            el.style.transform=`translateY(${jumpY-2}px)`;
-          });
-          kakao.maps.event.addListener(marker, "mouseup", function(){
-            if (isRVOn()) return;
-            if (window.isInteractionLocked && window.isInteractionLocked()) return;
-            const elapsed = Date.now() - clickStartTime;
-            const delay = Math.max(0, 100 - elapsed);
-            setTimeout(()=>{
-              marker.setImage(normalImage);
-              el.style.border="2px solid blue";
-              el.style.transition="transform .2s ease,border .2s ease";
-              el.style.transform=`translateY(${baseY-2}px)`;
-              bringToFront(map, marker, overlay, 'clickMarker');
-              const g=document.getElementById("gpsyx");
-              if(g) g.value=`${marker.__lat}, ${marker.__lng}`;
-              fillSearchInputWithTail(marker.__name1);
-              setTimeout(()=>{ el.style.transition="transform .15s ease,border .15s ease"; },200);
-            }, delay);
-          });
+      // --- 마우스 아웃 ---
+      kakao.maps.event.addListener(marker, "mouseout", function () {
+        if (isRoadviewActive()) return;
+        marker.setImage(normalImage);
+        setDefaultZ(marker, overlay);
+        el.style.transform = `translateY(${baseY}px)`;
+      });
 
-          /* Overlay 클릭 — RV 중 비활성 */
-          el.addEventListener("click", function(){
-            if (isRVOn()) return;
-            if (window.isInteractionLocked && window.isInteractionLocked()) return;
-            if (selectedOverlayEl) selectedOverlayEl.style.border="1px solid #ccc";
-            selectedMarker = marker; selectedOverlayEl = el; selectedOverlayObj = overlay;
-            bringToFront(map, marker, overlay, 'clickOverlay');
-            el.style.border="2px solid blue";
-            el.style.transform=`translateY(${baseY-2}px)`;
-            const g=document.getElementById("gpsyx");
-            if(g) g.value=`${marker.__lat}, ${marker.__lng}`;
-            fillSearchInputWithTail(marker.__name1);
-          });
+      // --- 마커 클릭 ---
+      kakao.maps.event.addListener(marker, "click", function (mouseEvent) {
+        // 로드뷰 중엔 지도 클릭으로 대체
+        if (isRoadviewActive()) {
+          kakao.maps.event.trigger(map, "click", mouseEvent);
+          return;
+        }
 
-          markers.push(marker); overlays.push(overlay);
-        })(i);
-      }
-      idx = end;
-      if (idx < positions.length) setTimeout(createBatch, 0);
-      else window.markers = markers;
-    }
-    createBatch();
+        if (selectedMarker === marker) {
+          // 같은 마커 다시 클릭 시 해제
+          overlay.setMap(null);
+          selectedMarker = null;
+          selectedOverlay = null;
+          return;
+        }
 
-    /* ===== idle ===== */
-    kakao.maps.event.addListener(map,"idle",function(){
-      const level=map.getLevel(); const list=window.markers||[];
-      for(const m of list){
-        const o=m.__overlay; if(!o) continue;
-        if ((frontOverlay&&o===frontOverlay)||(selectedOverlayObj&&o===selectedOverlayObj))
+        // 이전 선택 해제
+        if (selectedOverlay) {
+          selectedOverlay.setMap(null);
+          selectedOverlay.holder.style.border = "1px solid #ccc";
+        }
+
+        selectedMarker = marker;
+        selectedOverlay = overlay;
+        marker.setImage(jumpImage);
+        overlay.setMap(map);
+        setFrontZ(marker, overlay);
+
+        el.style.border = "2px solid blue";
+        el.style.transform = `translateY(${jumpY}px)`;
+
+        // 좌표 갱신
+        const g = document.getElementById("gpsyx");
+        if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
+        fillSearchInputWithTail(marker.__name1);
+
+        setTimeout(() => {
+          marker.setImage(normalImage);
+          el.style.transform = `translateY(${baseY - 2}px)`;
+        }, 150);
+      });
+
+      markers.push(marker);
+      overlays.push(overlay);
+    });
+
+    window.markers = markers;
+    window.overlays = overlays;
+
+    // ==== idle: 확대레벨별 오버레이 제어 ====
+    kakao.maps.event.addListener(map, "idle", function () {
+      const level = map.getLevel();
+      for (const m of markers) {
+        const o = m.__overlay || overlays.find(v => v.holder.textContent === m.__name1);
+        if (!o) continue;
+        if (level <= 3) {
           o.setMap(map);
-        else o.setMap(level<=3?map:null);
-        setDefaultZ(m,o);
+        } else {
+          o.setMap(null);
+        }
+        setDefaultZ(m, o);
       }
-      if(frontMarker&&frontOverlay) setFrontZ(frontMarker,frontOverlay);
     });
   };
 })();
