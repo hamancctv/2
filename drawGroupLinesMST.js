@@ -136,16 +136,28 @@
 
         const p1 = new kakao.maps.LatLng(minEdge.from.__lat, minEdge.from.__lng);
         const p2 = new kakao.maps.LatLng(minEdge.to.__lat, minEdge.to.__lng);
-        const line = new kakao.maps.Polyline({
-          map,
-          path: [p1, p2],
-          strokeWeight: 3.5,
-          strokeColor: "#db4040", // 빨간색
-          strokeOpacity: 0.9
-        });
-        window.groupLines.push(line);
-        connected.push(minEdge.to);
-        created++;
+// drawGroupLinesMST.js 파일 내 createMSTLinesForGroup 함수 (수정된 부분)
+
+// ... (while 루프 내부) ...
+
+// 기존 코드: map 옵션을 생성자에 바로 전달
+// const line = new kakao.maps.Polyline({ map, path: [p1, p2], ... });
+
+// ⭐ 수정된 코드: map 옵션을 제거하고, 다음 줄에서 setMap을 호출합니다.
+const line = new kakao.maps.Polyline({
+  path: [p1, p2], // map 옵션을 제거했습니다!
+  strokeWeight: 3.5,
+  strokeColor: "#db4040",
+  strokeOpacity: 0.9
+});
+
+// ⭐ setMap을 별도로 호출하여 맵에 등록합니다.
+line.setMap(map); 
+
+window.groupLines.push(line);
+connected.push(minEdge.to);
+created++;
+// ... (나머지 코드) ...
       }
 
       console.log(`[MST] Group done (${unique.length} pts) → ${created} lines`);
