@@ -3,25 +3,28 @@
   console.log("[markers-handler] loaded v2025-10-06 CLICK-INTERLOCK-FINAL");
 
   /* ==================== 스타일 ==================== */
-  const style = document.createElement("style");
-  style.textContent = `
-    .overlay-hover{
-      padding:2px 6px;
-      /* 배경을 불투명 흰색으로 강제 적용하여 배경 없는 문제 해결 */
-      background: #FFFFFF !important; 
-      border:1px solid #ccc;
-      border-radius:5px;
-      font-size:14px;
-      white-space:nowrap;
-      user-select:none;
-      cursor:default; 
-      transition:transform .15s ease, border .15s ease, background .15s ease;
-      will-change:transform, border;
-      transform:translateZ(0);
-      backface-visibility:hidden;
-    }
-  `;
-  document.head.appendChild(style);
+const style = document.createElement("style");
+style.textContent = `
+  .overlay-hover{
+    padding:2px 6px;
+    background-color:#fff !important;
+    background:#fff !important;
+    opacity:1 !important;         /* ✅ 투명도 보정 */
+    border:1px solid rgba(204,204,204,1) !important;
+    border-radius:5px;
+    font-size:14px;
+    white-space:nowrap;
+    user-select:none;
+    cursor:default; 
+    transition:transform .15s ease, border .15s ease, background .15s ease;
+    will-change:transform, border;
+    transform:translateZ(0);
+    backface-visibility:hidden;
+    z-index:101;                  /* ✅ 기본 z-index도 명시 */
+  }
+`;
+document.head.appendChild(style);
+
 
   /* ==================== 상수 / 상태 ==================== */
   const Z = { BASE: 100, FRONT: 100000 }; 
