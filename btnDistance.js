@@ -1,6 +1,6 @@
-// btnDistance.js — 거리재기 (툴바형, 완성형 v2025-10-06)
+// btnDistance.js — 거리재기 (툴바형, 완성형 v2025-10-06-FINAL-STABLE)
 (function () {
-  console.log("[btnDistance] loaded v2025-10-06-FINAL-CLEAN");
+  console.log("[btnDistance] loaded v2025-10-06-FINAL-STABLE");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -15,20 +15,18 @@
     style.id = "btnDistance-style";
     style.textContent = `
       .km-dot {
-        width: 10px; height: 10px;       /* ✅ 살짝 작게 */
+        width: 10px; height: 10px;
         border: 2px solid #e53935;
         background: #fff;
         border-radius: 50%;
         box-shadow: 0 0 0 1px rgba(0,0,0,.06);
       }
-
       .km-seg {
         background:#fff; color:#e53935; border:1px solid #e53935;
         border-radius:8px; padding:2px 6px; font-size:12px; font-weight:600;
         white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.12);
         margin-bottom:14px;
       }
-
       .km-total-box {
         background:#ffeb3b; color:#222; border:1px solid #e0c200;
         border-radius:10px; padding:6px 10px; font-size:13px; font-weight:700;
@@ -148,16 +146,18 @@
     if (!mapExists()) return;
     drawing = !drawing;
     btn.classList.toggle("active", drawing);
-    map.setCursor(drawing ? "crosshair" : "grab");  // ✅ 거리재기 중에는 십자, 해제시 grab
+    map.setCursor(drawing ? "crosshair" : "grab");  // ✅ 커서 제어
 
     if (drawing) {
       if (window.setInteractionLock) setInteractionLock(true);
       if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(true);
+      if (window.applyOverlayPointerLock) applyOverlayPointerLock(true);   // ✅ 추가: 포인터 차단
       kakao.maps.event.addListener(map, "click", onMapClick);
       console.log("[거리재기] 시작");
     } else {
       if (window.setInteractionLock) setInteractionLock(false);
       if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(false);
+      if (window.applyOverlayPointerLock) applyOverlayPointerLock(false);  // ✅ 복귀
       kakao.maps.event.removeListener(map, "click", onMapClick);
       resetMeasure();   // ✅ 해제 시 모든 점/선 제거
       console.log("[거리재기] 종료");
