@@ -399,7 +399,6 @@ kakao.maps.load(function(){
     const active = !overlayOn;
 
     if (active){
-      setInteractionLock(true);
       overlayOn = true;
       btn.classList.add('active');
       map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
@@ -411,7 +410,6 @@ kakao.maps.load(function(){
       map.relayout();
       setRoadviewAt(map.getCenter());
     } else {
-      setInteractionLock(false);
       overlayOn = false; pickMode=false;
       btn.classList.remove('active');
       map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
