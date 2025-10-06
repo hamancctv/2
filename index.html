@@ -350,7 +350,6 @@ function smoothWalkerCenter(duration=400){
   btn.addEventListener("click", ()=>{
     drawing=!drawing;
     btn.classList.toggle("active", drawing);
-    try { map.setCursor(drawing ? "crosshair" : "grab"); } catch(e){}
     if (drawing){
       if (window.setInteractionLock) setInteractionLock(true);
       kakao.maps.event.addListener(map, "click", onMapClick);
