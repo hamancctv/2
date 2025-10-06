@@ -271,6 +271,8 @@ function setRoadviewAt(position){
     rv.setPanoId(panoId, position);
   });
 }
+  window.setRoadviewAt = setRoadviewAt; // ✅ 전역 등록!
+
 function smoothWalkerCenter(duration=400){
   if (!overlayOn || !mapWalker || !rv) return;
   try{
