@@ -45,15 +45,31 @@
   }
 
   /* 미니맵 크기조절 핸들 (↗ 드래그) */
-  #mapWrapper .rv-resizer{
-    position:absolute; right:6px; top:6px;
-    width:16px; height:16px; border:1px solid #bbb; border-radius:4px; background:#fff;
-    box-shadow:0 1px 3px rgba(0,0,0,.2); cursor: nesw-resize; z-index:650; display:none;
-  }
-  #mapWrapper .rv-resizer::before{
-    content:""; position:absolute; inset:2px;
-    background: linear-gradient(135deg, transparent 50%, #888 0) no-repeat; opacity:.7;
-  }
+#mapWrapper .rv-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-left: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  cursor: nesw-resize;
+  box-sizing: border-box;
+  z-index: 9999;
+}
+
+#mapWrapper .rv-resizer::before {
+  content: "";
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 10px;
+  height: 10px;
+  background: linear-gradient(135deg, transparent 50%, #888 0);
+  opacity: 0.6;
+}
+
   .view_roadview #mapWrapper .rv-resizer{ display:block; }
 
   /* === MapWalker (동동이) === */
