@@ -9,14 +9,15 @@
     kakao.maps &&
     typeof kakao.maps.Polyline === "function";
 
-  /* === 🔹 마커/오버레이 인터랙션 억제 공용 함수 === */
-  window.setMarkerOverlaySuppress = function (suppress) {
-    const sel = ".overlay-hover, .overlay-click, .marker";
-    document.querySelectorAll(sel).forEach(el => {
-      el.style.pointerEvents = suppress ? "none" : "";
-    });
-    console.log(`[suppress] marker/overlay ${suppress ? "disabled" : "enabled"}`);
-  };
+/* === 🔹 마커/오버레이 인터랙션 억제 공용 함수 === */
+window.setMarkerOverlaySuppress = function (suppress) {
+  const sel = ".overlay-hover, .overlay-click, .marker";
+  document.querySelectorAll(sel).forEach(el => {
+    el.style.pointerEvents = suppress ? "none" : "";
+  });
+  console.log(`[suppress] marker/overlay ${suppress ? "disabled" : "enabled"}`);
+};
+
 
   /* === 🔹 거리 UI 스타일 (STABLE 버전 그대로) === */
   if (!document.getElementById("btnDistance-style")) {
