@@ -854,24 +854,7 @@ kakao.maps.event.addListener(rv, 'position_changed', function(){
     });
   });
 
-  /* ===== 거리재기 중 완전 무시 모드: 버튼 상태 감지로 인터락 ===== */
-  (function hookDistanceLock(){
-    const btn = document.getElementById('btnDistance') || document.querySelector('#btnDistance');
-    if (!btn) return;
-    const obs = new MutationObserver(() => {
-      const active = btn.classList.contains('active');
-      if (active){
-        // 거리재기 ON
-        setInteractionLock(true);
-        applyOverlayPointerLock(true);
-      } else {
-        // 거리재기 OFF
-        setInteractionLock(false);
-        if (!overlayOn) applyOverlayPointerLock(false);
-      }
-    });
-    obs.observe(btn, { attributes:true, attributeFilter:['class'] });
-  })();
+
 
 });
 </script>
