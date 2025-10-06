@@ -44,13 +44,14 @@
     box-shadow:0 8px 24px rgba(0,0,0,.2);
   }
 
- #mapWrapper .rv-resizer {
+#mapWrapper .rv-resizer {
   position: absolute;
   right: 0;
   top: 0;
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, transparent 49.9%, #f4f4f4 50%);
+  background: 
+    linear-gradient(135deg, #f4f4f4 0%, #f4f4f4 49.9%, transparent 50%);
   border-left: 1px solid #ccc;
   border-bottom: 1px solid #ccc;
   box-sizing: border-box;
@@ -62,15 +63,16 @@
 #mapWrapper .rv-resizer::before {
   content: "";
   position: absolute;
-  right: 6px;
-  top: 6px;
-  width: 14px;
-  height: 14px;
+  left: 10px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
   transform: rotate(45deg);
   border-top: 2px solid #444;
   border-bottom: 2px solid #444;
   opacity: 0.8;
 }
+
 
 
   .view_roadview #mapWrapper .rv-resizer{ display:block; }
