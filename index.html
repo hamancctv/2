@@ -17,6 +17,43 @@
   #mapWrapper { position:relative; width:100%; height:100%; z-index:1; }
   #map { width:100%; height:100%; }
 
+.toolbar {
+  position: fixed;
+  top: 60px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+
+.toolbar button {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;      /* ✅ 이모지 크기 확대 */
+  line-height: 1;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  color: #444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.toolbar button:hover {
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+}
+
+.toolbar button.active {
+  border-color: #007aff;
+  color: #007aff;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15) inset;
+}
+  
   /* 로드뷰 전체화면(지도는 미니맵) */
   #rvWrapper { position:absolute; inset:0; display:none; z-index:0; }
   #roadview  { width:100%; height:100%; }
@@ -170,12 +207,12 @@
       <div id="map"></div>
 
       <!-- 좌측 툴바 -->
-      <div class="toolbar">
-        <button id="btnSatellite" class="btn-satellite" title="위성뷰">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>
-        </button>
-        <button id="roadviewControl" title="로드뷰"></button>
-      </div>
+<div class="toolbar">
+  <button id="btnSatellite" class="btn-satellite" title="위성뷰">🌐</button>
+  <button id="roadviewControl" title="로드뷰">🚗</button>
+  <button id="btnDistance" title="거리재기">📏</button>
+  <button id="btnGroupMST" title="그룹연결">🧩</button>
+</div>
 
       <!-- 미니맵 리사이저 -->
       <div class="rv-resizer" aria-hidden="true"></div>
