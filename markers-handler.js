@@ -240,6 +240,9 @@
       idx = end;
       if (idx < positions.length) setTimeout(createBatch, 0);
       else window.markers = markers;
+        if (typeof window.initMSTButton === 'function') {
+    window.initMSTButton();  // ✅ MST 연결 버튼 초기화 호출
+  }
     }
     createBatch();
 
