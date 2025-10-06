@@ -854,26 +854,73 @@ kakao.maps.event.addListener(rv, 'position_changed', function(){
     });
   });
 
-  /* ===== 거리재기 중 완전 무시 모드: 버튼 상태 감지로 인터락 ===== */
-  (function hookDistanceLock(){
-    const btn = document.getElementById('btnDistance') || document.querySelector('#btnDistance');
-    if (!btn) return;
-    const obs = new MutationObserver(() => {
-      const active = btn.classList.contains('active');
-      if (active){
-        // 거리재기 ON
-        setInteractionLock(true);
-        applyOverlayPointerLock(true);
-      } else {
-        // 거리재기 OFF
-        setInteractionLock(false);
-        if (!overlayOn) applyOverlayPointerLock(false);
-      }
-    });
-    obs.observe(btn, { attributes:true, attributeFilter:['class'] });
-  })();
+<script>
+/* ===== 거리재기 중 완전 무시 모드: 버튼 상태 감지로 인터락 ===== */
+(function hookDistanceLock(){
+  const btn = document.getElementById('btnDistance') || document.querySelector('#btnDistance');
+  if (!btn) return;
+  const obs = new MutationObserver(() => {
+    const active = btn.classList.contains('active');
+    if (active){
+      // 거리재기 ON
+      setInteractionLock(true);
+      applyOverlayPointerLock(true);
+      try { map.setCursor("crosshair"); } catch(e) {}
+    } else {
+      // 거리재기 OFF
+      setInteractionLock(false);
+      applyOverlayPointerLock(false);
+      try { map.setCursor("grab"); } catch(e) {}  // ✅ 커서 복구 (확대 문제 방지)
+    }
+  });
+  obs.observe(btn, { attributes:true, attributeFilter:['class'] });
+})();
+</script>
 
-});
+<script>
+/* ✅ 로드뷰 오버레이 토글 (커서 복구 추가) */
+function toggleOverlay(active){
+  const btn = document.getElementById('roadviewControl');
+  if(active){
+    setInteractionLock(true);
+    overlayOn = true;
+    btn.classList.add('active');
+    map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+
+    setAllOverlaysZForRV(true);
+    setAllOverlaysClickForRV(true);
+    applyOverlayPointerLock(true);
+    try { map.setCursor("grab"); } catch(e) {}
+
+    if (!mapWalker){
+      mapWalker = new MapWalker(map.getCenter());
+      mapWalker.setMap(map);
+    } else {
+      mapWalker.setPosition(map.getCenter());
+      mapWalker.setMap(map);
+    }
+    setRoadviewAt(map.getCenter());
+  } else {
+    setInteractionLock(false);
+    overlayOn = false;
+    pickMode  = false;
+    btn.classList.remove('active');
+    map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+
+    setAllOverlaysClickForRV(false);
+    setAllOverlaysZForRV(false);
+    applyOverlayPointerLock(false);
+    try { map.setCursor("grab"); } catch(e) {}  // ✅ 커서 복원 추가
+
+    if(mapWalker) {
+      mapWalker.content.classList.remove('pick');
+      mapWalker.setMap(null);
+    }
+    document.getElementById('container').classList.remove('view_roadview');
+    map.relayout();
+  }
+}
+
 </script>
 </body>
 </html>
