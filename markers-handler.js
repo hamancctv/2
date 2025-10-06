@@ -1,5 +1,5 @@
 (function () {
-  console.log("[markers-handler] loaded v2025-10-06 FINAL-FIXED + white-bg-only + hover-restore (Coordinate Save Enabled)");
+  console.log("[markers-handler] loaded v2025-10-06 FINAL-FIXED + white-bg-only + hover-restore (Roadview Integration)");
 
   /* ==================== 스타일 ==================== */
   const style = document.createElement("style");
@@ -207,6 +207,8 @@
             if (window.isInteractionLocked && window.isInteractionLocked()) return;
             const elapsed = Date.now() - clickStartTime;
             const delay = Math.max(0, 100 - elapsed);
+            
+            // 기존 마커 선택 효과 및 검색 필드 업데이트 로직 (유지)
             setTimeout(function(){
               marker.setImage(normalImage);
               el.style.border = "2px solid blue";
@@ -217,19 +219,19 @@
               const g = document.getElementById("gpsyx");
               if (g) g.value = `${marker.__lat}, ${marker.__lng}`;
               fillSearchInputWithTail(marker.__name1);
-              
-              // ✅ 마우스 업(클릭 완료) 시 좌표 저장 (요청 기능)
-              if (window.lastClickedPosition !== undefined) {
-                window.lastClickedPosition = marker.getPosition();
-                console.log("마커 클릭 좌표 저장 완료. 💾");
-              }
 
+              // ✅ 통합 로직: 로드뷰가 켜져 있을 때만 동동이 이동
+              if (window.overlayOn && typeof window.setRoadviewAt === 'function') {
+                const pos = marker.getPosition();
+                window.setRoadviewAt(pos); // 동동이 및 로드뷰 화면 이동
+                console.log("[로드뷰 통합] 마커 클릭 → 로드뷰/동동이 이동:", pos.toString());
+              }
+              
               setTimeout(()=>{ el.style.transition = "transform .15s ease, border .15s ease"; }, 200);
             }, delay);
           });
           
-          // ⚠️ 중복 및 오류 로직 전체 삭제: 마커의 'click' 리스너는 mouseup에서 이미 처리하고, 
-          // 로드뷰 이동 로직은 roadviewControl 버튼으로 분리되었으므로 제거합니다.
+          // ⚠️ 마커 'click' 리스너가 중복되므로 제거합니다.
           
           markers.push(marker);
           overlays.push(overlay);
