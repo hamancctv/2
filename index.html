@@ -8,8 +8,6 @@
 <!-- Kakao Maps SDK (services + 수동 로드) -->
 <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services&autoload=false"></script>
 
-  <!-- ✅ 공용 포인터 차단 레이어 -->
-<script src="https://hamancctv.github.io/2/input-shield.js"></script>
 <!-- 기존 스타일 - 유지 -->
 <link rel="stylesheet" href="https://hamancctv.github.io/2/style.css" />
 
@@ -591,14 +589,11 @@ function toggleOverlay(active){
     if (!mapWalker){
       mapWalker = new MapWalker(map.getCenter());
       mapWalker.setMap(map);
-      
     } else {
       mapWalker.setPosition(map.getCenter());
       mapWalker.setMap(map);
     }
     setRoadviewAt(map.getCenter());
-        if (window.InputShield) InputShield.enable("roadview");  // ✅ 추가
-
   } else {
     setInteractionLock(false);  // ✅ 로드뷰 종료 시 해제
 
@@ -618,8 +613,6 @@ function toggleOverlay(active){
     }
     document.getElementById('container').classList.remove('view_roadview');
     map.relayout();
-        if (window.InputShield) InputShield.disable();           // ✅ 추가
-
   }
 }
 
