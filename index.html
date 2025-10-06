@@ -186,7 +186,6 @@
   <!-- <script src="https://hamancctv.github.io/2/btnDistance.js"></script> -->
 
 <script>
-<script>
 /* ===== 공용 헬퍼 ===== */
 const $ = s => document.querySelector(s);
 
@@ -406,14 +405,15 @@ kakao.maps.load(function(){
   });
 
 // HTML 파일 kakao.maps.load 콜백 내부의 '지도 클릭 (픽모드)' 섹션
-  // 지도 클릭 (픽모드)
-  kakao.maps.event.addListener(map, 'click', function(e){
-    if(!overlayOn) return;
-    const pos=e.latLng;
-    if (pickMode && mapWalker){ mapWalker.setPosition(pos); mapWalker.content.classList.remove('pick'); pickMode=false; }
-    setRoadviewAt(pos); // <--- 이 부분이 로드뷰 이동을 실행합니다.
-  });
-    // 로드뷰 토글
+  // 지도 클릭 (픽모드)
+  kakao.maps.event.addListener(map, 'click', function(e){
+    if(!overlayOn) return;
+    const pos=e.latLng;
+    if (pickMode && mapWalker){ mapWalker.setPosition(pos); mapWalker.content.classList.remove('pick'); pickMode=false; }
+    setRoadviewAt(pos); // <--- 이 부분이 로드뷰 이동을 실행합니다.
+  });
+  
+  // 로드뷰 토글
   document.getElementById('roadviewControl').addEventListener('click', ()=>{
     const btn = document.getElementById('roadviewControl');
     const container = document.getElementById('container');
@@ -548,6 +548,21 @@ kakao.maps.load(function(){
     if (container.classList.contains('view_roadview')) loadSize();
   })();
 
+// ✅ 아래 코드는 markers-handler.js 내부에 구현되어 있으므로 중복 제거 (필요 시 참고용으로만 둡니다)
+/*
+function moveRoadviewToMarker(marker) {
+  if (!overlayOn || !mapWalker) return;
+  const pos = marker.getPosition();
+  mapWalker.setPosition(pos);
+  setRoadviewAt(pos);
+  map.setCenter(pos);
+}
+kakao.maps.event.addListener(marker, 'click', function () {
+  if (overlayOn) { moveRoadviewToMarker(marker); return; }
+  handleMarkerClick(marker);
+});
+*/
+
   // 창 리사이즈 시 로드뷰 보정
   window.addEventListener("resize", ()=>{
     if (!rv || !rvClient) return;
@@ -556,6 +571,10 @@ kakao.maps.load(function(){
       if (panoId){ rv.setPanoId(panoId, pos); smoothWalkerCenter(500); }
     });
   });
+  // Kakao Maps SDK 로드 후 실행되는 kakao.maps.load(function(){...}) 블록 안에 추가합니다.
+
+// === 그룹 연결 버튼 핸들러 추가 ===
+
 
 }); // <-- kakao.maps.load 함수의 닫는 괄호는 여기에 하나만 있어야 합니다.
 </script>
