@@ -384,14 +384,15 @@ kakao.maps.load(function(){
     if(mapWalker) mapWalker.setPosition(pos);
   });
 
-  // 지도 클릭 (픽모드)
-  kakao.maps.event.addListener(map, 'click', function(e){
-    if(!overlayOn) return;
-    const pos=e.latLng;
-    if (pickMode && mapWalker){ mapWalker.setPosition(pos); mapWalker.content.classList.remove('pick'); pickMode=false; }
-    setRoadviewAt(pos);
-  });
-
+// HTML 파일 kakao.maps.load 콜백 내부의 '지도 클릭 (픽모드)' 섹션
+  // 지도 클릭 (픽모드)
+  kakao.maps.event.addListener(map, 'click', function(e){
+    if(!overlayOn) return;
+    const pos=e.latLng;
+    if (pickMode && mapWalker){ mapWalker.setPosition(pos); mapWalker.content.classList.remove('pick'); pickMode=false; }
+    setRoadviewAt(pos); // <--- 이 부분이 로드뷰 이동을 실행합니다.
+  });
+  
   // 로드뷰 토글
   document.getElementById('roadviewControl').addEventListener('click', ()=>{
     const btn = document.getElementById('roadviewControl');
