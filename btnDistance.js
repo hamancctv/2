@@ -98,13 +98,11 @@
     container.classList.toggle('distance-on', drawing);
 
     if (drawing) {
-      if (window.setInteractionLock) setInteractionLock(true);
       if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(true);
       if (window.applyOverlayPointerLock) applyOverlayPointerLock(true);
       kakao.maps.event.addListener(map, "click", onMapClick);
       console.log("[거리재기] 시작");
     } else {
-      if (window.setInteractionLock) setInteractionLock(false);
       if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(false);
       if (window.applyOverlayPointerLock) applyOverlayPointerLock(false);
       kakao.maps.event.removeListener(map, "click", onMapClick);
