@@ -1,7 +1,6 @@
-// btnDistance.js — 거리재기(툴바 내장형 + 마커/오버레이 무시 완전판)
-// base: v2025-10-STABLE-LAYERFIX-SUGGESTTOP
+// btnDistance.js — 거리재기 (툴바형, STABLE 기반 + suppress 적용 완전판)
 (function () {
-  console.log("[btnDistance] loaded v2025-10-TOOLBAR-LOCKED");
+  console.log("[btnDistance] loaded v2025-10-STABLE-SUPPRESS-FINAL");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -10,23 +9,16 @@
     kakao.maps &&
     typeof kakao.maps.Polyline === "function";
 
-  // ✅ 한 번만 주입: 거리재기 중 마커/오버레이 입력 차단용 CSS
-  if (!document.getElementById("btnDistance-measure-lock-css")) {
-    const css = document.createElement("style");
-    css.id = "btnDistance-measure-lock-css";
-    css.textContent = `
-      /* 거리재기 켜진 동안(바디에 gx-measure-lock) 마커/오버레이 입력 완전 무시 */
-      .gx-measure-lock .overlay-hover,
-      .gx-measure-lock .overlay-click,
-      .gx-measure-lock .marker,
-      .gx-measure-lock .marker * {
-        pointer-events: none !important;
-      }
-    `;
-    document.head.appendChild(css);
-  }
+  /* === 🔹 마커/오버레이 인터랙션 억제 공용 함수 === */
+  window.setMarkerOverlaySuppress = function (suppress) {
+    const sel = ".overlay-hover, .overlay-click, .marker";
+    document.querySelectorAll(sel).forEach(el => {
+      el.style.pointerEvents = suppress ? "none" : "";
+    });
+    console.log(`[suppress] marker/overlay ${suppress ? "disabled" : "enabled"}`);
+  };
 
-  // ✅ 거리 UI 스타일 (기존 STABLE 유지)
+  /* === 🔹 거리 UI 스타일 (STABLE 버전 그대로) === */
   if (!document.getElementById("btnDistance-style")) {
     const style = document.createElement("style");
     style.id = "btnDistance-style";
@@ -52,7 +44,7 @@
     document.head.appendChild(style);
   }
 
-  // ✅ 제안창 항상 최상단 (기존 STABLE 유지)
+  /* === 🔹 제안창 항상 최상단 유지 === */
   if (!document.getElementById("btnDistance-suggest-top")) {
     const styleTop = document.createElement("style");
     styleTop.id = "btnDistance-suggest-top";
@@ -65,14 +57,14 @@
     document.head.appendChild(styleTop);
   }
 
-  // === 툴바 버튼 ===
+  /* === 🔹 툴바 버튼 === */
   const btn = document.getElementById("btnDistance");
   if (!btn) {
     console.warn("[btnDistance] toolbar button (#btnDistance) not found");
     return;
   }
 
-  // === 내부 상태 ===
+  /* === 내부 상태 === */
   let drawing = false;
   let clickLine = null;
   let dots = [];
@@ -174,7 +166,7 @@
     updateTotalOverlayText();
   }
 
-  // === 토글 ===
+  /* === 🔹 거리재기 토글 === */
   btn.addEventListener("click", () => {
     if (!mapExists()) return;
     drawing = !drawing;
@@ -182,19 +174,13 @@
     map.setCursor(drawing ? "crosshair" : "");
 
     if (drawing) {
-      // 1) 시스템 락 (로드뷰/마커 공용)
       if (window.setInteractionLock) setInteractionLock(true);
-      // 2) 마커/오버레이 입력 무시 (동적 요소 포함: CSS 클래스 방식)
-      document.body.classList.add("gx-measure-lock");
-      // 3) 지도 클릭 수신
+      if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(true);  // ✅ 오빠 추천 방식
       kakao.maps.event.addListener(map, "click", onMapClick);
       console.log("[거리재기] 시작");
     } else {
-      // 1) 시스템 락 해제
       if (window.setInteractionLock) setInteractionLock(false);
-      // 2) 입력 무시 해제
-      document.body.classList.remove("gx-measure-lock");
-      // 3) 이벤트 해제 및 리셋
+      if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(false); // ✅ 복귀
       kakao.maps.event.removeListener(map, "click", onMapClick);
       resetMeasure();
       console.log("[거리재기] 종료");
