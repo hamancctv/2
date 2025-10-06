@@ -9,14 +9,15 @@
     kakao.maps &&
     typeof kakao.maps.Polyline === "function";
 
-/* === 🔹 마커/오버레이 인터랙션 억제 공용 함수 === */
+/* === 🔹 오버레이만 포인터 억제 (마커 제외!) === */
 window.setMarkerOverlaySuppress = function (suppress) {
-  const sel = ".overlay-hover, .overlay-click, .marker";
+  const sel = ".overlay-hover, .overlay-click";   // ✅ marker 제거
   document.querySelectorAll(sel).forEach(el => {
     el.style.pointerEvents = suppress ? "none" : "";
   });
-  console.log(`[suppress] marker/overlay ${suppress ? "disabled" : "enabled"}`);
+  console.log(`[suppress] overlay ${suppress ? "disabled" : "enabled"}`);
 };
+
 
 
   /* === 🔹 거리 UI 스타일 (STABLE 버전 그대로) === */
