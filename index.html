@@ -525,19 +525,20 @@ kakao.maps.load(function(){
     if (container.classList.contains('view_roadview')) loadSize();
   })();
 
-// 로드뷰 마커 클릭 동동이 및 화면 중심이동
-  function moveRoadviewToMarker(marker) {
+// ✅ 아래 코드는 markers-handler.js 내부에 구현되어 있으므로 중복 제거 (필요 시 참고용으로만 둡니다)
+/*
+function moveRoadviewToMarker(marker) {
   if (!overlayOn || !mapWalker) return;
   const pos = marker.getPosition();
   mapWalker.setPosition(pos);
   setRoadviewAt(pos);
   map.setCenter(pos);
 }
-// 이벤트 부분
 kakao.maps.event.addListener(marker, 'click', function () {
   if (overlayOn) { moveRoadviewToMarker(marker); return; }
   handleMarkerClick(marker);
 });
+*/
 
 
 
