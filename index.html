@@ -404,7 +404,6 @@ kakao.maps.load(function(){
       overlayOn = true;
       btn.classList.add('active');
       map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
-      try { map.setCursor("grab"); } catch(e){}
 
       if (!mapWalker){ mapWalker = new MapWalker(map.getCenter()); mapWalker.setMap(map); }
       else { mapWalker.setPosition(map.getCenter()); mapWalker.setMap(map); }
@@ -417,7 +416,6 @@ kakao.maps.load(function(){
       overlayOn = false; pickMode=false;
       btn.classList.remove('active');
       map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
-      try { map.setCursor("grab"); } catch(e){}
       if (mapWalker){ mapWalker.content.classList.remove('pick'); mapWalker.setMap(null); }
       container.classList.remove('view_roadview');
       map.relayout();
