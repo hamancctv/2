@@ -97,22 +97,23 @@
     console.log(`[MST] total lines: ${total}`);
   }
 
-  function initMSTButton(){
-    if(document.getElementById("btnGroupMST")) return;
-    const btn=document.createElement("button");
-    btn.id="btnGroupMST";btn.title="그룹 MST 연결";
-    btn.style.cssText=`position:fixed;top:204px;left:10px;width:40px;height:40px;
-    border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;z-index:99998;`;
-    btn.innerHTML=`<svg viewBox="0 0 36 36"><path d="M8 26 L18 10 L28 26 M18 10 L18 26"
-    stroke="#555" stroke-width="2.4" fill="none"/></svg>`;
-    document.body.appendChild(btn);
+ // drawGroupLinesMST.js 내부 (수정된 부분)
+function initMSTButton(){
+    const btn = document.getElementById("btnGroupMST"); // ⬅️ HTML의 기존 버튼을 찾습니다.
+    
+    if (!btn) {
+        console.warn("[MST] btnGroupMST element not found. Skipping initialization.");
+        return;
+    }
+
+    // 버튼 생성 관련 코드가 제거되었는지 확인 (새 버튼 생성 방지)
+    
     btn.addEventListener("click",()=>{
       const on=btn.classList.toggle("active");
-      drawMSTAllGroups();
+      drawMSTAllGroups(); // ⬅️ 내부 함수를 실행합니다.
     });
     console.log("[MST] ready (safe ver)");
-  }
-
+}
   function waitForMapAndMarkers(){
     if(window.map&&Array.isArray(window.markers)&&window.markers.length>0){
       initMSTButton();
