@@ -110,11 +110,11 @@
       new kakao.maps.Size(30,42), { offset:new kakao.maps.Point(15,42) }
     );
 
-    hoverImage = new kakao.maps.MarkerImage(
-      "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
-      new kakao.maps.Size(36,50), { offset:new kakao.maps.Point(18,50)
-      }
-    );
+   //    hoverImage = new kakao.maps.MarkerImage(
+   //   "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
+   //   new kakao.maps.Size(36,50), { offset:new kakao.maps.Point(18,50)
+   //   }
+   // );
  
     jumpImage = new kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/2018/pc/img/marker_spot.png",
