@@ -12,15 +12,14 @@
   #mapWrapper { position:relative; width:100%; height:100%; z-index:1; }
   #map { width:100%; height:100%; }
 
-  /* ✅ 로드뷰/지도 분할 및 z-index 수정 */
-  #rvWrapper { position:absolute; inset:0; display:none; z-index:0; } /* ⬅ z-index 0으로 수정 */
-  #roadview  { width:100%; height:100%; }
-  .view_roadview #rvWrapper { display:block; z-index:0; } /* ⬅ 로드뷰가 map 아래로 */
+  /* ✅ 로드뷰 z-index 수정 */
+  #rvWrapper { position:absolute; inset:0; display:none; z-index:0; }
+  .view_roadview #rvWrapper { display:block; z-index:0; }
   .view_roadview #mapWrapper {
     position:absolute; left:8px; bottom:8px;
     width:26%; height:26%;
     min-width:200px; min-height:150px;
-    border:2px solid #ccc; border-radius:8px; background:#fff; z-index:3; /* ⬅ z-index 3으로 상승 */
+    border:2px solid #ccc; border-radius:8px; background:#fff; z-index:3;
     box-shadow:0 8px 24px rgba(0,0,0,.2);
   }
 
@@ -65,11 +64,7 @@
     width:16px; height:16px; border:1px solid #bbb; border-radius:4px; background:#fff;
     box-shadow:0 1px 3px rgba(0,0,0,.2); z-index:650;
     cursor: nesw-resize;
-    pointer-events:none; /* ✅ 클릭 막지 않게 */
-  }
-  #mapWrapper .rv-resizer::before{
-    content:""; position:absolute; inset:2px;
-    background: linear-gradient(135deg, transparent 50%, #888 0) no-repeat; opacity:.7;
+    pointer-events:none;
   }
   .view_roadview #mapWrapper .rv-resizer{ display:block; }
 
@@ -121,65 +116,83 @@
   <script src="https://hamancctv.github.io/2/btnDistance.js"></script>
 
 <script>
-/* ======== 초기화 ======== */
+/* ======== 초기화 및 로드뷰 로직 ======== */
 kakao.maps.load(function(){
-  const center=new kakao.maps.LatLng(35.2725308711779,128.406307024695);
-  map=new kakao.maps.Map(document.getElementById('map'),{center,level:4});
+  const center = new kakao.maps.LatLng(35.2725308711779,128.406307024695);
+  map = new kakao.maps.Map(document.getElementById('map'), {center, level:4});
   map.setMaxLevel(9);
-  geocoder=new kakao.maps.services.Geocoder();
-  places=new kakao.maps.services.Places();
-  rvClient=new kakao.maps.RoadviewClient();
-  rv=new kakao.maps.Roadview(document.getElementById('roadview'));
 
-  /* ✅ 동동이 중앙 유지 기능 */
-  function smoothWalkerCenter(duration=400){
-    if(!overlayOn||!mapWalker)return;
-    try{
-      const pos=rv.getPosition();
-      const start=mapWalker.position;
-      const startLat=start.getLat(),startLng=start.getLng();
-      const endLat=pos.getLat(),endLng=pos.getLng();
-      const startTime=performance.now();
-      function animate(){
-        const now=performance.now();
-        const t=Math.min(1,(now-startTime)/duration);
-        const eased=t<0.5?2*t*t:-1+(4-2*t)*t;
-        const lat=startLat+(endLat-startLat)*eased;
-        const lng=startLng+(endLng-startLng)*eased;
-        const interp=new kakao.maps.LatLng(lat,lng);
-        mapWalker.setPosition(interp);
-        map.setCenter(interp);
-        if(t<1)requestAnimationFrame(animate);
-      }
-      requestAnimationFrame(animate);
-    }catch(e){}
+  geocoder = new kakao.maps.services.Geocoder();
+  places = new kakao.maps.services.Places();
+  rvClient = new kakao.maps.RoadviewClient();
+  rv = new kakao.maps.Roadview(document.getElementById('roadview'));
+
+  let overlayOn = false;
+  let mapWalker = null;
+  const rvBtn = document.getElementById('roadviewControl');
+
+  function setRoadviewAt(position){
+    rvClient.getNearestPanoId(position, 50, function(panoId){
+      if(panoId) rv.setPanoId(panoId, position);
+    });
   }
-  kakao.maps.event.addListener(rv,'init',()=>smoothWalkerCenter(400));
-  kakao.maps.event.addListener(rv,'viewpoint_changed',()=>smoothWalkerCenter(300));
-  kakao.maps.event.addListener(rv,'position_changed',()=>smoothWalkerCenter(300));
-  window.addEventListener("resize",()=>{
-    if(!rv||!rvClient)return;
-    const pos=rv.getPosition();
-    rvClient.getNearestPanoId(pos,50,(id)=>{
-      if(id){rv.setPanoId(id,pos);smoothWalkerCenter(500);}
-    });
-  });
-  (function(){
-    const c=document.getElementById('container');
-    const w=document.getElementById('mapWrapper');
-    const h=w.querySelector('.rv-resizer');
-    if(!h)return;
-    const obs=new MutationObserver(()=>{if(c.classList.contains('view_roadview'))smoothWalkerCenter(400);});
-    obs.observe(c,{attributes:true,attributeFilter:['class']});
-    let to=null;
-    ['mouseup','touchend'].forEach(evt=>{
-      h.addEventListener(evt,()=>{
-        if(overlayOn){clearTimeout(to);to=setTimeout(()=>smoothWalkerCenter(400),100);}
-      });
-    });
-  })();
 
-  /* ===== 이하 기존 로드뷰·버튼·검색 등 전체 로직 그대로 ===== */
+  function toggleOverlay(active){
+    const container = document.getElementById('container');
+    if(active){
+      overlayOn = true;
+      rvBtn.classList.add('active');
+      container.classList.add('view_roadview');
+      setInteractionLock(true);
+
+      if(!mapWalker){
+        mapWalker = new MapWalker(map.getCenter());
+        mapWalker.setMap(map);
+      }else{
+        mapWalker.setPosition(map.getCenter());
+        mapWalker.setMap(map);
+      }
+      setRoadviewAt(map.getCenter());
+    }else{
+      overlayOn = false;
+      rvBtn.classList.remove('active');
+      container.classList.remove('view_roadview');
+      setInteractionLock(false);
+
+      if(mapWalker) mapWalker.setMap(null);
+    }
+  }
+
+  rvBtn.addEventListener('click', ()=>toggleOverlay(!overlayOn));
+
+  rv.addListener('position_changed', function(){
+    if(mapWalker && overlayOn){
+      const pos = rv.getPosition();
+      mapWalker.setPosition(pos);
+      map.setCenter(pos);
+    }
+  });
+
+  // ===== MapWalker 정의 =====
+  function MapWalker(position){
+    this.content = document.createElement('div');
+    this.content.className = 'MapWalker';
+    this.content.innerHTML = `
+      <div class="angleBase"></div>
+      <div class="angleFront"></div>
+      <div class="figure"></div>`;
+    this.overlay = new kakao.maps.CustomOverlay({
+      position: position, content: this.content, yAnchor: 1
+    });
+    this.setMap = (map)=>{ this.overlay.setMap(map); };
+    this.setPosition = (pos)=>{ this.overlay.setPosition(pos); this.position = pos; };
+    this.position = position;
+  }
+
+  // 로드뷰 닫기용 ESC 핸들러
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape' && overlayOn) toggleOverlay(false);
+  });
 });
 </script>
 </body>
