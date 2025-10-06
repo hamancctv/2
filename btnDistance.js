@@ -1,6 +1,7 @@
-// btnDistance.js — 거리재기(툴바 내장형, STABLE-LAYERFIX 기반)
+// btnDistance.js — 거리재기(툴바 내장형 + 마커/오버레이 무시 완전판)
+// base: v2025-10-STABLE-LAYERFIX-SUGGESTTOP
 (function () {
-  console.log("[btnDistance] loaded v2025-10-STABLE-LAYERFIX-TOOLBAR");
+  console.log("[btnDistance] loaded v2025-10-TOOLBAR-LOCKED");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -9,14 +10,69 @@
     kakao.maps &&
     typeof kakao.maps.Polyline === "function";
 
-  // --- 버튼 가져오기 (툴바 내장형) ---
+  // ✅ 한 번만 주입: 거리재기 중 마커/오버레이 입력 차단용 CSS
+  if (!document.getElementById("btnDistance-measure-lock-css")) {
+    const css = document.createElement("style");
+    css.id = "btnDistance-measure-lock-css";
+    css.textContent = `
+      /* 거리재기 켜진 동안(바디에 gx-measure-lock) 마커/오버레이 입력 완전 무시 */
+      .gx-measure-lock .overlay-hover,
+      .gx-measure-lock .overlay-click,
+      .gx-measure-lock .marker,
+      .gx-measure-lock .marker * {
+        pointer-events: none !important;
+      }
+    `;
+    document.head.appendChild(css);
+  }
+
+  // ✅ 거리 UI 스타일 (기존 STABLE 유지)
+  if (!document.getElementById("btnDistance-style")) {
+    const style = document.createElement("style");
+    style.id = "btnDistance-style";
+    style.textContent = `
+      .km-dot {
+        width: 12px; height: 12px;
+        border: 2px solid #e53935;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(0,0,0,.06);
+      }
+      .km-seg {
+        background:#fff; color:#e53935; border:1px solid #e53935;
+        border-radius:8px; padding:2px 6px; font-size:12px; font-weight:600;
+        white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.12); margin-bottom:14px;
+      }
+      .km-total-box {
+        background:#ffeb3b; color:#222; border:1px solid #e0c200;
+        border-radius:10px; padding:6px 10px; font-size:13px; font-weight:700;
+        box-shadow:0 2px 8px rgba(0,0,0,.15); pointer-events:none; white-space:nowrap;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // ✅ 제안창 항상 최상단 (기존 STABLE 유지)
+  if (!document.getElementById("btnDistance-suggest-top")) {
+    const styleTop = document.createElement("style");
+    styleTop.id = "btnDistance-suggest-top";
+    styleTop.textContent = `
+      .gx-suggest-box, .gx-suggest-search {
+        position: relative !important;
+        z-index: 9999 !important;
+      }
+    `;
+    document.head.appendChild(styleTop);
+  }
+
+  // === 툴바 버튼 ===
   const btn = document.getElementById("btnDistance");
   if (!btn) {
-    console.warn("[btnDistance] toolbar button not found");
+    console.warn("[btnDistance] toolbar button (#btnDistance) not found");
     return;
   }
 
-  // --- 내부 상태 ---
+  // === 내부 상태 ===
   let drawing = false;
   let clickLine = null;
   let dots = [];
@@ -118,7 +174,7 @@
     updateTotalOverlayText();
   }
 
-  // --- 버튼 클릭 이벤트 (툴바용) ---
+  // === 토글 ===
   btn.addEventListener("click", () => {
     if (!mapExists()) return;
     drawing = !drawing;
@@ -126,50 +182,22 @@
     map.setCursor(drawing ? "crosshair" : "");
 
     if (drawing) {
+      // 1) 시스템 락 (로드뷰/마커 공용)
       if (window.setInteractionLock) setInteractionLock(true);
+      // 2) 마커/오버레이 입력 무시 (동적 요소 포함: CSS 클래스 방식)
+      document.body.classList.add("gx-measure-lock");
+      // 3) 지도 클릭 수신
       kakao.maps.event.addListener(map, "click", onMapClick);
       console.log("[거리재기] 시작");
     } else {
+      // 1) 시스템 락 해제
       if (window.setInteractionLock) setInteractionLock(false);
+      // 2) 입력 무시 해제
+      document.body.classList.remove("gx-measure-lock");
+      // 3) 이벤트 해제 및 리셋
       kakao.maps.event.removeListener(map, "click", onMapClick);
       resetMeasure();
       console.log("[거리재기] 종료");
     }
   });
-
-  // --- 거리 UI 스타일 (STABLE 버전 그대로) ---
-  if (!document.getElementById("btnDistance-style")) {
-    const style = document.createElement("style");
-    style.id = "btnDistance-style";
-    style.textContent = `
-      .km-dot {
-        width: 12px; height: 12px;
-        border: 2px solid #e53935;
-        background: #fff;
-        border-radius: 50%;
-        box-shadow: 0 0 0 1px rgba(0,0,0,.06);
-      }
-      .km-seg {
-        background:#fff; color:#e53935; border:1px solid #e53935;
-        border-radius:8px; padding:2px 6px; font-size:12px; font-weight:600;
-        white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.12); margin-bottom:14px;
-      }
-      .km-total-box {
-        background:#ffeb3b; color:#222; border:1px solid #e0c200;
-        border-radius:10px; padding:6px 10px; font-size:13px; font-weight:700;
-        box-shadow:0 2px 8px rgba(0,0,0,.15); pointer-events:none; white-space:nowrap;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  // --- 🔝 제안창 항상 최상단 유지 ---
-  const styleTop = document.createElement("style");
-  styleTop.textContent = `
-    .gx-suggest-box, .gx-suggest-search {
-      position: relative !important;
-      z-index: 9999 !important;
-    }
-  `;
-  document.head.appendChild(styleTop);
 })();
