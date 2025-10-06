@@ -351,10 +351,8 @@ function smoothWalkerCenter(duration=400){
     drawing=!drawing;
     btn.classList.toggle("active", drawing);
     if (drawing){
-      if (window.setInteractionLock) setInteractionLock(true);
       kakao.maps.event.addListener(map, "click", onMapClick);
     } else {
-      if (window.setInteractionLock) setInteractionLock(false);
       kakao.maps.event.removeListener(map, "click", onMapClick);
       reset();
     }
