@@ -146,8 +146,10 @@
     if (!mapExists()) return;
     drawing = !drawing;
     btn.classList.toggle("active", drawing);
-    map.setCursor(drawing ? "crosshair" : "grab");  // ✅ 커서 제어
+const container = document.getElementById('container');
+container.classList.toggle('distance-on', drawing);
 
+    
     if (drawing) {
       if (window.setInteractionLock) setInteractionLock(true);
       if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(true);
