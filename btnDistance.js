@@ -1,6 +1,6 @@
-// btnDistance.js — 거리재기(지도컨트롤형, 제안창 항상 위)
+// btnDistance.js — 거리재기(툴바 내장형, STABLE-LAYERFIX 기반)
 (function () {
-  console.log("[btnDistance] loaded v2025-10-STABLE-LAYERFIX-SUGGESTTOP");
+  console.log("[btnDistance] loaded v2025-10-STABLE-LAYERFIX-TOOLBAR");
 
   const mapExists = () =>
     typeof window !== "undefined" &&
@@ -9,86 +9,11 @@
     kakao.maps &&
     typeof kakao.maps.Polyline === "function";
 
-  // --- 버튼 스타일 ---
-  if (!document.getElementById("btnDistance-style-main")) {
-    const st = document.createElement("style");
-    st.id = "btnDistance-style-main";
-    st.textContent = `
-      #btnDistance {
-        width: 40px; height: 40px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        background: #fff;
-        cursor: pointer;
-        transition: all .2s ease;
-        box-sizing: border-box;
-      }
-      #btnDistance:hover { box-shadow: 0 3px 12px rgba(0,0,0,.12); }
-      #btnDistance svg { width: 26px; height: 26px; display: block; }
-      #btnDistance svg rect { fill: #555; stroke: #555; stroke-width: 2.4; transition: all .2s ease; }
-      #btnDistance.active { border-color: #db4040; background: #fff !important; }
-      #btnDistance.active svg rect { fill: #db4040; stroke: #db4040; stroke-width: 3; }
-    `;
-    document.head.appendChild(st);
-  }
-
-  // --- 버튼 생성 및 지도 컨트롤에 삽입 ---
-  let btn = document.getElementById("btnDistance");
+  // --- 버튼 가져오기 (툴바 내장형) ---
+  const btn = document.getElementById("btnDistance");
   if (!btn) {
-    btn = document.createElement("button");
-    btn.id = "btnDistance";
-    btn.title = "거리 재기";
-    btn.innerHTML = `
-      <svg viewBox="0 0 36 24" aria-hidden="true">
-        <rect x="2" y="5" width="32" height="14" rx="3" ry="3"></rect>
-      </svg>
-    `;
-
-    const ctrlLayer =
-      document.querySelector(".map_controls") ||
-      document.querySelector(".custom_typecontrol");
-    if (ctrlLayer) {
-      const rvBtn = ctrlLayer.querySelector(".btn_roadview");
-      if (rvBtn) rvBtn.parentNode.insertBefore(btn, rvBtn.nextSibling);
-      else ctrlLayer.appendChild(btn);
-      btn.style.zIndex = "350"; // 로드뷰보다 살짝 낮게
-    } else {
-      // fallback
-      btn.style.position = "absolute";
-      btn.style.top = "156px";
-      btn.style.left = "10px";
-      btn.style.zIndex = "300";
-      document.body.appendChild(btn);
-    }
-  }
-
-  // --- 거리 UI 스타일 ---
-  if (!document.getElementById("btnDistance-style")) {
-    const style = document.createElement("style");
-    style.id = "btnDistance-style";
-    style.textContent = `
-      .km-dot {
-        width: 12px; height: 12px;
-        border: 2px solid #e53935;
-        background: #fff;
-        border-radius: 50%;
-        box-shadow: 0 0 0 1px rgba(0,0,0,.06);
-      }
-      .km-seg {
-        background:#fff; color:#e53935; border:1px solid #e53935;
-        border-radius:8px; padding:2px 6px; font-size:12px; font-weight:600;
-        white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.12); margin-bottom:14px;
-      }
-      .km-total-box {
-        background:#ffeb3b; color:#222; border:1px solid #e0c200;
-        border-radius:10px; padding:6px 10px; font-size:13px; font-weight:700;
-        box-shadow:0 2px 8px rgba(0,0,0,.15); pointer-events:none; white-space:nowrap;
-      }
-    `;
-    document.head.appendChild(style);
+    console.warn("[btnDistance] toolbar button not found");
+    return;
   }
 
   // --- 내부 상태 ---
@@ -114,7 +39,8 @@
     }
     totalOverlay.setPosition(position);
     totalOverlay.setMap(map);
-    totalOverlay.getContent().style.transform = `translate(${xOffset}px, ${-yOffset}px)`;
+    totalOverlay.getContent().style.transform =
+      `translate(${xOffset}px, ${-yOffset}px)`;
   }
 
   function updateTotalOverlayText() {
@@ -124,14 +50,21 @@
   }
 
   function removeTotalOverlay() {
-    if (totalOverlay) { try { totalOverlay.setMap(null); } catch(_){} totalOverlay = null; }
+    if (totalOverlay) {
+      try { totalOverlay.setMap(null); } catch(_) {}
+      totalOverlay = null;
+    }
   }
 
   function addDot(pos) {
     const el = document.createElement("div");
     el.className = "km-dot";
     const dot = new kakao.maps.CustomOverlay({
-      position: pos, content: el, xAnchor: 0.5, yAnchor: 0.5, zIndex: 5000
+      position: pos,
+      content: el,
+      xAnchor: 0.5,
+      yAnchor: 0.5,
+      zIndex: 5000
     });
     dot.setMap(map);
     dots.push(dot);
@@ -142,7 +75,10 @@
     el.className = "km-seg";
     el.textContent = distText;
     const seg = new kakao.maps.CustomOverlay({
-      position: pos, content: el, yAnchor: 1, zIndex: 5200
+      position: pos,
+      content: el,
+      yAnchor: 1,
+      zIndex: 5200
     });
     seg.setMap(map);
     segOverlays.push(seg);
@@ -182,7 +118,7 @@
     updateTotalOverlayText();
   }
 
-  // --- 버튼 클릭 이벤트 ---
+  // --- 버튼 클릭 이벤트 (툴바용) ---
   btn.addEventListener("click", () => {
     if (!mapExists()) return;
     drawing = !drawing;
@@ -190,18 +126,42 @@
     map.setCursor(drawing ? "crosshair" : "");
 
     if (drawing) {
-      // ✅ 거리재기 시작 시 마커 인터랙션 잠금
       if (window.setInteractionLock) setInteractionLock(true);
-
       kakao.maps.event.addListener(map, "click", onMapClick);
+      console.log("[거리재기] 시작");
     } else {
-      // ✅ 거리재기 종료 시 마커 인터랙션 해제
       if (window.setInteractionLock) setInteractionLock(false);
-
       kakao.maps.event.removeListener(map, "click", onMapClick);
       resetMeasure();
+      console.log("[거리재기] 종료");
     }
   });
+
+  // --- 거리 UI 스타일 (STABLE 버전 그대로) ---
+  if (!document.getElementById("btnDistance-style")) {
+    const style = document.createElement("style");
+    style.id = "btnDistance-style";
+    style.textContent = `
+      .km-dot {
+        width: 12px; height: 12px;
+        border: 2px solid #e53935;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(0,0,0,.06);
+      }
+      .km-seg {
+        background:#fff; color:#e53935; border:1px solid #e53935;
+        border-radius:8px; padding:2px 6px; font-size:12px; font-weight:600;
+        white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.12); margin-bottom:14px;
+      }
+      .km-total-box {
+        background:#ffeb3b; color:#222; border:1px solid #e0c200;
+        border-radius:10px; padding:6px 10px; font-size:13px; font-weight:700;
+        box-shadow:0 2px 8px rgba(0,0,0,.15); pointer-events:none; white-space:nowrap;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   // --- 🔝 제안창 항상 최상단 유지 ---
   const styleTop = document.createElement("style");
