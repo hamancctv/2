@@ -270,3 +270,13 @@ html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
   margin-left:6px; cursor:pointer;
   color:#db4040; font-weight:bold;
 }
+/* === 커서 강제 통일: setCursor() 금지 === */
+#map { cursor: -webkit-grab !important; cursor: grab !important; }
+#map:active { cursor: -webkit-grabbing !important; cursor: grabbing !important; }
+
+/* 거리재기 ON일 때만 십자 */
+.distance-on #map { cursor: crosshair !important; }
+
+/* 로드뷰 on/off에도 항상 grab 유지 */
+.view_roadview #map { cursor: -webkit-grab !important; cursor: grab !important; }
+
