@@ -529,6 +529,23 @@ kakao.maps.load(function(){
     if (container.classList.contains('view_roadview')) loadSize();
   })();
 
+// 로드뷰 마커 클릭 동동이 및 화면 중심이동
+  function moveRoadviewToMarker(marker) {
+  if (!overlayOn || !mapWalker) return;
+  const pos = marker.getPosition();
+  mapWalker.setPosition(pos);
+  setRoadviewAt(pos);
+  map.setCenter(pos);
+}
+// 이벤트 부분
+kakao.maps.event.addListener(marker, 'click', function () {
+  if (overlayOn) { moveRoadviewToMarker(marker); return; }
+  handleMarkerClick(marker);
+});
+
+
+
+  
   // 창 리사이즈 시 로드뷰 보정
   window.addEventListener("resize", ()=>{
     if (!rv || !rvClient) return;
