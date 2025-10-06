@@ -98,19 +98,19 @@
   }
 
  // drawGroupLinesMST.js 내부 (수정된 부분)
+// drawGroupLinesMST.js 파일 내용
 function initMSTButton(){
-    const btn = document.getElementById("btnGroupMST"); // ⬅️ HTML의 기존 버튼을 찾습니다.
+    const btn = document.getElementById("btnGroupMST"); // ⬅️ 기존 HTML 버튼을 찾습니다.
     
     if (!btn) {
         console.warn("[MST] btnGroupMST element not found. Skipping initialization.");
         return;
     }
+    // ❌❌❌ 버튼 생성, 스타일 설정, appendChild 코드는 반드시 제거되어야 함 ❌❌❌
 
-    // 버튼 생성 관련 코드가 제거되었는지 확인 (새 버튼 생성 방지)
-    
     btn.addEventListener("click",()=>{
       const on=btn.classList.toggle("active");
-      drawMSTAllGroups(); // ⬅️ 내부 함수를 실행합니다.
+      drawMSTAllGroups();
     });
     console.log("[MST] ready (safe ver)");
 }
