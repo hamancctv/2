@@ -563,9 +563,6 @@ kakao.maps.event.addListener(marker, 'click', function () {
 });
 */
 
-
-
-  
   // 창 리사이즈 시 로드뷰 보정
   window.addEventListener("resize", ()=>{
     if (!rv || !rvClient) return;
@@ -574,6 +571,25 @@ kakao.maps.event.addListener(marker, 'click', function () {
       if (panoId){ rv.setPanoId(panoId, pos); smoothWalkerCenter(500); }
     });
   });
+  // Kakao Maps SDK 로드 후 실행되는 kakao.maps.load(function(){...}) 블록 안에 추가합니다.
+
+// === 그룹 연결 버튼 핸들러 ===
+const btnGroupMST = document.getElementById('btnGroupMST');
+let groupDrawingActive = false; // 상태 추적 변수
+
+btnGroupMST.addEventListener('click', () => {
+    groupDrawingActive = !groupDrawingActive;
+    btnGroupMST.classList.toggle('active', groupDrawingActive);
+
+    // drawGroupLinesMST.js 파일에 정의된 함수를 호출합니다.
+    // 이 함수의 이름이 drawGroupLinesMST라고 가정합니다.
+    if (typeof drawGroupLinesMST === 'function') {
+        // 첫 번째 인자는 지도(map), 두 번째 인자는 상태(active/inactive)를 전달
+        drawGroupLinesMST(map, groupDrawingActive);
+    } else {
+        flash('그룹 연결 함수를 찾을 수 없습니다.');
+    }
+});
 });
 </script>
 </body>
