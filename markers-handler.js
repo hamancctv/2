@@ -219,7 +219,21 @@
               setTimeout(()=>{ el.style.transition = "transform .15s ease, border .15s ease"; }, 200);
             }, delay);
           });
+kakao.maps.event.addListener(marker, 'click', function () {
+  // ① 기존 클릭 동작 그대로 유지 (오버레이 점프 + 파란테두리)
+  handleMarkerClick(marker);
 
+  // ② 로드뷰 모드일 때만 동동이 및 로드뷰 이동 추가
+  if (overlayOn && rvClient && rv && mapWalker) {
+    const pos = marker.getPosition();
+    rvClient.getNearestPanoId(pos, 50, function (panoId) {
+      if (!panoId) return;
+      rv.setPanoId(panoId, pos);   // 로드뷰 시점 이동
+      rvMarker.setPosition(pos);   // 로드뷰 마커(파란 원통형) 이동
+      mapWalker.setPosition(pos);  // 동동이 이동
+      map.setCenter(pos);          // 지도 중심 이동
+      console.log("[로드뷰] 마커 클릭 → 로드뷰/동동이 이동:", pos.toString());
+    });
           markers.push(marker);
           overlays.push(overlay);
         })(i);
