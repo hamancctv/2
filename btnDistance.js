@@ -166,24 +166,27 @@
     updateTotalOverlayText();
   }
 
-  /* === 🔹 거리재기 토글 === */
-  btn.addEventListener("click", () => {
-    if (!mapExists()) return;
-    drawing = !drawing;
-    btn.classList.toggle("active", drawing);
-    map.setCursor(drawing ? "crosshair" : "");
+/* === 🔹 거리재기 토글 === */
+btn.addEventListener("click", () => {
+  if (!mapExists()) return;
+  drawing = !drawing;
+  btn.classList.toggle("active", drawing);
+  map.setCursor(drawing ? "crosshair" : "");
 
-    if (drawing) {
-      if (window.setInteractionLock) setInteractionLock(true);
-      if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(true);  // ✅ 오빠 추천 방식
-      kakao.maps.event.addListener(map, "click", onMapClick);
-      console.log("[거리재기] 시작");
-    } else {
-      if (window.setInteractionLock) setInteractionLock(false);
-      if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(false); // ✅ 복귀
-      kakao.maps.event.removeListener(map, "click", onMapClick);
-      resetMeasure();
-      console.log("[거리재기] 종료");
-    }
-  });
+  if (drawing) {
+    if (window.setInteractionLock) setInteractionLock(true);
+    if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(true);  // ✅ 오버레이 무시
+    if (window.setAllMarkersClickable) setAllMarkersClickable(false);     // ✅ 마커 클릭 무시
+    kakao.maps.event.addListener(map, "click", onMapClick);
+    console.log("[거리재기] 시작");
+  } else {
+    if (window.setInteractionLock) setInteractionLock(false);
+    if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(false); // ✅ 오버레이 복귀
+    if (window.setAllMarkersClickable) setAllMarkersClickable(true);      // ✅ 마커 클릭 복귀
+    kakao.maps.event.removeListener(map, "click", onMapClick);
+    resetMeasure();
+    console.log("[거리재기] 종료");
+  }
+});
 })();
+
