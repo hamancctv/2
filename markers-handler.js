@@ -244,26 +244,5 @@
         else setDefaultZ(m, o);
       }
     });
- /* ✅ 여기서부터 추가 — 마커 클릭 가능/불가능 제어 함수 */
-  window.setAllMarkersClickable = function (enabled = true) {
-    const pools = [
-      window.markers,
-      window.allMarkers,
-      window.gxMarkers,
-      window.markerList
-    ].filter(Boolean);
-
-    pools.forEach(pool => {
-      const list = Array.isArray(pool) ? pool : Object.values(pool);
-      list.forEach(m => {
-        try {
-          if (m && typeof m.setClickable === "function") {
-            m.setClickable(enabled);
-          }
-        } catch (_) {}
-      });
-    });
-
-    console.log(`[marker-clickable] ${enabled ? "ENABLED" : "DISABLED"}`);
   };
 })();
