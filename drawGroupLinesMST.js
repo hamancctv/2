@@ -85,6 +85,31 @@
       console.log("[MST] cleared lines");
       return;
     }
+    // drawGroupLinesMST.js 파일 내부의 drawMSTAllGroups 함수 정의 부분 바로 뒤에 추가
+
+  // ... (drawMSTAllGroups 함수가 끝나는 부분)
+
+  // ✅ 전역 노출: 외부에서 drawGroupLinesMST(map, markers, isActive) 형태로 호출하는 대신
+  //    토글 방식인 drawMSTAllGroups를 직접 노출하여 버튼 핸들러가 사용할 수 있게 합니다.
+  window.drawMSTAllGroups = drawMSTAllGroups; 
+
+ function initMSTButton(){
+    const btn = document.getElementById("btnGroupMST"); 
+    
+    if (!btn) {
+        console.warn("[MST] btnGroupMST element not found. Skipping initialization.");
+        return;
+    }
+
+    btn.addEventListener("click",()=>{
+      const on=btn.classList.toggle("active");
+      drawMSTAllGroups(); // 👈 전역에 노출된 함수를 호출합니다.
+      flash(on ? '그룹 연결을 시작합니다.' : '그룹 연결을 해제했습니다.');
+    });
+    console.log("[MST] ready (safe ver)");
+}
+
+// ... (나머지 코드)
     const markers=Array.isArray(window.markers)?window.markers:[];
     if(markers.length===0) return;
     const groups=buildGroups(markers);
