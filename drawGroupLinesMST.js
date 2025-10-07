@@ -1,8 +1,8 @@
-// drawGroupLinesMST.js — v2025-10-07-FINAL-FIX (Syntax & LatLng Safety)
+// drawGroupLinesMST.js — v2025-10-07-ULTRA-SAFE (Conflict Free)
 (function(){
-  console.log("[MST] loader start (final fix)");
+  console.log("[MST] loader start (ultra safe)");
   
-  // flash 함수가 전역에 정의되어 있다고 가정하고 사용
+  // flash 함수를 전역에서 가져오거나, 없으면 console.log로 대체 (안전성 확보)
   const flash = window.flash || console.log;
 
   // 거리 계산 함수 (Equirectangular approximation)
@@ -21,7 +21,7 @@
     const groups={};
     for(const m of markers){
       if(!m) continue;
-      // 좌표값은 Number 타입이어야 합니다.
+      // 좌표값은 Number 타입이어야 하며, 유효성 검사
       const lat=Number(m.__lat??(m.getPosition?.().getLat?.()??NaN));
       const lng=Number(m.__lng??(m.getPosition?.().getLng?.()??NaN));
       
@@ -53,7 +53,7 @@
             for (const tm of uniq) {
                 if (connected.includes(tm)) continue;
                 
-                // 1차 유효성 검사 (isFinite)
+                // 1차 유효성 검사 (좌표 유효성 확인)
                 if (!isFinite(cm.__lat) || !isFinite(tm.__lat) || 
                     !isFinite(cm.__lng) || !isFinite(tm.__lng)) continue;
 
@@ -76,7 +76,7 @@
         }
 
         try {
-            // LatLng 객체 생성 (kakao.js:2 에러 발생 지점)
+            // LatLng 객체 생성 시 에러 방지
             const p1 = new kakao.maps.LatLng(from.__lat, from.__lng);
             const p2 = new kakao.maps.LatLng(to.__lat, to.__lng);
 
@@ -114,8 +114,15 @@ function drawMSTAllGroups(){
     }
     
     // 2. 선이 없으면 새로 그립니다.
-    const markers = Array.isArray(window.markers) ? window.markers : [];
-    if(markers.length===0) return;
+    const allMarkers = Array.isArray(window.markers) ? window.markers : [];
+    
+    // ⚠️ 충돌 방지 강화: MapWalker(로드뷰 동동이) 객체를 markers 배열에서 확실히 제외합니다.
+    const markers = allMarkers.filter(m => !(m.content && m.content.classList && m.content.classList.contains('MapWalker')));
+    
+    if(markers.length < 2) {
+        console.log("[MST] Markers count less than 2, skip drawing.");
+        return;
+    }
     
     const groups=buildGroups(markers);
     let total=0;
@@ -127,7 +134,7 @@ function drawMSTAllGroups(){
     console.log(`[MST] total lines: ${total}`);
 }
 
-// ✅ 전역 노출: 외부 핸들러가 없더라도 이 함수를 통해 접근할 수 있게 합니다.
+// 전역 노출: 외부에서 접근 가능하도록 합니다.
 window.drawMSTAllGroups = drawMSTAllGroups; 
   
 function initMSTButton(){
@@ -140,8 +147,24 @@ function initMSTButton(){
 
     btn.addEventListener("click",()=>{
       const on=btn.classList.toggle("active");
+      
+      // ✅ 충돌 방지 로직: MST 활성화 시 다른 모드를 강제로 해제합니다.
+      if (on) {
+          // 로드뷰 비활성화
+          const rvBtn = document.getElementById('roadviewControl');
+          if (rvBtn && rvBtn.classList.contains('active')) {
+              rvBtn.click(); // 버튼 클릭 이벤트로 로드뷰 해제
+              flash('로드뷰를 해제했습니다.');
+          }
+          // 거리재기 비활성화
+          const distBtn = document.getElementById('btnDistance');
+          if (distBtn && distBtn.classList.contains('active')) {
+              distBtn.click(); // 버튼 클릭 이벤트로 거리재기 해제
+              flash('거리재기를 해제했습니다.');
+          }
+      }
+
       drawMSTAllGroups(); 
-      // flash 함수가 존재할 때만 호출 (안전성 확보)
       if (typeof flash === 'function') {
          flash(on ? '그룹 연결을 시작합니다.' : '그룹 연결을 해제했습니다.');
       }
