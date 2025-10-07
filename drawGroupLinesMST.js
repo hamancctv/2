@@ -1,7 +1,7 @@
-// drawGroupLinesMST.js — 그룹별 MST 연결 (공백/NULL 무시 + 신규 라벨 표시 + 클리어 지원)
-// v2025-10-final with 신규 overlay cleanup
+// drawGroupLinesMST.js — 그룹별 MST 연결 (공백/NULL 무시 + 신규 라벨 중복 방지 + 클리어 지원)
+// v2025-10-final-clean (deduped overlays)
 (function () {
-  console.log("[MST] loader start (신규 label + cleanup)");
+  console.log("[MST] loader start (dedup + cleanup)");
 
   const mapReady = () =>
     typeof window !== "undefined" &&
@@ -54,11 +54,16 @@
     );
     if (valid.length < 1) return [];
 
-    // 신규 그룹은 선대신 오버레이
+    // 신규 그룹은 선 대신 라벨
     if (groupName === "신규") {
       console.log(`[MST] '${groupName}' → no lines, show label`);
+      const seen = new Set(); // ✅ 중복 체크
       valid.forEach(mk => {
         const pos = mk.getPosition();
+        const key = pos.getLat().toFixed(6) + "," + pos.getLng().toFixed(6);
+        if (seen.has(key)) return; // 중복 좌표는 스킵
+        seen.add(key);
+
         const content = document.createElement("div");
         content.textContent = "신규";
         content.style.cssText = `
@@ -80,8 +85,6 @@
           zIndex: 9999
         });
         overlay.setMap(map);
-
-        // 신규 오버레이도 따로 기록
         window.__MST_NEW_OVERLAYS__.push(overlay);
       });
       return [];
@@ -120,7 +123,6 @@
     if (!mapReady()) return console.warn("[MST] Map not ready.");
     if (!window.getMarkersByGroup) return console.error("[MST] getMarkersByGroup() missing.");
 
-    // 초기화
     window.__MST_LINES__ = [];
     window.__MST_NEW_OVERLAYS__ = [];
 
