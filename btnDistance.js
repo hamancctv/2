@@ -1,126 +1,109 @@
-// btnDistance.js — 거리재기 (툴바형, 완성형 v2025-10-06-FINAL-STABLE)
-(function () {
-  console.log("[btnDistance] loaded v2025-10-06-FINAL-STABLE");
+// distance.js - 거리재기 모듈
+// 상태 동기화: 두 모드 중 하나라도 켜져 있으면 차단
+window.syncInteractionLocks = function () {
+  const blocked = !!(window.overlayOn || window.isDistanceMode);
+  window.isMarkerInteractionEnabled = !blocked;
 
-  const mapExists = () =>
-    typeof window !== "undefined" &&
-    window.map &&
-    window.kakao &&
-    kakao.maps &&
-    typeof kakao.maps.Polyline === "function";
-
-  // ... (UI 스타일 및 내부 상태 정의 부분은 생략) ...
-    // 
-
-    /* === 🔹 거리 UI 스타일 (기존 코드와 동일) === */
-    if (!document.getElementById("btnDistance-style")) {
-        const style = document.createElement("style");
-        style.id = "btnDistance-style";
-        style.textContent = `
-          .km-dot { /* ... */ }
-          .km-seg { /* ... */ }
-          .km-total-box { /* ... */ }
-        `;
-        document.head.appendChild(style);
+  if (typeof setAllMarkersClickable === 'function') {
+    setAllMarkersClickable(!blocked);
+    // 지도 relayout/idle 이후에도 확실히 잠그기 위한 약간의 지연 재적용
+    if (blocked) {
+      setTimeout(() => {
+        if (window.overlayOn || window.isDistanceMode) setAllMarkersClickable(false);
+      }, 250);
     }
-    
-    const btn = document.getElementById("btnDistance");
-    if (!btn) {
-        console.warn("[btnDistance] toolbar button (#btnDistance) not found");
-        return;
+  }
+};
+
+// 전역에서 접근할 수 있도록 DistanceModule에 캡슐화
+window.DistanceModule = {};
+
+(function(exports) {
+    /**
+     * 거리재기 기능을 초기화하고 이벤트 핸들러를 설정합니다.
+     * @param {object} map - 카카오맵 객체
+     */
+    exports.setupDistance = function(map) {
+        // 거리재기 로직 전체
+        const btn = document.getElementById("btnDistance");
+        if (!btn) return;
+
+        let drawing = false, clickLine = null, dots = [], segOverlays = [], totalOverlay = null;
+
+        const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        const formatDist = m => m >= 1000 ? (m / 1000).toFixed(2) + " km" : fmt(m) + " m";
+
+        function ensureTotalOverlay(position) {
+            if (!totalOverlay) {
+                const el = document.createElement("div");
+                el.className = "km-total-box"; el.textContent = "총 거리: 0 m";
+                totalOverlay = new kakao.maps.CustomOverlay({ position, content: el, xAnchor: 0, yAnchor: 0, zIndex: 5300 });
+            }
+            totalOverlay.setPosition(position); totalOverlay.setMap(map);
+        }
+        function updateTotal() {
+            if (!totalOverlay) return;
+            const m = clickLine ? Math.round(clickLine.getLength()) : 0;
+            totalOverlay.getContent().textContent = "총 거리: " + formatDist(m);
+        }
+        function addDot(pos) {
+            const el = document.createElement("div"); el.className = "km-dot";
+            const dot = new kakao.maps.CustomOverlay({ position: pos, content: el, xAnchor: 0.5, yAnchor: 0.5, zIndex: 5000 });
+            dot.setMap(map); dots.push(dot);
+        }
+        function addSegBox(pos, txt) {
+            const el = document.createElement("div"); el.className = "km-seg"; el.textContent = txt;
+            const seg = new kakao.maps.CustomOverlay({ position: pos, content: el, yAnchor: 1, zIndex: 5200 });
+            seg.setMap(map); segOverlays.push(seg);
+        }
+        function reset() {
+            if (clickLine) { clickLine.setMap(null); clickLine = null; }
+            dots.forEach(d => { try { d.setMap(null); } catch { } }); dots = [];
+            segOverlays.forEach(o => { try { o.setMap(null); } catch { } }); segOverlays = [];
+            if (totalOverlay) { try { totalOverlay.setMap(null); } catch {}; totalOverlay = null; }
+        }
+        function onMapClick(e) {
+            if (!drawing) return;
+            // ⭐ 거리재기 중에는 로드뷰 픽모드 및 이동을 막아야 함
+            if(window.pickMode) return; 
+
+            const pos = e.latLng;
+            if (!clickLine) {
+                clickLine = new kakao.maps.Polyline({
+                    map, path: [pos], strokeWeight: 3, strokeColor: "#db4040", strokeOpacity: 1, strokeStyle: "solid"
+                });
+                addDot(pos);
+            } else {
+                const path = clickLine.getPath();
+                const prev = path[path.length - 1];
+                const segLine = new kakao.maps.Polyline({ path: [prev, pos] });
+                const dist = Math.round(segLine.getLength());
+                path.push(pos); clickLine.setPath(path);
+                addSegBox(pos, formatDist(dist)); addDot(pos);
+            }
+            ensureTotalOverlay(pos); updateTotal();
+        }
+
+btn.addEventListener("click", ()=> {
+  drawing = !drawing;
+  window.isDistanceMode = drawing; // ✅ 거리재기 상태 저장
+  btn.classList.toggle("active", drawing);
+
+  if (drawing){
+  document.body.classList.add("distance-active");
+  kakao.maps.event.addListener(map, "click", onMapClick);
+} else {
+  document.body.classList.remove("distance-active");
+  kakao.maps.event.removeListener(map, "click", onMapClick);
+  reset();
+}
+window.isDistanceMode = drawing;            // 상태만 바꾸고
+window.syncInteractionLocks();              // 여기서 일괄 반영
+});
+
+
+
+
     }
-    
-    let drawing = false;
-    let clickLine = null;
-    let dots = [];
-    let segOverlays = [];
-    let totalOverlay = null;
 
-    const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    const formatDist = m =>
-        m >= 1000 ? (m / 1000).toFixed(2) + " km" : fmt(m) + " m";
-
-    /* === 🔹 총거리 오버레이 (기존 코드와 동일) === */
-    function ensureTotalOverlay(position) { /* ... */ }
-    function updateTotalOverlayText() { /* ... */ }
-    function removeTotalOverlay() { /* ... */ }
-
-    /* === 🔹 점 / 구간 박스 (기존 코드와 동일) === */
-    function addDot(pos) { /* ... */ }
-    function addSegmentBox(pos, distText) { /* ... */ }
-
-    /* === 🔹 초기화 (기존 코드와 동일) === */
-    function resetMeasure() { /* ... */ }
-
-  /* === 🔹 좌표에 점 추가 (메인 로직) === */
-  // 이 함수를 외부 마커 이벤트에서 호출합니다.
-  function addPoint(pos) {
-    if (!mapExists()) return;
-
-    if (!clickLine) {
-      // 첫 번째 점
-      clickLine = new kakao.maps.Polyline({
-        map, path: [pos],
-        strokeWeight: 3, strokeColor: "#db4040",
-        strokeOpacity: 1, strokeStyle: "solid"
-      });
-      addDot(pos);
-    } else {
-      // 두 번째 점 이후: 무조건 경로에 추가
-      const path = clickLine.getPath();
-      const prev = path[path.length - 1];
-      const segLine = new kakao.maps.Polyline({ path: [prev, pos] });
-      const dist = Math.round(segLine.getLength());
-      path.push(pos);
-      clickLine.setPath(path);
-      addSegmentBox(pos, formatDist(dist));
-      addDot(pos);
-    }
-    ensureTotalOverlay(pos);
-    updateTotalOverlayText();
-  }
-
-  /* === 🔹 지도 클릭 이벤트 (지도에서 클릭 시) === */
-  function onMapClick(e) {
-    if (!drawing) return;
-    addPoint(e.latLng); 
-  }
-  
-  /* === 🔹 거리재기 모드 토글 === */
-  function toggleDistanceMode(forceState) {
-    if (!mapExists()) return;
-
-    // forceState가 주어지면 해당 상태로 설정
-    drawing = (typeof forceState === 'boolean') ? forceState : !drawing;
-    
-    btn.classList.toggle("active", drawing);
-    const container = document.getElementById('container');
-    container.classList.toggle('distance-on', drawing);
-
-    if (drawing) {
-      if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(true);
-      if (window.applyOverlayPointerLock) applyOverlayPointerLock(true);
-      kakao.maps.event.addListener(map, "click", onMapClick);
-      console.log("[거리재기] 시작");
-    } else {
-      if (window.setMarkerOverlaySuppress) setMarkerOverlaySuppress(false);
-      if (window.applyOverlayPointerLock) applyOverlayPointerLock(false);
-      kakao.maps.event.removeListener(map, "click", onMapClick);
-      resetMeasure();
-      console.log("[거리재기] 종료");
-    }
-  }
-
-  // 툴바 버튼 클릭 이벤트
-  btn.addEventListener("click", () => {
-    toggleDistanceMode();
-  });
-
-  // 외부에서 사용할 수 있도록 함수를 window 객체에 노출
-  window.btnDistance = {
-    toggle: toggleDistanceMode,
-    addPoint: addPoint, // 마커 좌표를 점으로 추가하는 함수
-    isDrawing: () => drawing,
-    reset: resetMeasure
-  };
-})();
+})(window.DistanceModule);
