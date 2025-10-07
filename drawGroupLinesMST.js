@@ -1,6 +1,6 @@
-// drawGroupLinesMST.js — v2025-10-07-ULTRA-SAFE (Conflict Free)
+// drawGroupLinesMST.js — v2025-10-08-FINAL-COMPLETE (No Conflicts, No Syntax Errors)
 (function(){
-  console.log("[MST] loader start (ultra safe)");
+  console.log("[MST] loader start (final complete)");
   
   // flash 함수를 전역에서 가져오거나, 없으면 console.log로 대체 (안전성 확보)
   const flash = window.flash || console.log;
@@ -30,7 +30,7 @@
       m.__lat=lat; m.__lng=lng;
       let g=(m.group??m.line??"").toString().trim();
       if(!g) continue;
-      if(/[^0-9\-]/.test(g)) continue; // 숫자, 하이픈 외 문자 제외
+      if(/[^0-9\-]/.test(g)) continue; 
 
       const key=g.replace(/[-\s]/g,"");
       if(!groups[key]) groups[key]=[];
@@ -47,40 +47,41 @@
     const connected = [uniq[0]];
     let created = 0;
 
-// drawGroupLinesMST.js 파일 내 createMSTLinesForGroup 함수 (최종 수정)
-function createMSTLinesForGroup(map, list) {
-    // ... (앞부분 생략: uniq, connected, while 루프, minEdge 선택)
-
     while (connected.length < uniq.length) {
-        // ... (minEdge 선택 로직 생략)
+        let minEdge = null;
+        for (const cm of connected) {
+            for (const tm of uniq) {
+                if (connected.includes(tm)) continue;
+                
+                // 1차 유효성 검사 (좌표 유효성 확인)
+                if (!isFinite(cm.__lat) || !isFinite(tm.__lat) || 
+                    !isFinite(cm.__lng) || !isFinite(tm.__lng)) continue;
+
+                const d = getDistanceLL(cm.__lat, cm.__lng, tm.__lat, tm.__lng);
+                if (!minEdge || d < minEdge.dist) {
+                    minEdge = { from: cm, to: tm, dist: d };
+                }
+            }
+        }
         if (!minEdge) break;
 
         const { from, to } = minEdge;
-
-        // ✅ p1, p2 좌표를 가져오는 새로운 안전 로직 추가
+        
+        // ✅ 마커의 위치를 LatLng 객체로 안전하게 가져오는 로직 (가장 중요한 부분)
         const p1Pos = from.getPosition ? from.getPosition() : (from.__lat && from.__lng ? new kakao.maps.LatLng(from.__lat, from.__lng) : null);
         const p2Pos = to.getPosition ? to.getPosition() : (to.__lat && to.__lng ? new kakao.maps.LatLng(to.__lat, to.__lng) : null);
-        
-        // ⭐️ 여기서 유효성 검사를 다시 합니다.
-        if (!p1Pos || !p2Pos) {
-            console.warn("[MST] skip invalid LatLng object:", from, to);
+
+        // ⭐️ LatLng 객체 유효성 검사
+        if (!p1Pos || !p2Pos || typeof p1Pos.getLat !== 'function' || typeof p2Pos.getLat !== 'function') {
+            console.warn("[MST] skip invalid LatLng object (Final Check):", from, to);
             connected.push(to);
             continue;
         }
 
         try {
-            // LatLng 객체는 이제 p1Pos, p2Pos에서 직접 가져옵니다.
-            const p1 = p1Pos;
-            const p2 = p2Pos;
-            
-            // LatLng 객체가 유효한지 최종 검사 (필수는 아니지만 안전성 극대화)
-            if (typeof p1.getLat !== 'function' || typeof p2.getLat !== 'function') {
-                throw new Error("Invalid LatLng structure after fetching position.");
-            }
-
             const line = new kakao.maps.Polyline({
                 map,
-                path: [p1, p2],
+                path: [p1Pos, p2Pos],
                 strokeWeight: 3.5,
                 strokeColor: "#db4040",
                 strokeOpacity: 0.9
@@ -90,7 +91,7 @@ function createMSTLinesForGroup(map, list) {
             created++;
 
         } catch (e) {
-            console.error("[MST] FATAL ERROR: LatLng creation failed. Skipping edge.", e);
+            console.error("[MST] FATAL ERROR: Polyline creation failed. Skipping edge.", e);
             connected.push(to); 
         }
     }
@@ -114,7 +115,7 @@ function drawMSTAllGroups(){
     // 2. 선이 없으면 새로 그립니다.
     const allMarkers = Array.isArray(window.markers) ? window.markers : [];
     
-    // ⚠️ 충돌 방지 강화: MapWalker(로드뷰 동동이) 객체를 markers 배열에서 확실히 제외합니다.
+    // ⚠️ 충돌 방지 강화: MapWalker 객체를 markers 배열에서 확실히 제외합니다.
     const markers = allMarkers.filter(m => !(m.content && m.content.classList && m.content.classList.contains('MapWalker')));
     
     if(markers.length < 2) {
@@ -152,13 +153,13 @@ function initMSTButton(){
           const rvBtn = document.getElementById('roadviewControl');
           if (rvBtn && rvBtn.classList.contains('active')) {
               rvBtn.click(); // 버튼 클릭 이벤트로 로드뷰 해제
-              flash('로드뷰를 해제했습니다.');
+              if (typeof flash === 'function') flash('로드뷰를 해제했습니다.');
           }
           // 거리재기 비활성화
           const distBtn = document.getElementById('btnDistance');
           if (distBtn && distBtn.classList.contains('active')) {
               distBtn.click(); // 버튼 클릭 이벤트로 거리재기 해제
-              flash('거리재기를 해제했습니다.');
+              if (typeof flash === 'function') flash('거리재기를 해제했습니다.');
           }
       }
 
@@ -172,6 +173,7 @@ function initMSTButton(){
 
 function waitForMapAndMarkers(){
     // window.markers가 배열이고 맵 객체가 준비될 때까지 기다립니다.
+    // markers.length > 0 조건은 initMarkers 함수에서 처리되므로 여기서는 map과 배열 존재 여부만 확인합니다.
     if(window.map && Array.isArray(window.markers)){
       initMSTButton();
     }else{
