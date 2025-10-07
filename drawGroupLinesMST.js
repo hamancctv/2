@@ -47,38 +47,36 @@
     const connected = [uniq[0]];
     let created = 0;
 
-    while (connected.length < uniq.length) {
-        let minEdge = null;
-        for (const cm of connected) {
-            for (const tm of uniq) {
-                if (connected.includes(tm)) continue;
-                
-                // 1차 유효성 검사 (좌표 유효성 확인)
-                if (!isFinite(cm.__lat) || !isFinite(tm.__lat) || 
-                    !isFinite(cm.__lng) || !isFinite(tm.__lng)) continue;
+// drawGroupLinesMST.js 파일 내 createMSTLinesForGroup 함수 (최종 수정)
+function createMSTLinesForGroup(map, list) {
+    // ... (앞부분 생략: uniq, connected, while 루프, minEdge 선택)
 
-                const d = getDistanceLL(cm.__lat, cm.__lng, tm.__lat, tm.__lng);
-                if (!minEdge || d < minEdge.dist) {
-                    minEdge = { from: cm, to: tm, dist: d };
-                }
-            }
-        }
+    while (connected.length < uniq.length) {
+        // ... (minEdge 선택 로직 생략)
         if (!minEdge) break;
 
         const { from, to } = minEdge;
 
-        // 2차 유효성 검사 (LatLng 생성 직전)
-        if (!isFinite(from.__lat) || !isFinite(from.__lng) || 
-            !isFinite(to.__lat) || !isFinite(to.__lng)) {
-            console.warn("[MST] skip invalid edge coordinates:", from, to);
+        // ✅ p1, p2 좌표를 가져오는 새로운 안전 로직 추가
+        const p1Pos = from.getPosition ? from.getPosition() : (from.__lat && from.__lng ? new kakao.maps.LatLng(from.__lat, from.__lng) : null);
+        const p2Pos = to.getPosition ? to.getPosition() : (to.__lat && to.__lng ? new kakao.maps.LatLng(to.__lat, to.__lng) : null);
+        
+        // ⭐️ 여기서 유효성 검사를 다시 합니다.
+        if (!p1Pos || !p2Pos) {
+            console.warn("[MST] skip invalid LatLng object:", from, to);
             connected.push(to);
             continue;
         }
 
         try {
-            // LatLng 객체 생성 시 에러 방지
-            const p1 = new kakao.maps.LatLng(from.__lat, from.__lng);
-            const p2 = new kakao.maps.LatLng(to.__lat, to.__lng);
+            // LatLng 객체는 이제 p1Pos, p2Pos에서 직접 가져옵니다.
+            const p1 = p1Pos;
+            const p2 = p2Pos;
+            
+            // LatLng 객체가 유효한지 최종 검사 (필수는 아니지만 안전성 극대화)
+            if (typeof p1.getLat !== 'function' || typeof p2.getLat !== 'function') {
+                throw new Error("Invalid LatLng structure after fetching position.");
+            }
 
             const line = new kakao.maps.Polyline({
                 map,
