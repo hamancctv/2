@@ -22,248 +22,17 @@ html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
 #container {overflow:hidden;height:100%;position:relative;}
 #mapWrapper {width:100%;height:100%;z-index:1;}
 
-/* 기본 지도 전체화면 */
-#mapWrapper {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-}
-
-/* 로드뷰 전체화면은 기본 숨김 */
-#rvWrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  display: none; /* 기본 숨김 */
-}
-
-/* 토글 켜면: 로드뷰 전체화면, 지도는 미니맵 */
-.view_roadview #rvWrapper {
-  display: block;
-  z-index: 1;
-}
-.view_roadview #mapWrapper {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 25%;   /* 미니맵 크기 (가로 1/4) */
-  height: 25%;  /* 미니맵 크기 (세로 1/4) */
-  min-width: 200px;
-  min-height: 150px;
-  z-index: 2;   /* 로드뷰 위에 떠서 동동이(마커) 보임 */
-  border: 2px solid #ccc;
-  border-radius: 6px;
-  background: #fff;
-}
-
-/* 로드뷰 토글 버튼 */
-/* ✅ 카카오 로드뷰 버튼 (스프라이트) */
-#btnRoadview{
-  width:42px; height:42px; cursor:pointer;
-  /* 배경 전체 지정해서 .btn의 background:#fff 를 덮어씁니다 */
-  background:url(https://t1.daumcdn.net/localimg/localimages/07/2018/pc/common/img_search.png) 0 -450px no-repeat;
-  border:1px solid #ccc; border-radius:8px;
-}
-#btnRoadview.selected_btn{ /* 활성화 시 카카오와 동일한 위치로 이동 */
-  background-position:0 -350px;
-}
 
 
 /* 닫기 버튼: 사용자 요청에 따라 CSS 섹션 삭제 */
 
 
-/* 하단 컨트롤 버튼 스타일 (제어창) */
-.custom_typecontrol2_m {
-  position: absolute;
-  bottom: 15px;
-  right: 15px;
-  display: flex;
-  gap: 8px; 
-  z-index: 100; /* 👈 요청에 따라 Z-Index를 100으로 상향 */
-  font-family: 'Malgun Gothic','맑은 고딕',sans-serif;
-}
-.custom_typecontrol2_m span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 50px;
-  height: 36px;
-  padding: 0 12px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  background: #f0f0f0;
-  color: #333;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  transition: all 0.2s ease;
-  user-select: none;
-}
-.custom_typecontrol2_m span:hover {
-  background: linear-gradient(145deg,#e0e0e0,#d1d1d1);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-.custom_typecontrol2_m span.selected_btn {
-  background: linear-gradient(145deg,#425470,#5b6d8a);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  border-color: #2e3d5c;
-}
-.custom_typecontrol2_m span:active {
-  background: linear-gradient(145deg,#3a4b66,#52647e);
-}
 
-/* 공통 버튼 */
-.btn-common {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid #ccc;
-  background: #f8f9fa;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  z-index: 200;
-}
 .btn-common:hover { background: #e9ecef; }
 .btn-primary { background:#4caf50; color:#fff; border:none; }
 .btn-primary:hover { background:#43a047; }
 
-/* 공통 input */
-.input-common {
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 14px;
-  z-index: 200;
-}
 
-/* 툴바 (화면 좌표 고정) */
-.toolbar {
-  position:fixed;     
-  top:60px;
-  left:10px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  z-index:1000;       
-}
-
-
-/* 메뉴 */
-#menu_wrap {
-  position:absolute;top:40px;right:8px;bottom:70%;
-  width:270px;margin:3px 0 5px 10px;padding:5px;
-  overflow-y:auto;background:rgba(255,255,255,0.8);
-  z-index: 1;font-size:12px;
-}
-
-/* 알림 오버레이 */
-#alert-overlay {
-  position: fixed;
-  top: 50px; left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(0,0,0,0.7);
-  color: white;
-  padding: 15px 30px;
-  border-radius: 8px;
-  z-index: 1000;
-  display: none;
-  font-size: 1.2em;
-  font-weight: bold;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-/* 검색창 */
-.search-container {
-  position: absolute;
-  top: 3px; left: 50%;
-  transform: translateX(-50%);
-  display: flex; align-items: center;
-  width: 400px;
-  z-index: 500;
-}
-.search-container input {
-  flex: 1; height: 36px;
-  padding: 0 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px 0 0 6px;
-  font-size: 14px;
-  margin-right: 6px;
-}
-.search-container button {
-  height: 36px; padding: 0 15px;
-  border: 1px solid #ccc; border-left:none;
-  border-radius: 0 6px 6px 0;
-  background: #4caf50; color:#fff;
-  cursor: pointer;
-}
-.search-container button:hover { background:#43a047; }
-
-/* 거리재기 버튼 */
-#btnDistance {
-  position:absolute; top:50px; left:10px; z-index:1000;
-  display:inline-flex; align-items:center; justify-content:center;
-  padding:6px 12px;
-  border-radius:6px; border:1px solid #666;
-  background:#fff; color:#000;
-  cursor:pointer; font-size:14px; font-weight:500;
-  transition: background 0.2s,color 0.2s;
-}
-#btnDistance.active { background:#db4040; color:#fff; }
-
-.labelBox {
-  background:#fff; border:1px solid #555;
-  border-radius:3px; font-size:12px;
-  padding:2px 6px; cursor:pointer;
-}
-.totalBox {
-  background:#ffeb3b; border:1px solid #333;
-  border-radius:3px; font-size:12px; font-weight:bold;
-  padding:2px 6px;
-}
-
-/* 거리재기 점/오버레이 */
-.dot {
-  display:inline-block; width:8px; height:8px;
-  background:#db4040; border-radius:50%;
-  border:2px solid white;
-}
-.dotOverlay {
-  position:relative;
-  background:#fffbe6;
-  border:1px solid #999;
-  border-radius:6px;
-  font-size:12px;
-  padding:3px 6px;
-  white-space:nowrap;
-  box-shadow:0 2px 4px rgba(0,0,0,0.2);
-}
-.dotOverlay:after {
-  content:"";
-  position:absolute;
-  left:50%; bottom:-6px;
-  margin-left:-6px;
-  border-width:6px 6px 0;
-  border-style:solid;
-  border-color:#fffbe6 transparent;
-}
-.distanceInfo {
-  background:#fff;
-  border:1px solid #333;
-  border-radius:6px;
-  font-size:13px; font-weight:bold;
-  padding:5px 10px; white-space:nowrap;
-}
-.distanceInfo .closeBtn {
-  margin-left:6px; cursor:pointer;
-  color:#db4040; font-weight:bold;
-}
 /* === 커서 강제 통일: setCursor() 금지 === */
 #map { cursor: -webkit-grab !important; cursor: grab !important; }
 #map:active { cursor: -webkit-grabbing !important; cursor: grabbing !important; }
@@ -274,3 +43,23 @@ html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
 /* 로드뷰 on/off에도 항상 grab 유지 */
 .view_roadview #map { cursor: -webkit-grab !important; cursor: grab !important; }
 
+/* 토스트 메시지(flash) 업그레이드 */
+.toast-msg {
+  position: fixed;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  background: rgba(20,20,20,0.9);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity .3s, transform .3s;
+}
+
+.toast-msg.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(4px);
+}
