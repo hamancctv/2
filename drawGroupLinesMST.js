@@ -67,16 +67,20 @@
         const content = document.createElement("div");
         content.textContent = "신규";
         content.style.cssText = `
-          background:#ffeb3b;
-          color:#000;
-          border:1px solid #f0c000;
-          font-size:13px;
-          font-weight:700;
-          border-radius:6px;
-          padding:2px 6px;
-          white-space:nowrap;
-          box-shadow:0 2px 6px rgba(0,0,0,.15);
+        background: #fff6b7;
+        color: #7a5900;
+        border: 1px solid #e0b200;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 6px;
+        padding: 3px 7px;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         `;
+
+        content.addEventListener("click", () => {
+          console.log(`[MST] '${groupName}' label clicked`);
+        });
         const overlay = new kakao.maps.CustomOverlay({
           position: pos,
           content,
