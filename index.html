@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -405,13 +406,13 @@ kakao.maps.load(function(){
   });
 
 // HTML 파일 kakao.maps.load 콜백 내부의 '지도 클릭 (픽모드)' 섹션
-  // 지도 클릭 (픽모드)
-  kakao.maps.event.addListener(map, 'click', function(e){
-    if(!overlayOn) return;
-    const pos=e.latLng;
-    if (pickMode && mapWalker){ mapWalker.setPosition(pos); mapWalker.content.classList.remove('pick'); pickMode=false; }
-    setRoadviewAt(pos); // <--- 이 부분이 로드뷰 이동을 실행합니다.
-  });
+  // 지도 클릭 (픽모드)
+  kakao.maps.event.addListener(map, 'click', function(e){
+    if(!overlayOn) return;
+    const pos=e.latLng;
+    if (pickMode && mapWalker){ mapWalker.setPosition(pos); mapWalker.content.classList.remove('pick'); pickMode=false; }
+    setRoadviewAt(pos); // <--- 이 부분이 로드뷰 이동을 실행합니다.
+  });
   
   // 로드뷰 토글
   document.getElementById('roadviewControl').addEventListener('click', ()=>{
@@ -574,6 +575,67 @@ kakao.maps.event.addListener(marker, 'click', function () {
   // Kakao Maps SDK 로드 후 실행되는 kakao.maps.load(function(){...}) 블록 안에 추가합니다.
 
 // === 그룹 연결 버튼 핸들러 추가 ===
+// === 그룹 연결 버튼 핸들러 추가 ===
+(function setupGroupMST() {
+  const btn = document.getElementById('btnGroupMST');
+  if (!btn) return;
+
+  let mstActive = false;
+
+  // 그룹 필드 보정
+  function ensureMarkerGroupCompatibility() {
+    const arr = (window.markers || []).filter(Boolean);
+    arr.forEach(mk => {
+      const gx = mk.gx || {};
+      mk.group = mk.group ?? gx.group ?? gx.grp ?? null;
+      mk.name  = mk.name  ?? gx.content ?? gx.searchName ?? gx.name ?? '';
+    });
+    const dist = {};
+    arr.forEach(mk => { const g = mk.group ?? '(없음)'; dist[g] = (dist[g]||0)+1; });
+    console.log('[MST:GROUP-DIST]', dist);
+    if (Object.keys(dist).length === 1 && dist['(없음)']) {
+      console.warn('⚠️ 모든 마커에 group이 없습니다. sel_suggest.js의 group 키 확인 필요');
+    }
+  }
+
+  // drawGroupLinesMST.js가 기대하는 헬퍼 제공
+  window.getMarkersByGroup = window.getMarkersByGroup || function() {
+    const by = {};
+    (window.markers || []).forEach(mk => {
+      const g = (mk.group ?? mk.gx?.group ?? null);
+      if (!g) return;
+      (by[g] ||= []).push(mk);
+    });
+    return by;
+  };
+
+  // 버튼 클릭 이벤트
+  btn.addEventListener('click', () => {
+    mstActive = !mstActive;
+    btn.classList.toggle('active', mstActive);
+
+    if (mstActive) {
+      console.log('[MST] 그룹연결 활성화');
+      // 거리재기 켜져 있으면 자동으로 끄기
+      const btnDist = document.getElementById('btnDistance');
+      if (btnDist && btnDist.classList.contains('active')) btnDist.click();
+
+      // 마커 그룹 보정 후 연결
+      ensureMarkerGroupCompatibility();
+      if (typeof drawMSTAllGroups === 'function') {
+        drawMSTAllGroups(map);
+        console.log('[MST] 그룹연결 완료');
+      } else {
+        console.warn('[MST] drawGroupLinesMST.js 없음');
+      }
+    } else {
+      console.log('[MST] 그룹연결 해제');
+      if (typeof clearMSTLines === 'function') clearMSTLines();
+    }
+  });
+})();
+
+
 
 
 }); // <-- kakao.maps.load 함수의 닫는 괄호는 여기에 하나만 있어야 합니다.
