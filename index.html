@@ -22,18 +22,21 @@
     position: fixed; top: 60px; left: 10px;
     display: flex; flex-direction: column; gap: 8px; z-index: 10;
   }
-  .toolbar button {
-    width: 42px; height: 42px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    background: linear-gradient(180deg, #fff 0%, #f8f8f8 100%);
-    color: #333;
-    cursor: pointer;
-    transition: all .25s ease;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  }
+ .toolbar button {
+  width: 42px; height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;                /* ✅ 이 줄이 중요! (이모티지 세로 중심) */
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fff 0%, #f8f8f8 100%);
+  color: #333;
+  cursor: pointer;
+  transition: all .25s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
   .toolbar button:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0,0,0,0.18);
@@ -46,6 +49,38 @@
     box-shadow: 0 0 0 3px rgba(0,122,255,0.15) inset, 0 3px 10px rgba(0,0,0,0.12);
     transform: translateY(1px);
   }
+  /* === 캡처 버튼 (이중 원 + 📷 이모티지) === */
+.capture-btn {
+  position: relative;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 3px solid #fff;       /* 흰 테두리 */
+  box-sizing: border-box;
+  font-size: 22px;
+    line-height: 1;     /* ✅ 중앙 정렬 보정 */
+  color: #fff;                  /* 📷 이모티지 색상 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.capture-btn::after {
+  content: "";
+  position: absolute;
+  top: -4px; left: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  border-radius: 50%;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.capture-btn:hover {
+  transform: scale(1.06);
+}
+.capture-btn:active {
+  transform: scale(0.94);
+}
 
   /* 로드뷰 전체화면(지도는 미니맵) — DOM은 유지(외부 스크립트용) */
   #rvWrapper { position:absolute; inset:0; display:none; z-index:0; }
@@ -92,6 +127,8 @@
         <button id="roadviewControl" title="로드뷰">🚗</button>
         <button id="btnDistance" title="거리재기">📏</button>
         <button id="btnGroupMST" title="그룹연결">🧩</button>
+        <button id="btnCapture" class="capture-btn" title="지도 캡처">📷</button>
+
       </div>
 
       <!-- 리사이저 핸들(로드뷰 외부 스크립트에서 제어) -->
@@ -152,6 +189,8 @@ function setAllMarkersClickable(clickable) {
 kakao.maps.load(function(){
   const center = new kakao.maps.LatLng(35.2725308711779, 128.406307024695);
   map = new kakao.maps.Map(document.getElementById('map'), { center, level:4 });
+    window.map = map;   // ✅ 반드시 추가 (btnCapture.js에서 인식 가능)
+
   map.setMaxLevel(9);
   geocoder = new kakao.maps.services.Geocoder();
   places   = new kakao.maps.services.Places();
@@ -267,6 +306,7 @@ kakao.maps.load(function(){
 <!-- 🔹 로드뷰 모듈 먼저 -->
  <script src="btnDistance.js"></script> <!-- ✅ 추가 -->
  <script src="roadview.js"></script>
+ <!-- ✅ 지도 캡처 기능 (별도 모듈) -->
+<script src="btnCapture.js"></script>
 </body>
 </html>
-1
