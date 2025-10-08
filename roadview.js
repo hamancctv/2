@@ -237,13 +237,14 @@ console.log("[roadview] loaded — EK sprite-sync version (FINAL • deploy)");
     }
 
     /* ========= 전역 상호작용 상태 동기화 (단순/명료) ========= */
-    function syncMarkerInteraction() {
-      // 둘 중 하나라도 켜져 있으면 false
-      window.isMarkerInteractionEnabled = !(window.overlayOn || window.isDistanceMode);
-      if (typeof window.setAllMarkersClickable === "function") {
-        try { window.setAllMarkersClickable(window.isMarkerInteractionEnabled); } catch {}
-      }
-    }
+ function syncMarkerInteraction() {
+   window.isMarkerInteractionEnabled = !(window.overlayOn || window.isDistanceMode);
+   if (typeof window.setAllMarkersClickable === "function") {
+     try { window.setAllMarkersClickable(window.isMarkerInteractionEnabled); } catch {}
+   }
+ }
+window.syncMarkerInteraction = syncMarkerInteraction; // 다른 모듈(거리재기 등)에서 호출 가능
+
 
     /* ========= initRoadview ========= */
     exports.initRoadview = function (map, rv, rvClient) {
@@ -251,7 +252,9 @@ console.log("[roadview] loaded — EK sprite-sync version (FINAL • deploy)");
       window.__mapInstance = map;
       window.__rvInstance  = rv;
       window.__rvClient    = rvClient;
-
+      window.__rvReady = true; // ★ 추가: 최초 준비 플래그
+  window.dispatchEvent(new CustomEvent("roadview-ready", { detail: { when: "init" } })); // ★ 추가: 준비 이벤트 발행
+  
       const container = document.getElementById("container");
       const btn       = document.getElementById("roadviewControl");
       if (!btn) {
@@ -307,8 +310,8 @@ console.log("[roadview] loaded — EK sprite-sync version (FINAL • deploy)");
             map.relayout();
           }
 
-          window.overlayOn = on;                      // 상태만 바꾸고
-window.syncInteractionLocks();              // 여기서 일괄 반영
+ window.overlayOn = on;
+ syncMarkerInteraction();                    // 클릭/호버/마커클릭 가능 상태 일괄 동기화
         });
       }
 
@@ -429,5 +432,6 @@ function onMove(ev) {
     }; // end of initRoadview
 
   })(window.RoadviewModule);
-
+  // ✅ 구버전 호환용 alias 추가 (에러 방지)
+  window.syncInteractionLocks = window.syncMarkerInteraction;
 })();
