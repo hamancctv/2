@@ -1,7 +1,10 @@
-// btnCapture.js — v2025-10-10 CAPSHOT-SCREENSHOTONE-AUTOFILE-FREE-FINAL
-console.log("[btnCapture] 로딩됨 (ScreenshotOne GET방식 + 자동파일명)");
+// btnCapture.js — v2025-10-10 CAPSHOT-WORKER-AUTOFILE-FINAL
+console.log("[btnCapture] 로딩됨 (Cloudflare Worker + ScreenshotOne 자동파일명)");
 
 (function(){
+  const PROXY = "https://curly-disk-4116.tmxkwkd.workers.dev"; // 오빠의 Worker 주소
+  const API_KEY = "f3834da1e71634630b8d"; // ScreenshotOne Access Key
+
   function flash(msg){
     const el=document.createElement("div");
     el.textContent=msg;
@@ -68,16 +71,14 @@ console.log("[btnCapture] 로딩됨 (ScreenshotOne GET방식 + 자동파일명)"
   }
 
   async function takeScreenshot(targetUrl, filename){
-    const API_KEY = "f3834da1e71634630b8d"; // 오빠 Access Key
-    const api = `https://api.screenshotone.com/take?access_key=${API_KEY}`
-      + `&url=${encodeURIComponent(targetUrl)}`
-      + `&format=png&full_page=true&viewport_width=1920&viewport_height=1080`
-      + `&delay=1000&block_ads=true&omit_background=false`;
-
     try{
-      flash("📸 ScreenshotOne으로 캡처중...");
-      const res = await fetch(api);
-      console.log("[btnCapture] 응답상태:", res.status);
+      flash("📸 ScreenshotOne 캡처중...");
+      const target = `https://api.screenshotone.com/take?access_key=${API_KEY}`
+        + `&url=${encodeURIComponent(targetUrl)}`
+        + `&full_page=true&format=png&viewport_width=1920&viewport_height=1080&delay=1000`;
+
+      const proxied = `${PROXY}?url=${encodeURIComponent(target)}`;
+      const res = await fetch(proxied);
       if(!res.ok) throw new Error("캡처 실패: "+res.status);
       const blob = await res.blob();
       const link = document.createElement("a");
@@ -117,6 +118,6 @@ console.log("[btnCapture] 로딩됨 (ScreenshotOne GET방식 + 자동파일명)"
     const btn=document.getElementById("btnCapture");
     if(!btn){console.error("btnCapture 버튼 없음");return;}
     btn.addEventListener("click",handleCapture);
-    console.log("[btnCapture] 이벤트 연결 완료 ✅ (GET방식 ScreenshotOne)");
+    console.log("[btnCapture] 이벤트 연결 완료 ✅ (Worker중계 ScreenshotOne)");
   });
 })();
