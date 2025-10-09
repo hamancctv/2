@@ -60,7 +60,7 @@ console.log("[btnCapture] 로딩 (확장 전용 최소판)");
         현재 탭만 정확히 캡처하려면 확장이 필요합니다.
         [설치하기]를 누르면 스토어 페이지가 열립니다.
         매우 강력한 캡처도구를 제공하니 반드시 설치하여 사용하시기 바랍니다.
-        기타 사항은 개발자에게 문의하세요.
+        *설치방법은 개발자에게 문의하세요.
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button id="mdCancel" style="background:#222;border:1px solid #444;color:#ccc;border-radius:8px;padding:8px 12px;cursor:pointer">닫기</button>
