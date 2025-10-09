@@ -1,8 +1,7 @@
-// btnCapture.js — v2025-10-10 CAPSHOT-SCREENSHOTONE-AUTOFILE-FINAL
-console.log("[btnCapture] 로딩됨 (ScreenshotOne + 자동파일명)");
+// btnCapture.js — v2025-10-10 CAPSHOT-SCREENSHOTONE-AUTOFILE-FREE-FINAL
+console.log("[btnCapture] 로딩됨 (ScreenshotOne GET방식 + 자동파일명)");
 
 (function(){
-  /* ===== flash 알림 ===== */
   function flash(msg){
     const el=document.createElement("div");
     el.textContent=msg;
@@ -14,7 +13,6 @@ console.log("[btnCapture] 로딩됨 (ScreenshotOne + 자동파일명)");
     setTimeout(()=>el.remove(),1500);
   }
 
-  /* ===== Roadview 활성화 확인 ===== */
   function isRoadviewActive(){
     if(document.body.classList.contains("view_roadview")) return true;
     const rvContainer=document.getElementById("roadview");
@@ -22,12 +20,10 @@ console.log("[btnCapture] 로딩됨 (ScreenshotOne + 자동파일명)");
     return false;
   }
 
-  /* ===== UI 숨김대상 ===== */
   const HIDE_SELECTORS=[
     ".toolbar",".toolbar2",".search-wrap",".gx-suggest-search",
     ".suggest-box",".distance-box","#guide","#btnCapture"
   ];
-
   function hideUI(){
     const hidden=[];
     HIDE_SELECTORS.forEach(sel=>{
@@ -48,7 +44,6 @@ console.log("[btnCapture] 로딩됨 (ScreenshotOne + 자동파일명)");
     });
   }
 
-  /* ===== 날짜 포맷 ===== */
   function getDateStr(){
     const d=new Date();
     const y=d.getFullYear();
@@ -57,7 +52,6 @@ console.log("[btnCapture] 로딩됨 (ScreenshotOne + 자동파일명)");
     return `${y} ${m}${dd}`;
   }
 
-  /* ===== 주소 이름 가져오기 ===== */
   function getAddressName(lat, lng){
     return new Promise(resolve=>{
       if(!window.kakao?.maps?.services?.Geocoder) return resolve("");
@@ -73,31 +67,22 @@ console.log("[btnCapture] 로딩됨 (ScreenshotOne + 자동파일명)");
     });
   }
 
-  /* ===== ScreenshotOne API 호출 ===== */
-  const API_KEY = "f3834da1e71634630b8d"; // ⚠️ 
   async function takeScreenshot(targetUrl, filename){
+    const API_KEY = "f3834da1e71634630b8d"; // 오빠 Access Key
+    const api = `https://api.screenshotone.com/take?access_key=${API_KEY}`
+      + `&url=${encodeURIComponent(targetUrl)}`
+      + `&format=png&full_page=true&viewport_width=1920&viewport_height=1080`
+      + `&delay=1000&block_ads=true&omit_background=false`;
+
     try{
       flash("📸 ScreenshotOne으로 캡처중...");
-      const api=`https://api.screenshotone.com/take?access_key=${API_KEY}`;
-      const body={
-        url: targetUrl,
-        full_page: true,
-        viewport: {width:1920,height:1080},
-        format: "png",
-        delay: 1000,
-        block_ads: true,
-        omit_background: false
-      };
-      const res=await fetch(api,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(body)
-      });
+      const res = await fetch(api);
+      console.log("[btnCapture] 응답상태:", res.status);
       if(!res.ok) throw new Error("캡처 실패: "+res.status);
-      const blob=await res.blob();
-      const link=document.createElement("a");
-      link.href=URL.createObjectURL(blob);
-      link.download=filename;
+      const blob = await res.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -109,7 +94,6 @@ console.log("[btnCapture] 로딩됨 (ScreenshotOne + 자동파일명)");
     }
   }
 
-  /* ===== 메인 핸들러 ===== */
   async function handleCapture(){
     const hiddenEls = hideUI();
     try{
@@ -129,11 +113,10 @@ console.log("[btnCapture] 로딩됨 (ScreenshotOne + 자동파일명)");
     }
   }
 
-  /* ===== 버튼 연결 ===== */
   window.addEventListener("DOMContentLoaded",()=>{
     const btn=document.getElementById("btnCapture");
     if(!btn){console.error("btnCapture 버튼 없음");return;}
     btn.addEventListener("click",handleCapture);
-    console.log("[btnCapture] 이벤트 연결 완료 ✅ (ScreenshotOne + 자동파일명)");
+    console.log("[btnCapture] 이벤트 연결 완료 ✅ (GET방식 ScreenshotOne)");
   });
 })();
