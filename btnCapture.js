@@ -1,3 +1,6 @@
+const PROXY = "https://curly-disk-4116.tmxkwkd.workers.dev";
+
+
 // btnCapture.js — v2025-10-10 CAPSHOT-WORKER-AUTOFILE-FINAL
 console.log("[btnCapture] 로딩됨 (Cloudflare Worker + ScreenshotOne 자동파일명)");
 
@@ -121,3 +124,4 @@ console.log("[btnCapture] 로딩됨 (Cloudflare Worker + ScreenshotOne 자동파
     console.log("[btnCapture] 이벤트 연결 완료 ✅ (Worker중계 ScreenshotOne)");
   });
 })();
+
