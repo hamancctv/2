@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>로그인 - 함안 CCTV GIS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f4f6f8;
+    }
+    form {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      background: #007aff;
+      color: white;
+      font-size: 15px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #005edb;
+    }
+    .msg {
+      text-align: center;
+      color: red;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <form method="POST" action="/auth">
+    <h2>GIS 로그인</h2>
+    <input type="text" name="id" placeholder="아이디" required />
+    <input type="password" name="pw" placeholder="비밀번호" required />
+    <button type="submit">로그인</button>
+    <p class="msg">
+      아이디: <b>admin</b> / 비번: <b>1234</b>
+    </p>
+  </form>
+</body>
+</html>
