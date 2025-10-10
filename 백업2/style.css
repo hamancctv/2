@@ -1,0 +1,62 @@
+/* 숨김 토글 전용 클래스 (reflow 최소화) 이 버전 앞에꺼는 잘됐음 */
+.sel-hidden { display: none !important; }
+
+/* 🔒 사이트 전체 차단 */
+/* ✅ 텍스트/이미지 선택/드래그 방지 (PC + 모바일 대응) */
+html, body, * {
+  -webkit-user-select: none !important; /* Safari/Chrome */
+  -moz-user-select: none !important;    /* Firefox */
+  -ms-user-select: none !important;     /* IE/Edge */
+  user-select: none !important;
+
+  -webkit-touch-callout: none !important;  /* iOS 롱터치 메뉴 방지 */
+  -webkit-tap-highlight-color: transparent; /* 모바일 하이라이트 제거 */
+  -webkit-user-drag: none !important;       /* 이미지 등 드래그 차단 */
+}
+
+  /* 캡처 중일 때 툴바·리사이저만 잠깐 숨김 (캡처 화면에 안 나오게) */
+  #mapWrapper.capturing .toolbar,
+  #mapWrapper.capturing .rv-resizer { visibility: hidden; }
+
+
+html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
+
+#container {overflow:hidden;height:100%;position:relative;}
+#mapWrapper {width:100%;height:100%;z-index:1;}
+
+/* 닫기 버튼: 사용자 요청에 따라 CSS 섹션 삭제 */
+.btn-common:hover { background: #e9ecef; }
+.btn-primary { background:#4caf50; color:#fff; border:none; }
+.btn-primary:hover { background:#43a047; }
+
+
+/* === 커서 강제 통일: setCursor() 금지 === */
+#map { cursor: -webkit-grab !important; cursor: grab !important; }
+#map:active { cursor: -webkit-grabbing !important; cursor: grabbing !important; }
+
+/* 거리재기 ON일 때만 십자 */
+.distance-on #map { cursor: crosshair !important; }
+
+/* 로드뷰 on/off에도 항상 grab 유지 */
+.view_roadview #map { cursor: -webkit-grab !important; cursor: grab !important; }
+
+/* 토스트 메시지(flash) 업그레이드 */
+.toast-msg {
+  position: fixed;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  background: rgba(20,20,20,0.9);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity .3s, transform .3s;
+}
+
+.toast-msg.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(4px);
+}

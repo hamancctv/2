@@ -1,0 +1,313 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>CCTV GIS</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+
+<!-- Kakao Maps SDK (services + 수동 로드) -->
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services&autoload=false"></script>
+
+<!-- 기존 스타일 - 유지 -->
+<link rel="stylesheet" href="style.css" />
+
+<style>
+  html, body { height:100%; margin:0; }
+  #container { position:relative; height:100%; overflow:hidden; }
+  #mapWrapper { position:relative; width:100%; height:100%; z-index:1; }
+  #map { width:100%; height:100%; cursor: grab; }
+  #map:active { cursor: grabbing; }
+
+  .toolbar {
+    position: fixed; top: 60px; left: 10px;
+    display: flex; flex-direction: column; gap: 8px; z-index: 10;
+  }
+ .toolbar button {
+  width: 42px; height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;                /* ✅ 이 줄이 중요! (이모티지 세로 중심) */
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fff 0%, #f8f8f8 100%);
+  color: #333;
+  cursor: pointer;
+  transition: all .25s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+  .toolbar button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.18);
+    background: linear-gradient(180deg, #fff 0%, #f2f2f2 100%);
+  }
+  .toolbar button.active {
+    border-color: #007aff;
+    color: #007aff;
+    background: linear-gradient(180deg, #eaf3ff 0%, #d7e9ff 100%);
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.15) inset, 0 3px 10px rgba(0,0,0,0.12);
+    transform: translateY(1px);
+  }
+  /* === 캡처 버튼 (이중 원 + 📷 이모티지) === */
+.capture-btn {
+  position: relative;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 3px solid #fff;       /* 흰 테두리 */
+  box-sizing: border-box;
+  font-size: 22px;
+    line-height: 1;     /* ✅ 중앙 정렬 보정 */
+  color: #fff;                  /* 📷 이모티지 색상 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.capture-btn::after {
+  content: "";
+  position: absolute;
+  top: -4px; left: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  border-radius: 50%;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.capture-btn:hover {
+  transform: scale(1.06);
+}
+.capture-btn:active {
+  transform: scale(0.94);
+}
+
+  /* 로드뷰 전체화면(지도는 미니맵) — DOM은 유지(외부 스크립트용) */
+  #rvWrapper { position:absolute; inset:0; display:none; z-index:0; }
+  #roadview  { width:100%; height:100%; }
+  .view_roadview #rvWrapper { display:block; z-index:1; }
+  .view_roadview #mapWrapper {
+    position:absolute; left:8px; bottom:8px;
+    width:26%; height:26%; min-width:200px; min-height:150px;
+    border:2px solid #ccc; border-radius:8px; background:#fff; z-index:2;
+    box-shadow:0 8px 24px rgba(0,0,0,.2);
+  }
+
+  /* 미니맵 리사이저 핸들 — DOM은 유지(외부 스크립트용) */
+  #mapWrapper .rv-resizer {
+    position: absolute;
+    right: 0; top: 0;
+    width: 20px; height: 20px;
+    background: linear-gradient(225deg, #f4f4f4 0%, #f4f4f4 49.9%, transparent 50%);
+    box-sizing: border-box; z-index: 9999;
+    cursor: nesw-resize; pointer-events: auto;
+    opacity: 0.75;
+    transition: box-shadow 0.2s ease, background-color 0.2s ease;
+    display:none; /* 로드뷰 비활성 기본값 */
+  }
+  .view_roadview #mapWrapper .rv-resizer{ display:block; }
+  #mapWrapper .rv-resizer:hover {
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.25);
+    background: linear-gradient(225deg, #e9e9e9 0%, #e9e9e9 49.9%, transparent 50%);
+  }
+
+  /* === 거리재기 UI === */
+  .km-dot { width: 10px; height: 10px; border: 2px solid #e53935; background: #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+  .km-seg { background:#fff; color:#e53935; border:1px solid #e53935; border-radius:8px; padding:2px 6px; font-size:12px; font-weight:600; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.12); margin-bottom:14px; }
+  .km-total-box { background:#ffeb3b; color:#222; border:1px solid #e0c200; border-radius:10px; padding:6px 10px; font-size:13px; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,.15); pointer-events:none; white-space:nowrap; transform: translate(10px, 8px); }
+</style>
+</head>
+<body>
+  <div id="container">
+    <div id="mapWrapper">
+      <div id="map"></div>
+
+      <div class="toolbar">
+        <button id="btnSatellite" class="btn-satellite" title="위성뷰">🌐</button>
+        <button id="roadviewControl" title="로드뷰">🚗</button>
+        <button id="btnDistance" title="거리재기">📏</button>
+        <button id="btnGroupMST" title="그룹연결">🧩</button>
+        <button id="btnCapture" class="capture-btn" title="지도 캡처">📷</button>
+
+      </div>
+
+      <!-- 리사이저 핸들(로드뷰 외부 스크립트에서 제어) -->
+      <div class="rv-resizer" aria-hidden="true"></div>
+    </div>
+
+    <!-- 로드뷰 컨테이너(외부 스크립트에서 제어) -->
+    <div id="rvWrapper"><div id="roadview"></div></div>
+  </div>
+
+  <script>
+  // 전역: 마커 클릭/호버 통제 함수
+  function setAllMarkersClickable(clickable) {
+    const list = window.markers || [];
+    for (const m of list) { try { m.setClickable(clickable); } catch(e){} }
+    console.log(`[마커 인터랙션] ${clickable ? '활성화' : '차단'}`);
+  }
+  </script>
+
+  <!-- 외부 데이터/핸들러 -->
+  <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+  <script src="sel_suggest.js"></script> 
+  <script src="markers-handler.js"></script>
+  <script src="search-suggest.js"></script>
+  <script src="drawGroupLinesMST.js"></script>
+  <!-- <script src="btnDistance.js"></script> -->
+  <!-- ✅ 나중에 로드뷰 붙일 때: <script src="roadview.js"></script> -->
+
+  
+<script>
+/* ===== 공용 헬퍼 ===== */
+const $ = s => document.querySelector(s);
+
+/* ===== 전역(로드뷰 상태/객체 제거됨) ===== */
+let map, geocoder, places;
+
+/* ===== 토스트 ===== */
+function flash(msg) {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);' +
+    'background:rgba(0,0,0,.85);color:#fff;padding:8px 12px;border-radius:8px;' +
+    'font-size:13px;z-index:9999;pointer-events:none';
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; }, 1100);
+  setTimeout(()=> el.remove(), 1500);
+}
+/* ✅ 마커 클릭 전역 제어 함수 */
+function setAllMarkersClickable(clickable) {
+  const list = window.markers || [];
+  for (const m of list) {
+    try { m.setClickable(clickable); } catch(e){}
+  }
+  console.log(`[마커 클릭 상태] ${clickable ? "활성화됨" : "비활성화됨"}`);
+}
+
+/* ===== 초기화 ===== */
+kakao.maps.load(function(){
+  const center = new kakao.maps.LatLng(35.2725308711779, 128.406307024695);
+  map = new kakao.maps.Map(document.getElementById('map'), { center, level:4 });
+    window.map = map;   // ✅ 반드시 추가 (btnCapture.js에서 인식 가능)
+
+  map.setMaxLevel(9);
+  geocoder = new kakao.maps.services.Geocoder();
+  places   = new kakao.maps.services.Places();
+
+    // ✅ 거리재기 초기화 (이 줄이 없어서 안 됐던 거예요!)
+  if (window.DistanceModule?.setupDistance) {
+    DistanceModule.setupDistance(map);
+  }
+    // ✅ 로드뷰 초기화는 그대로
+  const rvDiv = document.getElementById("roadview");
+  const rv = new kakao.maps.Roadview(rvDiv);
+  const rvClient = new kakao.maps.RoadviewClient();
+  window.__rvInstance = rv;       // ✅ 추가
+  window.__mapInstance = map;     // ✅ 추가
+  window.__rvClient = rvClient;   // ✅ 추가
+  if (window.RoadviewModule?.initRoadview) {
+    RoadviewModule.initRoadview(map, rv, rvClient);
+  }
+
+      // 위성뷰 토글
+  const btnSat = document.getElementById('btnSatellite');
+  btnSat.addEventListener('click', ()=>{
+    if(map.getMapTypeId() === kakao.maps.MapTypeId.ROADMAP){
+      map.setMapTypeId(kakao.maps.MapTypeId.HYBRID); btnSat.classList.add('selected');
+    } else {
+      map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP); btnSat.classList.remove('selected');
+    }
+  });
+
+  // 외부 데이터로 마커 생성
+  if (window.SEL_SUGGEST && typeof initMarkers === 'function') {
+    const unique = new Map(), positionsLike=[];
+    for (const it of window.SEL_SUGGEST) {
+      const lat = parseFloat(it.lat), lng = parseFloat(it.lng);
+      if (!isFinite(lat) || !isFinite(lng)) continue;
+      const key = lat+','+lng; if (unique.has(key)) continue; unique.set(key,true);
+      positionsLike.push({
+        latlng: new kakao.maps.LatLng(lat, lng),
+        content: it.name1 || it.name || '',
+        searchName: it.name2 || it.name || '',
+        group: it.group || null,
+        __lat: lat, __lng: lng
+      });
+    }
+    initMarkers(map, positionsLike);
+  }
+
+  // 제안창
+  if (typeof initSuggestUI === 'function') {
+    initSuggestUI({
+      map, data: window.SEL_SUGGEST || [],
+      parent: document.getElementById('mapWrapper'),
+      getMarkers: () => window.markers,
+      badges: ['line', 'enclosure', 'address', 'ip', 'group'],
+      maxItems: 30, chooseOnEnter: true, openOnFocus: true
+    });
+  }
+
+  // === 그룹 연결 버튼 핸들러 (유지) ===
+  (function setupGroupMST() {
+    const btn = document.getElementById('btnGroupMST');
+    if (!btn) return;
+
+    let mstActive = false;
+
+    function ensureMarkerGroupCompatibility() {
+      const arr = (window.markers || []).filter(Boolean);
+      arr.forEach(mk => {
+        const gx = mk.gx || {};
+        mk.group = mk.group ?? gx.group ?? gx.grp ?? null;
+        mk.name  = mk.name  ?? gx.content ?? gx.searchName ?? gx.name ?? '';
+      });
+      const dist = {};
+      arr.forEach(mk => { const g = mk.group ?? '(없음)'; dist[g] = (dist[g]||0)+1; });
+      console.log('[MST:GROUP-DIST]', dist);
+    }
+
+    window.getMarkersByGroup = window.getMarkersByGroup || function() {
+      const by = {};
+      (window.markers || []).forEach(mk => {
+        const g = (mk.group ?? mk.gx?.group ?? null);
+        if (!g) return;
+        (by[g] ||= []).push(mk);
+      });
+      return by;
+    };
+
+    btn.addEventListener('click', () => {
+      mstActive = !mstActive;
+      btn.classList.toggle('active', mstActive);
+
+      if (mstActive) {
+        // 거리재기 켜져 있으면 자동 OFF
+        const btnDist = document.getElementById('btnDistance');
+        if (btnDist && btnDist.classList.contains('active')) btnDist.click();
+
+        ensureMarkerGroupCompatibility();
+        if (typeof drawMSTAllGroups === 'function') {
+          drawMSTAllGroups(map);
+          console.log('[MST] 그룹연결 완료');
+        } else {
+          console.warn('[MST] drawGroupLinesMST.js 없음');
+        }
+      } else {
+        if (typeof clearMSTLines === 'function') clearMSTLines();
+        console.log('[MST] 그룹연결 해제');
+      }
+    });
+  })(); // setupGroupMST 끝
+
+}); // kakao.maps.load 끝
+</script>
+<!-- 🔹 로드뷰 모듈 먼저 -->
+ <script src="btnDistance.js"></script> <!-- ✅ 추가 -->
+ <script src="roadview.js"></script>
+ <!-- ✅ 지도 캡처 기능 (별도 모듈) -->
+<script src="btnCapture.js"></script>
+</body>
+</html>

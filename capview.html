@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>CAPVIEW</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  #wrap{position:fixed;inset:0}
+  #map,#roadview{position:absolute;inset:0}
+  #ui{
+    position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    z-index:9999;display:flex;gap:8px;align-items:center
+  }
+  #btnStart{
+    font:600 14px/1.2 system-ui;background:#111;color:#fff;border:1px solid #333;border-radius:10px;
+    padding:10px 14px;box-shadow:0 4px 14px rgba(0,0,0,.4);cursor:pointer
+  }
+  #hint{color:#bbb;font:500 12px/1.2 system-ui}
+  #warn{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#fff;font:600 14px/1.4 system-ui}
+</style>
+<!-- 🔑 나중에 여기만 네 JavaScript 키로 바꾸면 됨 -->
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5f253bed8a8966a66fc9076b662663fd&libraries=services&autoload=false"></script>
+</head>
+<body>
+  <div id="wrap">
+    <div id="map"></div>
+    <div id="roadview" style="display:none"></div>
+  </div>
+
+  <div id="ui">
+    <button id="btnStart">📸 캡처 시작</button>
+    <span id="hint">권한 창에서 <b>CAPVIEW 탭</b>을 선택하세요</span>
+  </div>
+
+  <div id="warn"></div>
+
+<script>
+(async function(){
+  /* ---------------- CAPTURE_DATA 받기 (즉시+대기) ---------------- */
+  async function getPayloadWithWait(timeoutMs=3000){
+    const read = () => { try { return JSON.parse(localStorage.getItem("CAPTURE_DATA") || "null"); } catch(_) { return null; } };
+    let data = read();
+    if (data) return data;
+
+    const byStorage = new Promise(resolve=>{
+      const h=(e)=>{ if(e.key==="CAPTURE_DATA" && e.newValue){ window.removeEventListener("storage",h); resolve(JSON.parse(e.newValue)); } };
+      window.addEventListener("storage", h);
+      window.addEventListener("message",(ev)=>{ if(ev.data?.type==="CAPTURE_DATA_READY"){ const d=read(); if(d) resolve(d); }},{once:true});
+    });
+    const byTimeout = new Promise(res=> setTimeout(()=> res(read()), timeoutMs));
+    data = await Promise.race([byStorage, byTimeout]);
+    return data || read();
+  }
+
+  /* ---------------- Kakao SDK 체크 ---------------- */
+  const warn = document.getElementById('warn');
+  if (typeof kakao === "undefined" || !kakao.maps) {
+    warn.style.display='flex';
+    warn.textContent = "⚠️ Kakao 지도 SDK 로드 실패. 나중에 키만 넣고 다시 시도하세요.";
+    // SDK 없이도 화면 캡처는 가능하지만 빈 화면일 수 있음 → 버튼은 계속 활성화
+  }
+
+  /* ---------------- 데이터 수신 ---------------- */
+  const data = await getPayloadWithWait(3000);
+  if (!data) {
+    warn.style.display='flex';
+    warn.textContent = "CAPTURE_DATA를 받지 못했습니다. 창을 닫고 다시 시도하세요.";
+    // 그래도 캡처 버튼은 눌러볼 수 있게 둠
+  }
+
+  const { rv=false, pos=null, center=null, level=3, type=null, markers=[], addrName: preAddrName="" } = data || {};
+  window.__IS_RV__ = !!rv;
+
+  /* ---------------- 지도/로드뷰 구성 ---------------- */
+  const mapEl = document.getElementById('map');
+  const rvEl  = document.getElementById('roadview');
+  let map, rvObj;
+
+  function buildMap(){
+    if (!kakao?.maps) return; // SDK 없으면 스킵(캡처만 가능)
+    map = new kakao.maps.Map(mapEl, {
+      center: new kakao.maps.LatLng((center?.lat||pos?.lat||37.5665), (center?.lng||pos?.lng||126.9780)),
+      level: level ?? 3
+    });
+    if (type && map.setMapTypeId) { try{ map.setMapTypeId(type); }catch{} }
+    (markers||[]).forEach(m=>{
+      new kakao.maps.Marker({ position: new kakao.maps.LatLng(m.lat,m.lng), map, title: m.title||"" });
+    });
+  }
+
+  function buildRoadview(){
+    if (!kakao?.maps) return;
+    rvEl.style.display='block';
+    mapEl.style.display='none';
+    const rvClient = new kakao.maps.RoadviewClient();
+    rvObj = new kakao.maps.Roadview(rvEl);
+    const latlng = new kakao.maps.LatLng((pos?.lat||center?.lat||37.5665), (pos?.lng||center?.lng||126.9780));
+    rvClient.getNearestPanoId(latlng, 50, function(panoId){
+      if(!panoId){
+        rvEl.innerHTML = '<div style="color:#fff;display:flex;align-items:center;justify-content:center;height:100%">로드뷰를 찾지 못했습니다</div>';
+        return;
+      }
+      rvObj.setPanoId(panoId, latlng);
+    });
+  }
+
+  if (rv) buildRoadview(); else buildMap();
+
+  /* ---------------- 로딩 완료 대기 ---------------- */
+  async function whenReady(){
+    if (!kakao?.maps) { await new Promise(r=>setTimeout(r, 300)); return; }
+    await new Promise(res=>{
+      if (rv && rvObj){
+        kakao.maps.event.addListener(rvObj, 'init', ()=> setTimeout(res, 350));
+      } else if (map){
+        kakao.maps.event.addListener(map, 'tilesloaded', ()=> setTimeout(res, 200));
+      } else {
+        setTimeout(res, 300);
+      }
+    });
+  }
+  await whenReady();
+
+  /* ---------------- 파일명 구성 ---------------- */
+  function dateStr(){ const d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0"); return `${y} ${m}${dd}`; }
+  async function getAddrName(lat, lng){
+    if (!kakao?.maps?.services?.Geocoder) return "";
+    return new Promise(r=>{
+      const g = new kakao.maps.services.Geocoder();
+      g.coord2Address(lng, lat, (res, status)=>{
+        if(status===kakao.maps.services.Status.OK && res[0]?.address){
+          const a=res[0].address;
+          r(a.region_3depth_name || a.region_2depth_name || "");
+        } else r("");
+      });
+    });
+  }
+  const baseLat = pos?.lat || center?.lat || 37.5665;
+  const baseLng = pos?.lng || center?.lng || 126.9780;
+  let addrName = preAddrName || await getAddrName(baseLat, baseLng);
+  window.__ADDR_NAME__ = addrName;
+
+  /* ---------------- 1회 캡처 ---------------- */
+  const ui  = document.getElementById('ui');
+  const btn = document.getElementById('btnStart');
+
+  btn.addEventListener('click', startCapture, { once:true });
+
+  async function startCapture(){
+    try{
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'browser' }, audio: false
+      });
+      const track = stream.getVideoTracks()[0];
+
+      ui.style.display='none';
+      // 레이아웃/오버레이 안정화 약간 대기
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      await new Promise(r=>setTimeout(r, 250));
+
+      const video = document.createElement('video');
+      video.style.position='fixed'; video.style.top='-9999px';
+      document.body.appendChild(video);
+      video.srcObject = stream; await video.play();
+
+      const scale = window.devicePixelRatio || 1;
+      const w = Math.floor(window.innerWidth * scale);
+      const h = Math.floor(window.innerHeight * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+
+      const prefix   = rv ? "roadview" : "map";
+      const baseName = `${prefix}(${dateStr()}) ${addrName || "좌표"}`;
+
+      await new Promise(res => canvas.toBlob(b=>{
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = `${baseName}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+        res();
+      }, 'image/png'));
+
+      track.stop(); video.remove(); ui.style.display='';
+      btn.textContent='✅ 캡처 완료';
+    }catch(e){
+      console.error(e);
+      ui.style.display=''; btn.textContent='🚫 권한 거부/오류 — 다시 시도';
+      btn.addEventListener('click', startCapture, { once:true });
+    }
+  }
+})();
+</script>
+</body>
+</html>

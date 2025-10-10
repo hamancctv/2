@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Map Capture (1-click)",
+  "version": "1.1.4",
+  "description": "현재 탭 1클릭 자동 캡처. 지도/로드뷰 컨테이너만 크롭 후 자동 저장.",
+  "permissions": [
+    "tabs",
+    "downloads",
+    "storage",
+    "activeTab",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "https://map.kakao.com/*",
+    "https://hamancctv.github.io/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "action": {
+    "default_title": "Capture current tab"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://map.kakao.com/*",
+        "https://hamancctv.github.io/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injector.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
