@@ -1,4 +1,4 @@
-/* 숨김 토글 전용 클래스 (reflow 최소화) 이 버전 앞에꺼는 잘됐음 */
+/* 숨김 토글 전용 클래스 (reflow 최소화) */
 .sel-hidden { display: none !important; }
 
 /* 🔒 사이트 전체 차단 */
@@ -14,33 +14,106 @@ html, body, * {
   -webkit-user-drag: none !important;       /* 이미지 등 드래그 차단 */
 }
 
-  /* 캡처 중일 때 툴바·리사이저만 잠깐 숨김 (캡처 화면에 안 나오게) */
-  #mapWrapper.capturing .toolbar,
-  #mapWrapper.capturing .rv-resizer { visibility: hidden; }
+/* 캡처 중일 때 툴바·리사이저만 잠깐 숨김 */
+#mapWrapper.capturing .toolbar,
+#mapWrapper.capturing .rv-resizer { visibility: hidden; }
 
+/* === [핵심 수정] 지도 컨테이너 CSS === */
+html, body {
+    width:100%;
+    height:100%;
+    margin:0;
+    padding:0;
+    overflow:hidden;
+}
 
-html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
-
-#container {overflow:hidden;height:100%;position:relative;}
-#mapWrapper {width:100%;height:100%;z-index:1;}
+#container {
+    overflow:hidden;
+    height:100%;
+    width:100%; /* 전체 너비 추가 */
+    position:relative;
+}
+#mapWrapper {
+    width:100%;
+    height:100%;
+    z-index:1;
+    position: relative;
+}
+#map { 
+    width: 100%; /* 지도 크기 100%로 설정 */
+    height: 100%; /* 지도 크기 100%로 설정 */
+    cursor: -webkit-grab !important; 
+    cursor: grab !important;
+}
+#map:active { cursor: -webkit-grabbing !important; cursor: grabbing !important; }
+/* 거리재기 ON일 때만 십자 */
+.distance-on #map { cursor: crosshair !important; }
+/* 로드뷰 on/off에도 항상 grab 유지 */
+.view_roadview #map { cursor: -webkit-grab !important; cursor: grab !important; }
 
 /* 닫기 버튼: 사용자 요청에 따라 CSS 섹션 삭제 */
 .btn-common:hover { background: #e9ecef; }
 .btn-primary { background:#4caf50; color:#fff; border:none; }
 .btn-primary:hover { background:#43a047; }
 
+/* === [핵심 추가] 툴바 CSS (간격 포함) === */
+.toolbar {
+    position: fixed; 
+    top: 60px; 
+    left: 10px;
+    display: flex; 
+    flex-direction: column; 
+    gap: 8px; /* 툴바 버튼 간의 간격 */
+    z-index: 10;
+}
+.toolbar button {
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; line-height: 1;                
+    border: 1px solid #ccc; border-radius: 10px;
+    background: linear-gradient(180deg, #fff 0%, #f8f8f8 100%);
+    color: #333; cursor: pointer; transition: all .25s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.toolbar button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.18);
+    background: linear-gradient(180deg, #fff 0%, #f2f2f2 100%);
+}
+.toolbar button.active {
+    border-color: #007aff; color: #007aff;
+    background: linear-gradient(180deg, #eaf3ff 0%, #d7e9ff 100%);
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.15) inset, 0 3px 10px rgba(0,0,0,0.12);
+    transform: translateY(1px);
+}
+/* === 캡처 버튼 (이중 원 + 📷 이모티지) === */
+.capture-btn {
+  position: relative;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 3px solid #fff;       
+  box-sizing: border-box;
+  font-size: 22px;
+  line-height: 1;     
+  color: #fff;                  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-/* === 커서 강제 통일: setCursor() 금지 === */
-#map { cursor: -webkit-grab !important; cursor: grab !important; }
-#map:active { cursor: -webkit-grabbing !important; cursor: grabbing !important; }
-
-/* 거리재기 ON일 때만 십자 */
-.distance-on #map { cursor: crosshair !important; }
-
-/* 로드뷰 on/off에도 항상 grab 유지 */
-.view_roadview #map { cursor: -webkit-grab !important; cursor: grab !important; }
-
-/* 토스트 메시지(flash) 업그레이드 */
+.capture-btn:hover { transform: scale(1.06); }
+.capture-btn:active { transform: scale(0.94); }
+.capture-btn::after {
+  content: "";
+  position: absolute;
+  top: -4px; left: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  border-radius: 50%;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+/* === 토스트 메시지 CSS === */
 .toast-msg {
   position: fixed;
   left: 50%;
@@ -59,4 +132,53 @@ html, body {width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
 .toast-msg.show {
   opacity: 1;
   transform: translateX(-50%) translateY(4px);
+}
+
+/* --- 로그인 오버레이 스타일 --- */
+#login-overlay {
+    position: fixed; 
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    background-color: #f4f4f4; 
+    z-index: 99999; 
+}
+#login-form {
+    padding: 40px; 
+    background: white; 
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+    text-align: center;
+}
+#login-form h2 { 
+    color: #333; 
+    margin-bottom: 25px; 
+}
+#login-form input { 
+    margin-bottom: 12px; 
+    padding: 12px; 
+    border: 1px solid #ddd; 
+    width: 280px; 
+    border-radius: 6px; 
+    box-sizing: border-box; 
+}
+#login-form button { 
+    padding: 12px 30px; 
+    background: #007aff; 
+    color: white; 
+    border: none; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    font-size: 16px; 
+    font-weight: bold; 
+    transition: background-color 0.2s;
+}
+#login-form button:hover { 
+    background: #005bb5; 
+}
+#login-status { 
+    margin-top: 15px; 
+    color: #e53935; 
+    font-size: 14px; 
 }
