@@ -1,22 +1,17 @@
 // functions/_middleware.js
 
-/**
- * Cloudflare Pages Functions 미들웨어
- * 인증되지 않은 사용자의 접근을 차단하고 /login으로 리다이렉트합니다.
- */
 export async function onRequest(context) {
     const { request } = context;
     const url = new URL(request.url);
     const path = url.pathname;
 
     // 1. 인증이 필요 없는 경로 통과
-    // /auth, /login 경로 및 정적 파일을 통과시킵니다.
     if (
-        path.startsWith("/auth") || // 로그인 POST 요청 처리 경로 통과
-        path === "/login" ||       // 로그인 페이지 기본 경로 통과
-        path.startsWith("/login/") || // /login/index.html 경로 통과
-        path.endsWith(".css") ||   // CSS 파일 통과
-        path.endsWith(".js") ||    // JS 파일 통과
+        path.startsWith("/auth") || 
+        path === "/login" ||      // /login/index.html을 위한 통과
+        path.startsWith("/login/") ||
+        path.endsWith(".css") ||   
+        path.endsWith(".js") ||    
         path.endsWith(".png") ||
         path.endsWith(".jpg") ||
         path.endsWith(".ico")

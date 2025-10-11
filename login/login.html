@@ -39,7 +39,7 @@
             border: 1px solid #ccc;
             border-radius: 6px;
             font-size: 14px;
-            box-sizing: border-box; /* 패딩이 너비에 포함되도록 설정 */
+            box-sizing: border-box;
         }
         button {
             width: 100%;
@@ -98,7 +98,7 @@
                 errorAlert.textContent = message;
                 errorAlert.style.display = 'block';
                 
-                // 에러 메시지 표시 후 URL에서 쿼리 파라미터 제거 (재로딩 방지)
+                // 에러 메시지 표시 후 URL에서 쿼리 파라미터 제거
                 const newUrl = window.location.pathname;
                 history.replaceState(null, '', newUrl);
             }
