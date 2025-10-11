@@ -8,6 +8,7 @@
     "/roadview.js",
     "/drawGroupLinesMSTButton.js",
     "/btnDistance.js",
-    "/style.css"
+    "/style.css",
+    "/favicon.ico"
   ]
 }
