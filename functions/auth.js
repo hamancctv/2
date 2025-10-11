@@ -39,7 +39,7 @@ export async function onRequestPost(context) {
         return new Response(null, {
             status: 302,
             headers: {
-                "Set-Cookie": "auth=ok123; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=3600",
+                "Set-Cookie": "auth=ok123; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0",
                 "Location": "/", 
             },
         });
