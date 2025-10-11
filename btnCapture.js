@@ -4,6 +4,14 @@ console.log("[btnCapture] 로딩 (확장 전용 최소판)");
 (function () {
   const EXTENSION_NAME = "스크린샷 확장";
   const EXTENSION_STORE_URL = `chrome-extension://${chrome.runtime.id}/`;
+  try {
+  if (typeof chrome !== "undefined" && chrome.runtime?.id) {
+    EXTENSION_STORE_URL = `chrome-extension://${chrome.runtime.id}/`;
+  }
+} catch (e) {
+  console.warn("[btnCapture] chrome.runtime.id 접근 불가 (일반 페이지 모드)");
+}
+
   const HIDE_SELECTORS = [
     ".toolbar",".toolbar2",".search-wrap",".gx-suggest-search",
     ".suggest-box",".distance-box","#guide","#btnCapture"

@@ -1,0 +1,8 @@
+name = "emoji-save-api-v2"
+main = "worker.js"
+compatibility_date = "2025-10-11"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "emoji-db"
+database_id = "0eaf2917-59e2-4556-b4a7-a6cfc67a616a"

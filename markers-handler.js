@@ -28,7 +28,7 @@ window.isMarkerInteractionEnabled = true;
 
     /* ==================== 2. 상수 및 전역 변수 정의 ==================== */
     // Z-Index 상수
-    const Z = { BASE: 100, FRONT: 100000 };
+    const Z = { BASE: 100, FRONT: 200 };
 
     // 마커/오버레이 상태 변수
     let selectedMarker = null;   // 클릭하여 선택된 마커
