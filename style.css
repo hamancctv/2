@@ -1,207 +1,175 @@
 /* 숨김 토글 전용 */
 .sel-hidden {
-  display: none !important;
+  display: none !important;
 }
 
 /* 사용자 선택/드래그 차단 (PC + 모바일) */
-html,
-body,
-* {
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  user-select: none !important;
-  -webkit-touch-callout: none !important;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-user-drag: none !important;
+html, body, * {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-drag: none !important;
 }
 
 /* 캡처 중일 때 툴바·리사이저만 숨김 */
 #mapWrapper.capturing .toolbar,
 #mapWrapper.capturing .rv-resizer {
-  visibility: hidden;
+  visibility: hidden;
 }
 
 /* 지도 전체 영역 기본 */
-html,
-body {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
-
 #container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
-
 #mapWrapper {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 }
-
 #map {
-  width: 100%;
-  height: 100%;
-  cursor: -webkit-grab !important;
-  cursor: grab !important;
+  width: 100%;
+  height: 100%;
+  cursor: -webkit-grab !important;
+  cursor: grab !important;
 }
-
 #map:active {
-  cursor: -webkit-grabbing !important;
-  cursor: grabbing !important;
+  cursor: -webkit-grabbing !important;
+  cursor: grabbing !important;
 }
 
 /* 거리재기 활성 시 십자 */
 .distance-on #map {
-  cursor: crosshair !important;
+  cursor: crosshair !important;
 }
 
 /* 로드뷰 상태에서도 grab 유지 */
 .view_roadview #map {
-  cursor: -webkit-grab !important;
-  cursor: grab !important;
+  cursor: -webkit-grab !important;
+  cursor: grab !important;
 }
 
 /* 버튼 공통 */
 .btn-common:hover {
-  background: #e9ecef;
+  background: #e9ecef;
 }
-
 .btn-primary {
-  background: #4caf50;
-  color: #fff;
-  border: none;
+  background: #4caf50;
+  color: #fff;
+  border: none;
 }
-
 .btn-primary:hover {
-  background: #43a047;
+  background: #43a047;
 }
 
 /* 툴바 */
 .toolbar {
-  position: fixed;
-  top: 60px;
-  left: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 10;
+  position: fixed;
+  top: 60px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
 }
-
 .toolbar button {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  line-height: 1;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #fff 0%, #f8f8f8 100%);
-  color: #333;
-  cursor: pointer;
-  transition: all .25s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fff 0%, #f8f8f8 100%);
+  color: #333;
+  cursor: pointer;
+  transition: all .25s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
-
 .toolbar button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.18);
-  background: linear-gradient(180deg, #fff 0%, #f2f2f2 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.18);
+  background: linear-gradient(180deg, #fff 0%, #f2f2f2 100%);
 }
-
 .toolbar button.active {
-  border-color: #007aff;
-  color: #007aff;
-  background: linear-gradient(180deg, #eaf3ff 0%, #d7e9ff 100%);
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15) inset, 0 3px 10px rgba(0, 0, 0, 0.12);
-  transform: translateY(1px);
+  border-color: #007aff;
+  color: #007aff;
+  background: linear-gradient(180deg, #eaf3ff 0%, #d7e9ff 100%);
+  box-shadow: 0 0 0 3px rgba(0,122,255,0.15) inset, 0 3px 10px rgba(0,0,0,0.12);
+  transform: translateY(1px);
 }
 
-/* 캡처 버튼 (이중원 + 📷 아이콘) */
-.capture-btn {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 3px solid #fff;
-  box-sizing: border-box;
-  font-size: 22px;
-  line-height: 1;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at 30% 30%, #007aff 0%, #0055b0 80%);
+/* --- [수정] 캡처 버튼: 툴바에 포함되도록 재정의 --- /
+/ (1) 버튼 본체의 배경/테두리 스타일만 유지하고, 크기/위치는 .toolbar button을 따릅니다. /
+.toolbar .capture-btn {
+/ 툴바 버튼의 크기/위치/그림자/hover 효과를 모두 상속받습니다. /
+/ 카메라 버튼만의 독특한 스타일 (파란색 배경)을 덮어씌웁니다. /
+border: 1px solid transparent; / 기본 버튼의 테두리 사용하지 않음 /
+color: #fff; / 아이콘 색상 흰색 /
+background: radial-gradient(circle at 30% 30%, #007aff 0%, #0055b0 80%);
 }
-
-.capture-btn:hover {
-  transform: scale(1.06);
+/ (2) hover 시 효과를 약간 조정하여 통일성을 부여합니다. /
+.toolbar .capture-btn:hover {
+background: radial-gradient(circle at 30% 30%, #0088ff 0%, #0066c0 80%);
 }
-
-.capture-btn:active {
-  transform: scale(0.94);
-}
-
+/ (3) 문제가 되었던 ::after (흰색 아우터 원)를 제거합니다. /
 .capture-btn::after {
-  content: "";
-  position: absolute;
-  top: -4px;
-  left: -4px;
-  width: calc(100% + 8px);
-  height: calc(100% + 8px);
-  border-radius: 50%;
-  box-sizing: border-box;
-  pointer-events: none;
-  border: 2px solid rgba(255, 255, 255, 0.4);
+  content: none; / 가상 요소를 아예 비활성화 /
 }
+/ ------------------------------------------------ */
 
 /* 토스트 메시지 */
 .toast-msg {
-  position: fixed;
-  left: 50%;
-  top: 14px;
-  transform: translateX(-50%);
-  background: rgba(20, 20, 20, 0.9);
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  z-index: 9999;
-  opacity: 0;
-  transition: opacity .3s, transform .3s;
+  position: fixed;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  background: rgba(20, 20, 20, 0.9);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity .3s, transform .3s;
 }
-
 .toast-msg.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(4px);
+  opacity: 1;
+  transform: translateX(-50%) translateY(4px);
 }
 
 /* 로드뷰 미니맵 */
 .view_roadview #mapWrapper {
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
-  width: 26%;
-  height: 26%;
-  min-width: 200px;
-  min-height: 150px;
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  background: #fff;
-  z-index: 2;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  width: 26%;
+  height: 26%;
+  min-width: 200px;
+  min-height: 150px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  z-index: 2;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .view_roadview #rvWrapper {
-  display: block;
-  z-index: 1;
+  display: block;
+  z-index: 1;
 }
