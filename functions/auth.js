@@ -32,8 +32,8 @@ export async function onRequestPost(context) {
     // (A) 환경변수 값이 일치하거나,
     // (B) 만능 테스트 값이 일치하면 로그인 성공
     if (
-        (id === adminId && pw === admin) || 
-        (id === testId && pw === admin)    // <-- 만능 테스트 로직 추가
+        (id === adminId && pw === adminId) || 
+        (id === testId && pw === testPw)    // <-- 만능 테스트 로직 추가
     ) {
         // 로그인 성공: 인증 쿠키 설정 후 메인 페이지로 리다이렉트
         return new Response(null, {
