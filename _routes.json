@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "include": ["/*"],
+  "exclude": [
+    "/btnCoordinate.js",
+    "/btnCapture.js",
+    "/markers-handler.js",
+    "/roadview.js",
+    "/drawGroupLinesMSTButton.js",
+    "/btnDistance.js",
+    "/style.css"
+  ]
+}
