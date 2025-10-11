@@ -4,8 +4,8 @@ console.log("[btnCoordinate] loaded");
 const API_BASE = "https://emoji-save-api-v2.tmxkwkd.workers.dev";
 
 (function () {
-  const btn = document.getElementById("btncoordinate");
-  if (!btn) return console.warn("[btnCoordinate] #btncoordinate not found");
+  const btn = document.getElementById("btnCoordinate");
+  if (!btn) return console.warn("[btnCoordinate] #btnCoordinate not found");
 
   /* =========================
       1️⃣ CSS (1회 주입)
