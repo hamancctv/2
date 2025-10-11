@@ -11,7 +11,7 @@ console.log("[btnCapture] 로딩 (확장 전용 최소판)");
 } catch (e) {
   console.warn("[btnCapture] chrome.runtime.id 접근 불가 (일반 페이지 모드)");
 }
-
+ 
   const HIDE_SELECTORS = [
     ".toolbar",".toolbar2",".search-wrap",".gx-suggest-search",
     ".suggest-box",".distance-box","#guide","#btnCapture"
