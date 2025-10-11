@@ -1,70 +1,108 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <title>로그인 - 함안 CCTV GIS</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      font-family: 'Noto Sans KR', sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: linear-gradient(135deg, #f0f3f9 0%, #e6ecf5 100%);
-    }
-    form {
-      background: #fff;
-      padding: 32px 28px;
-      border-radius: 14px;
-      box-shadow: 0 4px 18px rgba(0,0,0,0.08);
-      width: 320px;
-      animation: fadeIn .4s ease;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #222;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0 14px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      background: #007aff;
-      color: white;
-      font-size: 15px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background .2s;
-    }
-    button:hover { background: #005edb; }
-    p.msg {
-      text-align: center;
-      font-size: 13px;
-      color: #555;
-      margin-top: 12px;
-    }
-  </style>
+    <meta charset="utf-8">
+    <title>로그인 - 함안 CCTV GIS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #f0f3f9 0%, #e6ecf5 100%);
+            margin: 0;
+        }
+        form {
+            background: #fff;
+            padding: 32px 28px;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+            width: 320px;
+            animation: fadeIn .4s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #222;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box; /* 패딩이 너비에 포함되도록 설정 */
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            background: #007aff;
+            color: white;
+            font-size: 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        button:hover { background: #005edb; }
+        p.msg {
+            text-align: center;
+            font-size: 13px;
+            color: #555;
+            margin-top: 12px;
+        }
+        .error-message {
+            color: #d93025;
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+    </style>
 </head>
 <body>
-  <form method="POST" action="/auth">
-    <h2>GIS 로그인</h2>
-    <input type="text" name="id" placeholder="아이디" required />
-    <input type="password" name="pw" placeholder="비밀번호" required />
-    <button type="submit">로그인</button>
-    <p class="msg">권한이 없으면 접근할 수 없습니다.</p>
-  </form>
+    <form method="POST" action="/auth">
+        <h2>함안 CCTV GIS 로그인</h2>
+        <div id="error-alert" class="error-message" style="display: none;"></div>
+        
+        <input type="text" name="id" placeholder="아이디" required />
+        <input type="password" name="pw" placeholder="비밀번호" required />
+        
+        <button type="submit">로그인</button>
+        
+        <p class="msg">권한이 없으면 접근할 수 없습니다.</p>
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const errorType = urlParams.get('error');
+            const errorAlert = document.getElementById('error-alert');
+            let message = '';
+
+            if (errorType === 'fail') {
+                message = '아이디 또는 비밀번호가 일치하지 않습니다.';
+            } else if (errorType === 'missing') {
+                message = '아이디와 비밀번호를 모두 입력해주세요.';
+            }
+
+            if (message) {
+                errorAlert.textContent = message;
+                errorAlert.style.display = 'block';
+                
+                // 에러 메시지 표시 후 URL에서 쿼리 파라미터 제거 (재로딩 방지)
+                const newUrl = window.location.pathname;
+                history.replaceState(null, '', newUrl);
+            }
+        });
+    </script>
 </body>
 </html>
