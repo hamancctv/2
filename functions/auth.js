@@ -1,4 +1,4 @@
-// functions/auth.js (테스트용 로직 추가)
+// functions/auth.js (오타 수정 및 테스트 로직 포함)
 
 export async function onRequestPost(context) {
     const url = new URL(context.request.url);
@@ -28,14 +28,12 @@ export async function onRequestPost(context) {
     console.log(`ID 일치 여부: ${id === adminId}`);
     console.log("-----------------------");
 
-    // 5. **** 인증 검사 로직 수정 ****
-    // (A) 환경변수 값이 일치하거나,
-    // (B) 만능 테스트 값이 일치하면 로그인 성공
+    // 5. **** 인증 검사 로직 (수정 완료) ****
     if (
-        (id === adminId && pw === adminId) || 
-        (id === testId && pw === testPw)    // <-- 만능 테스트 로직 추가
+        (id === adminId && pw === adminPw) ||  // <-- **여기! pw === adminPw로 수정했습니다.**
+        (id === testId && pw === testPw)     
     ) {
-        // 로그인 성공: 인증 쿠키 설정 후 메인 페이지로 리다이렉트
+        // 로그인 성공: 인증 쿠키 설정 후 메인 페이지로 리다이렉트 (Max-Age=0 유지)
         return new Response(null, {
             status: 302,
             headers: {
