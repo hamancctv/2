@@ -18,8 +18,8 @@ export async function onRequestPost(context) {
     const adminPw = env.ADMIN_PW || "";
     
     // 3. **** 테스트용 만능 ID/PW 설정 ****
-    const testId = "master"; 
-    const testPw = "master1234"; 
+    const testId = "ad"; 
+    const testPw = "ad"; 
     
     // 4. 디버깅 로그 (기존 유지)
     console.log("--- 로그인 디버그 정보 ---");
