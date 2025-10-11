@@ -44,11 +44,7 @@
       position:absolute; left:8px; bottom:8px; width:26%; height:26%; min-width:200px; min-height:150px;
       border:2px solid #ccc; border-radius:8px; background:#fff; z-index:2; box-shadow:0 8px 24px rgba(0,0,0,.2);
     }
-    .view_roadview #mapWrapper .rv-resizer {
-      position:absolute; right:0; top:0; width:20px; height:20px;
-      background:linear-gradient(225deg,#f4f4f4 0%,#f4f4f4 49.9%, transparent 50%);
-      cursor:nesw-resize; opacity:.75; display:block; z-index:9999;
-    }
+
   </style>
 </head>
 
@@ -66,7 +62,6 @@
         <button id="btnCapture" class="capture-btn" title="지도 캡처">📷</button>
       </div>
 
-      <div class="rv-resizer" aria-hidden="true"></div>
     </div>
 
     <div id="rvWrapper"><div id="roadview"></div></div>
