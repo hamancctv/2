@@ -14,6 +14,7 @@
     "<all_urls>",
     "https://map.kakao.com/*",
     "https://hamancctv.github.io/*",
+    "https://hamancctv.pages.dev/*",  // <-- 이 부분을 추가
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
@@ -28,6 +29,7 @@
       "matches": [
         "https://map.kakao.com/*",
         "https://hamancctv.github.io/*",
+        "https://hamancctv.pages.dev/*",  // <-- 이 부분을 추가
         "http://localhost/*",
         "http://127.0.0.1/*"
       ],
