@@ -4,7 +4,9 @@
 }
 
 /* 사용자 선택/드래그 차단 (PC + 모바일) */
-html, body, * {
+html,
+body,
+* {
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
@@ -21,31 +23,36 @@ html, body, * {
 }
 
 /* 지도 전체 영역 기본 */
-html, body {
+html,
+body {
   width: 100%;
   height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
 }
+
 #container {
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
 }
+
 #mapWrapper {
   position: relative;
   width: 100%;
   height: 100%;
   z-index: 1;
 }
+
 #map {
   width: 100%;
   height: 100%;
   cursor: -webkit-grab !important;
   cursor: grab !important;
 }
+
 #map:active {
   cursor: -webkit-grabbing !important;
   cursor: grabbing !important;
@@ -66,11 +73,13 @@ html, body {
 .btn-common:hover {
   background: #e9ecef;
 }
+
 .btn-primary {
   background: #4caf50;
   color: #fff;
   border: none;
 }
+
 .btn-primary:hover {
   background: #43a047;
 }
@@ -85,6 +94,7 @@ html, body {
   gap: 8px;
   z-index: 10;
 }
+
 .toolbar button {
   width: 42px;
   height: 42px;
@@ -101,16 +111,18 @@ html, body {
   transition: all .25s ease;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
+
 .toolbar button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.18);
   background: linear-gradient(180deg, #fff 0%, #f2f2f2 100%);
 }
+
 .toolbar button.active {
   border-color: #007aff;
   color: #007aff;
   background: linear-gradient(180deg, #eaf3ff 0%, #d7e9ff 100%);
-  box-shadow: 0 0 0 3px rgba(0,122,255,0.15) inset, 0 3px 10px rgba(0,0,0,0.12);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15) inset, 0 3px 10px rgba(0, 0, 0, 0.12);
   transform: translateY(1px);
 }
 
@@ -130,12 +142,15 @@ html, body {
   justify-content: center;
   background: radial-gradient(circle at 30% 30%, #007aff 0%, #0055b0 80%);
 }
+
 .capture-btn:hover {
   transform: scale(1.06);
 }
+
 .capture-btn:active {
   transform: scale(0.94);
 }
+
 .capture-btn::after {
   content: "";
   position: absolute;
@@ -146,20 +161,7 @@ html, body {
   border-radius: 50%;
   box-sizing: border-box;
   pointer-events: none;
-  border: 2px solid rgba(255,255,255,0.4);
-}
-
-/* 미니맵 리사이저 */
-.rv-resizer {
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 20px;
-  height: 20px;
-  background: linear-gradient(225deg, #f4f4f4 0%, #f4f4f4 49.9%, transparent 50%);
-  cursor: nesw-resize;
-  opacity: .75;
-  z-index: 9999;
+  border: 2px solid rgba(255, 255, 255, 0.4);
 }
 
 /* 토스트 메시지 */
@@ -177,6 +179,7 @@ html, body {
   opacity: 0;
   transition: opacity .3s, transform .3s;
 }
+
 .toast-msg.show {
   opacity: 1;
   transform: translateX(-50%) translateY(4px);
@@ -195,8 +198,9 @@ html, body {
   border-radius: 8px;
   background: #fff;
   z-index: 2;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
+
 .view_roadview #rvWrapper {
   display: block;
   z-index: 1;
